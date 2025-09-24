@@ -122,15 +122,16 @@ class GoMasterApp:
         # 主题管理
         self.theme_manager = ThemeManager(config.display.theme)
         
-        # 动画管理
-        self.animation_manager = AnimationManager(
-            enabled=config.display.animation_enabled,
-            speed=config.display.animation_speed
-        )
+        # 注意：删除了这里的 AnimationManager 创建代码
+        # AnimationManager 会在 BoardCanvas 中创建，因为它需要 canvas 对象
+        # 我们可以保存动画配置，稍后传递给 BoardCanvas
+        self.animation_config = {
+            'enabled': config.display.animation_enabled,
+            'speed': config.display.animation_speed
+        }
         
         # 定式数据库
         self.joseki_db = JosekiDatabase()
-        self.joseki_db.load_default_joseki()
     
     def _setup_window(self):
         """设置主窗口"""

@@ -307,11 +307,30 @@ class JosekiDatabase:
         
         # 保存到数据库
         cursor = self.connection.cursor()
+        
+        # 创建一个可序列化的字典
+        def make_serializable(obj):
+            """递归转换对象为可序列化格式"""
+            if isinstance(obj, Enum):
+                return obj.value
+            elif isinstance(obj, dict):
+                return {k: make_serializable(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [make_serializable(item) for item in obj]
+            elif isinstance(obj, (JosekiMove, JosekiSequence)):
+                # 对于 dataclass，先转换为字典再递归处理
+                return make_serializable(asdict(obj))
+            else:
+                return obj
+        
+        # 序列化定式数据
+        serializable_data = make_serializable(joseki)
+        json_data = json.dumps(serializable_data)
+        
         cursor.execute("""
             INSERT OR REPLACE INTO joseki (name, type, data, popularity)
             VALUES (?, ?, ?, ?)
-        """, (joseki.name, joseki.type.value, 
-              json.dumps(asdict(joseki)), joseki.popularity))
+        """, (joseki.name, joseki.type.value, json_data, joseki.popularity))
         
         self.connection.commit()
     
