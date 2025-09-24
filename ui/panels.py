@@ -67,7 +67,11 @@ class BasePanel(ttk.Frame):
 class InfoPanel(BasePanel):
     """信息显示面板"""
     
-    def __init__(self, parent, **kwargs):
+    def __init__(self, parent, on_settings_click=None, **kwargs):
+        # 先提取出自定义参数，避免传递给父类
+        self.on_settings_click = on_settings_click
+        
+        # 只传递有效的 kwargs 给父类
         super().__init__(parent, **kwargs)
         
         self._create_widgets()
@@ -221,10 +225,31 @@ class InfoPanel(BasePanel):
 class ControlPanel(BasePanel):
     """控制面板"""
     
-    def __init__(self, parent, **kwargs):
+    def __init__(self, parent, 
+                 on_pass=None,
+                 on_resign=None,
+                 on_undo=None,
+                 on_redo=None,
+                 on_hint=None,
+                 on_analyze=None,
+                 on_score=None,
+                 on_pause=None,
+                 **kwargs):
+        # 保存回调函数
+        self.callbacks = {
+            'pass': on_pass,
+            'resign': on_resign,
+            'undo': on_undo,
+            'redo': on_redo,
+            'hint': on_hint,
+            'analyze': on_analyze,
+            'score': on_score,
+            'pause': on_pause
+        }
+        
+        # 只传递有效的 kwargs 给父类
         super().__init__(parent, **kwargs)
         
-        self.callbacks: Dict[str, Callable] = {}
         self._create_widgets()
         self._update_texts()
     
@@ -322,9 +347,10 @@ class ControlPanel(BasePanel):
         self.show_influence_var.trace('w',
             lambda *args: self._callback('show_influence', self.show_influence_var.get()))
     
+    # 修改 _callback 方法来使用已保存的回调
     def _callback(self, name: str, *args):
         """执行回调"""
-        if name in self.callbacks:
+        if name in self.callbacks and self.callbacks[name]:
             self.callbacks[name](*args)
     
     def _update_texts(self):

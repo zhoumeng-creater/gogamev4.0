@@ -119,15 +119,20 @@ class GoMasterApp:
         # 存储管理
         self.storage_manager = StorageManager(self.config_manager)
         
-        # 主题管理
-        self.theme_manager = ThemeManager(config.display.theme)
+        # 主题管理 - 修正初始化方式
+        themes_dir = os.path.join(os.path.dirname(__file__), 'themes')  # 可选的主题目录
+        self.theme_manager = ThemeManager(themes_dir=themes_dir if os.path.exists(themes_dir) else None)
+        
+        # 设置当前主题
+        theme_name = config.display.theme if hasattr(config.display, 'theme') else 'classic'
+        self.theme_manager.set_current_theme(theme_name)
         
         # 注意：删除了这里的 AnimationManager 创建代码
         # AnimationManager 会在 BoardCanvas 中创建，因为它需要 canvas 对象
         # 我们可以保存动画配置，稍后传递给 BoardCanvas
         self.animation_config = {
-            'enabled': config.display.animation_enabled,
-            'speed': config.display.animation_speed
+            'enabled': config.display.animation_enabled if hasattr(config.display, 'animation_enabled') else True,
+            'speed': config.display.animation_speed if hasattr(config.display, 'animation_speed') else 1.0
         }
         
         # 定式数据库
@@ -203,15 +208,20 @@ class GoMasterApp:
         center_frame = ttk.Frame(paned)
         paned.add(center_frame, weight=3)
         
+        # 获取当前主题
+        current_theme = self.theme_manager.get_current_theme()
+
         # 棋盘画布
         self.board_canvas = BoardCanvas(
             center_frame,
             board_size=19,
-            theme_manager=self.theme_manager,
-            animation_manager=self.animation_manager,
-            on_click=self.on_board_click,
-            on_hover=self.on_board_hover
+            theme=current_theme,
+            show_coordinates=self.config_manager.get('display.show_coordinates', True),
         )
+
+        self.board_canvas.on_click = self.on_board_click
+        self.board_canvas.on_hover = self.on_board_hover
+        
         self.board_canvas.pack(fill=tk.BOTH, expand=True)
         
         # 右侧面板（可选，用于额外功能）
@@ -219,7 +229,13 @@ class GoMasterApp:
             right_frame = ttk.Frame(paned)
             paned.add(right_frame, weight=1)
             # TODO: 添加游戏树、变化图等
-    
+        
+        # 配置动画管理器（BoardCanvas 内部已创建）
+        if hasattr(self, 'animation_config') and hasattr(self.board_canvas, 'animation_manager'):
+            am = self.board_canvas.animation_manager
+            am.enable_animations = self.animation_config.get('enabled', True)
+            am.animation_speed = self.animation_config.get('speed', 1.0)
+
     def _create_menu(self):
         """创建菜单栏"""
         menubar = tk.Menu(self.root)

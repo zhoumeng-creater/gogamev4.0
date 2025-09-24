@@ -99,9 +99,17 @@ class BaseDialog(tk.Toplevel):
 class NewGameDialog(BaseDialog):
     """新游戏对话框"""
     
-    def __init__(self, parent, **kwargs):
-        super().__init__(parent, title=kwargs.get('translator', Translator()).get('new_game'), **kwargs)
-    
+    def __init__(self, parent,  config=None, **kwargs):
+        self.config = config or {}
+        
+        # 过滤掉 config，只传递 BaseDialog 需要的参数给父类
+        # 注意这里不再将 config 包含在 kwargs 中
+        super().__init__(parent, 
+                        title=kwargs.get('translator', Translator()).get('new_game'),
+                        translator=kwargs.get('translator'),
+                        theme=kwargs.get('theme'),
+                        modal=kwargs.get('modal', True))    
+        
     def _create_widgets(self):
         """创建控件"""
         # 主框架
