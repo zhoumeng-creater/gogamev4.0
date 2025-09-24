@@ -1,0 +1,14 @@
+{
+  "new_game": "Ctrl+N",
+  "save_game": "Ctrl+S",
+  "load_game": "Ctrl+O",
+  "undo": "Ctrl+Z",
+  "redo": "Ctrl+Y",
+  "pass": "P",
+  "resign": "R",
+  "analyze": "A",
+  "toggle_coordinates": "C",
+  "toggle_move_numbers": "N",
+  "settings": "Ctrl+,",
+  "quit": "Ctrl+Q"
+}

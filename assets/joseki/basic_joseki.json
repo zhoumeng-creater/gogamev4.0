@@ -1,0 +1,31 @@
+{
+  "corner_patterns": [
+    {
+      "name": "三三定式",
+      "moves": "B[cc];W[dc];B[cd];W[de];B[db];W[eb];B[cb];W[ec];B[be]",
+      "description": "基本的三三侵入定式"
+    },
+    {
+      "name": "小目定式",
+      "moves": "B[cd];W[ed];B[ec];W[fc];B[dc];W[fd];B[dd];W[de];B[ce]",
+      "description": "小目的基本定式"
+    },
+    {
+      "name": "星位定式",
+      "moves": "B[dd];W[cc];B[cd];W[dc];B[ed];W[bd];B[be];W[bc];B[ce]",
+      "description": "星位点三三侵入"
+    }
+  ],
+  "opening_patterns": [
+    {
+      "name": "中国流",
+      "initial_moves": "B[pd];W[dd];B[pq];W[dp];B[qk]",
+      "description": "中国流布局"
+    },
+    {
+      "name": "小林流",
+      "initial_moves": "B[pd];W[dd];B[pq];W[dp];B[cn];W[fp];B[qk]",
+      "description": "小林流布局"
+    }
+  ]
+}

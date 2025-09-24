@@ -1,0 +1,27 @@
+# Core dependencies
+numpy>=1.21.0
+pygame>=2.0.1
+
+# Optional dependencies for additional features
+# Uncomment if needed:
+
+# For cloud storage support
+# google-api-python-client>=2.0.0
+# google-auth>=2.0.0
+# dropbox>=11.0.0
+# msal>=1.0.0
+# msgraph-core>=1.0.0
+
+# For advanced AI features (neural networks)
+# tensorflow>=2.8.0
+# torch>=1.10.0
+
+# For development and testing
+# pytest>=7.0.0
+# pytest-cov>=3.0.0
+# black>=22.0.0
+# flake8>=4.0.0
+# mypy>=0.950
+
+# For building executable
+# pyinstaller>=5.0

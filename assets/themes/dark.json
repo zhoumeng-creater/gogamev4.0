@@ -1,0 +1,32 @@
+{
+  "name": "Dark",
+  "board": {
+    "background": "#2C2C2C",
+    "grid_color": "#505050",
+    "star_point_color": "#888888",
+    "coordinate_color": "#AAAAAA"
+  },
+  "stones": {
+    "black": "#0A0A0A",
+    "white": "#E0E0E0",
+    "black_border": "#000000",
+    "white_border": "#FFFFFF",
+    "shadow": true,
+    "gradient": true
+  },
+  "markers": {
+    "last_move": "#FF5722",
+    "territory_black": "rgba(10, 10, 10, 0.4)",
+    "territory_white": "rgba(224, 224, 224, 0.4)",
+    "hover": "rgba(255, 87, 34, 0.3)"
+  },
+  "ui": {
+    "background": "#1E1E1E",
+    "panel_bg": "#252525",
+    "text_primary": "#E0E0E0",
+    "text_secondary": "#B0B0B0",
+    "button_bg": "#424242",
+    "button_hover": "#616161",
+    "button_text": "#FFFFFF"
+  }
+}

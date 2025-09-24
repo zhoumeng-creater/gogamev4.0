@@ -1,0 +1,32 @@
+{
+  "name": "Wood Classic",
+  "board": {
+    "background": "#F4D0A4",
+    "grid_color": "#8B4513",
+    "star_point_color": "#000000",
+    "coordinate_color": "#4A4A4A"
+  },
+  "stones": {
+    "black": "#000000",
+    "white": "#FFFFFF",
+    "black_border": "#333333",
+    "white_border": "#CCCCCC",
+    "shadow": true,
+    "gradient": true
+  },
+  "markers": {
+    "last_move": "#FF0000",
+    "territory_black": "rgba(0, 0, 0, 0.3)",
+    "territory_white": "rgba(255, 255, 255, 0.3)",
+    "hover": "rgba(100, 100, 100, 0.3)"
+  },
+  "ui": {
+    "background": "#F5F5DC",
+    "panel_bg": "#E8DCC0",
+    "text_primary": "#2C2C2C",
+    "text_secondary": "#666666",
+    "button_bg": "#D4A574",
+    "button_hover": "#C19656",
+    "button_text": "#FFFFFF"
+  }
+}

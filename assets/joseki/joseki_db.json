@@ -1,0 +1,161 @@
+{
+  "joseki_sequences": [
+    {
+      "name": "3-3点入侵",
+      "category": "corner",
+      "difficulty": "basic",
+      "moves": [
+        {"x": 2, "y": 2, "color": "black"},
+        {"x": 3, "y": 3, "color": "white"},
+        {"x": 3, "y": 2, "color": "black"},
+        {"x": 2, "y": 3, "color": "white"},
+        {"x": 4, "y": 2, "color": "black"},
+        {"x": 4, "y": 3, "color": "white"},
+        {"x": 5, "y": 2, "color": "black"}
+      ],
+      "result": "equal",
+      "description": "基础的3-3点入侵定式，双方均势"
+    },
+    {
+      "name": "星位小飞挂",
+      "category": "corner",
+      "difficulty": "basic",
+      "moves": [
+        {"x": 3, "y": 3, "color": "black"},
+        {"x": 2, "y": 5, "color": "white"},
+        {"x": 2, "y": 2, "color": "black"},
+        {"x": 4, "y": 2, "color": "white"},
+        {"x": 5, "y": 3, "color": "black"}
+      ],
+      "result": "equal",
+      "description": "星位小飞挂角的基本应对"
+    },
+    {
+      "name": "小目一间高挂",
+      "category": "corner",
+      "difficulty": "intermediate",
+      "moves": [
+        {"x": 3, "y": 2, "color": "black"},
+        {"x": 2, "y": 4, "color": "white"},
+        {"x": 4, "y": 4, "color": "black"},
+        {"x": 1, "y": 2, "color": "white"},
+        {"x": 1, "y": 3, "color": "black"},
+        {"x": 2, "y": 2, "color": "white"}
+      ],
+      "result": "equal",
+      "description": "小目一间高挂的常见变化"
+    },
+    {
+      "name": "中国流布局",
+      "category": "opening",
+      "difficulty": "intermediate",
+      "moves": [
+        {"x": 3, "y": 3, "color": "black"},
+        {"x": 15, "y": 3, "color": "black"},
+        {"x": 9, "y": 2, "color": "black"}
+      ],
+      "result": "favorable_black",
+      "description": "中国流开局，黑棋构筑大模样"
+    },
+    {
+      "name": "三连星布局",
+      "category": "opening",
+      "difficulty": "basic",
+      "moves": [
+        {"x": 3, "y": 3, "color": "black"},
+        {"x": 9, "y": 3, "color": "black"},
+        {"x": 15, "y": 3, "color": "black"}
+      ],
+      "result": "favorable_black",
+      "description": "三连星布局，重视中央势力"
+    },
+    {
+      "name": "小林流布局",
+      "category": "opening",
+      "difficulty": "advanced",
+      "moves": [
+        {"x": 3, "y": 2, "color": "black"},
+        {"x": 15, "y": 3, "color": "black"},
+        {"x": 9, "y": 2, "color": "black"}
+      ],
+      "result": "equal",
+      "description": "小林流布局，平衡实地与外势"
+    },
+    {
+      "name": "雪崩定式",
+      "category": "corner",
+      "difficulty": "advanced",
+      "moves": [
+        {"x": 2, "y": 3, "color": "black"},
+        {"x": 3, "y": 2, "color": "white"},
+        {"x": 3, "y": 3, "color": "black"},
+        {"x": 2, "y": 2, "color": "white"},
+        {"x": 4, "y": 3, "color": "black"},
+        {"x": 1, "y": 2, "color": "white"},
+        {"x": 4, "y": 2, "color": "black"},
+        {"x": 1, "y": 3, "color": "white"}
+      ],
+      "result": "complex",
+      "description": "复杂的雪崩定式，需要精确计算"
+    },
+    {
+      "name": "大斜定式",
+      "category": "corner",
+      "difficulty": "advanced",
+      "moves": [
+        {"x": 2, "y": 3, "color": "black"},
+        {"x": 4, "y": 2, "color": "white"},
+        {"x": 4, "y": 4, "color": "black"},
+        {"x": 3, "y": 3, "color": "white"},
+        {"x": 5, "y": 3, "color": "black"},
+        {"x": 5, "y": 2, "color": "white"}
+      ],
+      "result": "complex",
+      "description": "大斜定式的基本型"
+    },
+    {
+      "name": "双飞燕定式",
+      "category": "side",
+      "difficulty": "intermediate",
+      "moves": [
+        {"x": 3, "y": 2, "color": "black"},
+        {"x": 5, "y": 3, "color": "black"},
+        {"x": 3, "y": 4, "color": "black"}
+      ],
+      "result": "favorable_black",
+      "description": "双飞燕阵型，强调外势"
+    },
+    {
+      "name": "镇神头",
+      "category": "fighting",
+      "difficulty": "advanced",
+      "moves": [
+        {"x": 9, "y": 9, "color": "black"},
+        {"x": 8, "y": 8, "color": "white"},
+        {"x": 8, "y": 9, "color": "black"},
+        {"x": 9, "y": 8, "color": "white"},
+        {"x": 7, "y": 9, "color": "black"}
+      ],
+      "result": "fighting",
+      "description": "镇神头战术，用于攻击"
+    }
+  ],
+  "categories": {
+    "corner": "角部定式",
+    "side": "边部定式",
+    "opening": "布局定式",
+    "fighting": "战斗定式"
+  },
+  "difficulty_levels": {
+    "basic": "基础",
+    "intermediate": "中级",
+    "advanced": "高级"
+  },
+  "results": {
+    "equal": "均势",
+    "favorable_black": "黑优",
+    "favorable_white": "白优",
+    "complex": "复杂",
+    "fighting": "战斗"
+  }
+}
