@@ -127,8 +127,9 @@ class BoardRenderer:
             
             # 创建半透明版本（用于预览）
             preview_img = img.copy()
-            # 调整透明度
-            preview_img.putalpha(128)
+            # 调整透明度，仅降低已有非透明区域的不透明度
+            alpha_channel = preview_img.getchannel('A').point(lambda value: value // 2)
+            preview_img.putalpha(alpha_channel)
             self.stone_images[f'{color}_preview'] = ImageTk.PhotoImage(preview_img)
     
     def draw_board(self):

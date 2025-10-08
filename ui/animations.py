@@ -153,28 +153,47 @@ class StoneAnimation(Animation):
             cell_size: 格子大小
             margin: 边距
         """
-        super().__init__(type=AnimationType.PLACE_STONE, **kwargs)
+        # 提取或设置默认值
+        duration = kwargs.pop('duration', 0.3)  # 默认0.3秒
+        on_complete = kwargs.pop('on_complete', None)
         
+        # 计算中心位置
+        cx = margin + x * cell_size
+        cy = margin + y * cell_size
+        
+        # 创建临时棋子作为 target
+        temp_stone = canvas.create_oval(
+            cx - 1, cy - 1, cx + 1, cy + 1,
+            fill=color, state='hidden'
+        )
+        
+        # 调用父类构造函数，传递所有必需参数
+        super().__init__(
+            type=AnimationType.PLACE_STONE,
+            target=temp_stone,
+            duration=duration
+        )
+        
+        # 保存其他属性
         self.canvas = canvas
         self.x = x
         self.y = y
         self.color = color
         self.cell_size = cell_size
         self.margin = margin
-        
-        # 计算位置
-        self.cx = margin + x * cell_size
-        self.cy = margin + y * cell_size
+        self.cx = cx
+        self.cy = cy
+        self.temp_stone = temp_stone
         
         # 设置动画参数
-        self.duration = 0.3
-        self.start_value = 0.0  # 初始大小比例
-        self.end_value = 1.0    # 最终大小比例
-        self.easing = EasingFunction.BACK
+        self.start_value = 0
+        self.end_value = cell_size * 0.45
+        self.easing = EasingFunction.BOUNCE
+        self.on_complete = on_complete
+        self.on_update = self._update_stone
         
-        # 创建临时棋子
-        self.temp_stone = None
-        self._create_temp_stone()
+        # 开始动画
+        self.canvas.itemconfig(self.temp_stone, state='normal')
     
     def _create_temp_stone(self):
         """创建临时棋子用于动画"""
@@ -256,23 +275,31 @@ class CaptureAnimation(Animation):
             canvas: 画布
             stone_id: 棋子ID
         """
-        super().__init__(type=AnimationType.CAPTURE_STONE, **kwargs)
+        # 提取或设置默认值
+        duration = kwargs.pop('duration', 0.4)
+        on_complete = kwargs.pop('on_complete', None)
+        
+        # 调用父类构造函数
+        super().__init__(
+            type=AnimationType.CAPTURE_STONE,
+            target=stone_id,
+            duration=duration
+        )
         
         self.canvas = canvas
         self.stone_id = stone_id
         
         # 设置动画参数
-        self.duration = 0.4
-        self.start_value = 1.0  # 初始透明度/大小
-        self.end_value = 0.0    # 最终透明度/大小
+        self.start_value = 1.0
+        self.end_value = 0.0
         self.easing = EasingFunction.EASE_OUT
         
         # 保存原始位置
         self.original_coords = canvas.coords(stone_id)
         
-        # 设置更新回调
+        # 设置回调
         self.on_update = self._update_capture
-        self.on_complete = self._complete_capture
+        self.on_complete = self._complete_capture or on_complete
     
     def _update_capture(self, value: float):
         """更新吃子效果"""
@@ -319,7 +346,22 @@ class RippleAnimation(Animation):
             x, y: 中心位置
             max_radius: 最大半径
         """
-        super().__init__(type=AnimationType.RIPPLE, **kwargs)
+        # 提取或设置默认值
+        duration = kwargs.pop('duration', 0.5)
+        on_complete = kwargs.pop('on_complete', None)
+        
+        # 创建第一个涟漪圆圈作为 target
+        ripple = canvas.create_oval(
+            x - 1, y - 1, x + 1, y + 1,
+            outline='#4080ff', width=2, state='hidden'
+        )
+        
+        # 调用父类构造函数
+        super().__init__(
+            type=AnimationType.RIPPLE,
+            target=ripple,
+            duration=duration
+        )
         
         self.canvas = canvas
         self.center_x = x
@@ -327,18 +369,17 @@ class RippleAnimation(Animation):
         self.max_radius = max_radius
         
         # 设置动画参数
-        self.duration = 0.5
         self.start_value = 0
         self.end_value = max_radius
         self.easing = EasingFunction.EASE_OUT
         
         # 创建涟漪圆圈
-        self.ripple_ids = []
-        self._create_ripples()
+        self.ripple_ids = [ripple]  # 第一个已创建
+        self._create_ripples()  # 创建额外的涟漪
         
         # 设置回调
         self.on_update = self._update_ripples
-        self.on_complete = self._complete_ripples
+        self.on_complete = self._complete_ripples or on_complete
     
     def _create_ripples(self):
         """创建涟漪圆圈"""
