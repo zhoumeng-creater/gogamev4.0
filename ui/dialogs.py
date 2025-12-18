@@ -25,11 +25,15 @@ class BaseDialog(tk.Toplevel):
         self.translator = translator or Translator()
         self.theme = theme or Theme(name='default')
         self.result = None
+        self._modal = modal
         
         # 设置模态
         if modal:
             self.transient(parent)
             self.grab_set()
+
+        # 关闭窗口等同取消
+        self.protocol("WM_DELETE_WINDOW", self.cancel)
         
         # 配置窗口
         self.resizable(False, False)
@@ -45,6 +49,10 @@ class BaseDialog(tk.Toplevel):
         
         # 绑定ESC键
         self.bind('<Escape>', lambda e: self.cancel())
+
+        # 重要：如果是模态对话框，需等待用户操作后再返回，否则调用方读取 result 会永远是 None
+        if self._modal:
+            self.wait_window()
     
     def _apply_theme(self):
         """应用主题"""
@@ -109,9 +117,68 @@ class NewGameDialog(BaseDialog):
                         translator=kwargs.get('translator'),
                         theme=kwargs.get('theme'),
                         modal=kwargs.get('modal', True))    
+
+    def _config_get(self, key: str, default=None):
+        """兼容 dict 与 dataclass 的配置读取（仅用于新对局对话框默认值）。"""
+        try:
+            if isinstance(self.config, dict):
+                return self.config.get(key, default)
+        except Exception:
+            pass
+
+        # 支持 GameConfig dataclass：key 形如 'rules.default_rules'
+        try:
+            parts = str(key).split('.')
+            value = self.config
+            for part in parts:
+                if hasattr(value, part):
+                    value = getattr(value, part)
+                else:
+                    return default
+            return value
+        except Exception:
+            return default
+
+    def _setup_option_maps(self):
+        """初始化下拉框的显示值<->内部 key 映射。"""
+        # 规则（对话框目前仅提供三种）
+        self._rules_keys = ['chinese', 'japanese', 'aga']
+        self._rules_label_by_key = {k: self.translator.get(k) for k in self._rules_keys}
+        self._rules_key_by_label = {v: k for k, v in self._rules_label_by_key.items()}
+
+        # 时间控制
+        self._time_keys = ['none', 'absolute', 'byoyomi', 'canadian']
+        self._time_label_by_key = {k: self.translator.get(k) for k in self._time_keys}
+        self._time_key_by_label = {v: k for k, v in self._time_label_by_key.items()}
+
+        # AI 难度
+        self._ai_level_keys = ['easy', 'medium', 'hard', 'expert']
+        self._ai_level_label_by_key = {k: self.translator.get(k) for k in self._ai_level_keys}
+        self._ai_level_key_by_label = {v: k for k, v in self._ai_level_label_by_key.items()}
+
+    def _rules_key(self) -> str:
+        """当前规则的内部 key。"""
+        try:
+            label = self.rules_var.get()
+        except Exception:
+            label = ''
+        return getattr(self, '_rules_key_by_label', {}).get(label, label)
+
+    def _time_control_key(self) -> str:
+        """当前时间控制的内部 key。"""
+        try:
+            label = self.time_control_var.get()
+        except Exception:
+            label = ''
+        return getattr(self, '_time_key_by_label', {}).get(label, label)
+
+    def _ai_level_key(self, label_or_key: str) -> str:
+        """AI 难度的内部 key。"""
+        return getattr(self, '_ai_level_key_by_label', {}).get(label_or_key, label_or_key)
         
     def _create_widgets(self):
         """创建控件"""
+        self._setup_option_maps()
         # 主框架
         main_frame = ttk.Frame(self, style='Dialog.TFrame', padding=10)
         main_frame.pack(fill='both', expand=True)
@@ -152,9 +219,11 @@ class NewGameDialog(BaseDialog):
         self.black_name_entry = ttk.Entry(player_frame, textvariable=self.black_name_var, width=20)
         self.black_name_entry.grid(row=0, column=1, padx=5, pady=5)
         
-        self.black_ai_level_var = tk.StringVar(value='medium')
+        self.black_ai_level_var = tk.StringVar(
+            value=self._ai_level_label_by_key.get('medium', 'medium')
+        )
         self.black_ai_combo = ttk.Combobox(player_frame, textvariable=self.black_ai_level_var,
-                                          values=['easy', 'medium', 'hard', 'expert'],
+                                          values=[self._ai_level_label_by_key[k] for k in self._ai_level_keys],
                                           state='readonly', width=10)
         self.black_ai_combo.grid(row=0, column=2, padx=5, pady=5)
         self.black_ai_combo.grid_remove()  # 初始隐藏
@@ -167,9 +236,11 @@ class NewGameDialog(BaseDialog):
         self.white_name_entry = ttk.Entry(player_frame, textvariable=self.white_name_var, width=20)
         self.white_name_entry.grid(row=1, column=1, padx=5, pady=5)
         
-        self.white_ai_level_var = tk.StringVar(value='medium')
+        self.white_ai_level_var = tk.StringVar(
+            value=self._ai_level_label_by_key.get('medium', 'medium')
+        )
         self.white_ai_combo = ttk.Combobox(player_frame, textvariable=self.white_ai_level_var,
-                                          values=['easy', 'medium', 'hard', 'expert'],
+                                          values=[self._ai_level_label_by_key[k] for k in self._ai_level_keys],
                                           state='readonly', width=10)
         self.white_ai_combo.grid(row=1, column=2, padx=5, pady=5)
         self.white_ai_combo.grid_remove()  # 初始隐藏
@@ -183,7 +254,8 @@ class NewGameDialog(BaseDialog):
         ttk.Label(settings_frame, text=self.translator.get('board_size'),
                  style='Dialog.TLabel').grid(row=0, column=0, sticky='w', padx=10, pady=5)
         
-        self.board_size_var = tk.IntVar(value=19)
+        default_board_size = int(self._config_get('rules.default_board_size', 19) or 19)
+        self.board_size_var = tk.IntVar(value=default_board_size)
         board_size_combo = ttk.Combobox(settings_frame, textvariable=self.board_size_var,
                                        values=[9, 13, 19], state='readonly', width=10)
         board_size_combo.grid(row=0, column=1, padx=5, pady=5)
@@ -192,9 +264,12 @@ class NewGameDialog(BaseDialog):
         ttk.Label(settings_frame, text=self.translator.get('rules'),
                  style='Dialog.TLabel').grid(row=1, column=0, sticky='w', padx=10, pady=5)
         
-        self.rules_var = tk.StringVar(value='chinese')
+        default_rules_key = str(self._config_get('rules.default_rules', 'chinese') or 'chinese')
+        self.rules_var = tk.StringVar(
+            value=self._rules_label_by_key.get(default_rules_key, self._rules_label_by_key.get('chinese', 'chinese'))
+        )
         rules_combo = ttk.Combobox(settings_frame, textvariable=self.rules_var,
-                                  values=['chinese', 'japanese', 'aga'],
+                                  values=[self._rules_label_by_key[k] for k in self._rules_keys],
                                   state='readonly', width=10)
         rules_combo.grid(row=1, column=1, padx=5, pady=5)
         rules_combo.bind('<<ComboboxSelected>>', self._on_rules_change)
@@ -203,7 +278,8 @@ class NewGameDialog(BaseDialog):
         ttk.Label(settings_frame, text=self.translator.get('komi'),
                  style='Dialog.TLabel').grid(row=2, column=0, sticky='w', padx=10, pady=5)
         
-        self.komi_var = tk.DoubleVar(value=7.5)
+        default_komi = float(self._config_get('rules.default_komi', 7.5) or 7.5)
+        self.komi_var = tk.DoubleVar(value=default_komi)
         komi_spin = ttk.Spinbox(settings_frame, textvariable=self.komi_var,
                                from_=0, to=20, increment=0.5, width=10)
         komi_spin.grid(row=2, column=1, padx=5, pady=5)
@@ -212,7 +288,8 @@ class NewGameDialog(BaseDialog):
         ttk.Label(settings_frame, text=self.translator.get('handicap'),
                  style='Dialog.TLabel').grid(row=3, column=0, sticky='w', padx=10, pady=5)
         
-        self.handicap_var = tk.IntVar(value=0)
+        default_handicap = int(self._config_get('rules.default_handicap', 0) or 0)
+        self.handicap_var = tk.IntVar(value=default_handicap)
         handicap_spin = ttk.Spinbox(settings_frame, textvariable=self.handicap_var,
                                    from_=0, to=9, width=10)
         handicap_spin.grid(row=3, column=1, padx=5, pady=5)
@@ -221,9 +298,9 @@ class NewGameDialog(BaseDialog):
         ttk.Label(settings_frame, text=self.translator.get('time_control'),
                  style='Dialog.TLabel').grid(row=4, column=0, sticky='w', padx=10, pady=5)
         
-        self.time_control_var = tk.StringVar(value='none')
+        self.time_control_var = tk.StringVar(value=self._time_label_by_key.get('none', 'none'))
         time_combo = ttk.Combobox(settings_frame, textvariable=self.time_control_var,
-                                 values=['none', 'absolute', 'byoyomi', 'canadian'],
+                                 values=[self._time_label_by_key[k] for k in self._time_keys],
                                  state='readonly', width=10)
         time_combo.grid(row=4, column=1, padx=5, pady=5)
         time_combo.bind('<<ComboboxSelected>>', self._on_time_change)
@@ -290,7 +367,7 @@ class NewGameDialog(BaseDialog):
     
     def _on_rules_change(self, event=None):
         """规则改变处理"""
-        rules = self.rules_var.get()
+        rules = self._rules_key()
         
         # 根据规则调整默认贴目
         if rules == 'chinese':
@@ -302,7 +379,7 @@ class NewGameDialog(BaseDialog):
     
     def _on_time_change(self, event=None):
         """时间控制改变处理"""
-        time_control = self.time_control_var.get()
+        time_control = self._time_control_key()
         
         if time_control == 'none':
             self.time_label.grid_remove()
@@ -316,8 +393,16 @@ class NewGameDialog(BaseDialog):
         mode = self.mode_var.get()
         
         # 获取AI级别
-        black_ai_level = self.black_ai_level_var.get() if mode in ['ai_vs_human', 'ai_vs_ai'] else None
-        white_ai_level = self.white_ai_level_var.get() if mode in ['human_vs_ai', 'ai_vs_ai'] else None
+        black_ai_level = (
+            self._ai_level_key(self.black_ai_level_var.get())
+            if mode in ['ai_vs_human', 'ai_vs_ai']
+            else None
+        )
+        white_ai_level = (
+            self._ai_level_key(self.white_ai_level_var.get())
+            if mode in ['human_vs_ai', 'ai_vs_ai']
+            else None
+        )
         
         return {
             'mode': mode,
@@ -326,11 +411,11 @@ class NewGameDialog(BaseDialog):
             'black_ai_level': black_ai_level,
             'white_ai_level': white_ai_level,
             'board_size': self.board_size_var.get(),
-            'rules': self.rules_var.get(),
+            'rules': self._rules_key(),
             'komi': self.komi_var.get(),
             'handicap': self.handicap_var.get(),
-            'time_control': self.time_control_var.get(),
-            'main_time': self.main_time_var.get() if self.time_control_var.get() != 'none' else 0
+            'time_control': self._time_control_key(),
+            'main_time': self.main_time_var.get() if self._time_control_key() != 'none' else 0
         }
 
 """
@@ -393,9 +478,24 @@ class SettingsDialog(BaseDialog):
         )
         
         self.language_var = tk.StringVar(value=self.config.get('language', 'en'))
-        language_combo = ttk.Combobox(frame, textvariable=self.language_var,
-                                     values=['en', 'zh', 'ja', 'ko', 'fr', 'de', 'es'],
-                                     state='readonly', width=15)
+        try:
+            available_languages = list(self.translator.get_available_languages())
+        except Exception:
+            available_languages = ['en', 'zh']
+
+        # 优先排序：中文/英文/日文
+        preferred_order = ['zh', 'en', 'ja']
+        language_values = [c for c in preferred_order if c in available_languages] + [
+            c for c in available_languages if c not in preferred_order
+        ]
+
+        language_combo = ttk.Combobox(
+            frame,
+            textvariable=self.language_var,
+            values=language_values,
+            state='readonly',
+            width=15,
+        )
         language_combo.grid(row=row, column=1, padx=10, pady=5)
         
         # 主题设置
@@ -818,9 +918,26 @@ class SettingsDialog(BaseDialog):
 class AboutDialog(BaseDialog):
     """关于对话框"""
     
-    def __init__(self, parent, **kwargs):
-        super().__init__(parent, title=kwargs.get('translator', Translator()).get('about'), **kwargs)
-        self.geometry('400x500')
+    def __init__(
+        self,
+        parent,
+        version: Optional[str] = None,
+        app_name: Optional[str] = None,
+        **kwargs,
+    ):
+        # AboutDialog 额外参数不应透传给 BaseDialog（否则会触发 TypeError）
+        self.version = version
+        self.app_name = app_name
+
+        translator = kwargs.get('translator') or Translator()
+        super().__init__(
+            parent,
+            title=translator.get('about'),
+            translator=kwargs.get('translator'),
+            theme=kwargs.get('theme'),
+            modal=kwargs.get('modal', True),
+        )
+        self.geometry('420x520')
     
     def _create_widgets(self):
         """创建控件"""
@@ -846,14 +963,26 @@ class AboutDialog(BaseDialog):
         logo_canvas.create_oval(75, 15, 85, 25, fill='black')
         logo_canvas.create_oval(15, 75, 25, 85, fill='white', outline='gray')
         
-        # 标题
-        title_label = ttk.Label(self, text="围棋大师 Go Master",
-                               font=('Arial', 18, 'bold'))
+        # 标题 / 版本 / 作者
+        title_text = (
+            self.app_name
+            or (self.master.title() if hasattr(self, 'master') and hasattr(self.master, 'title') else None)
+            or self.translator.get('app_name')
+        )
+        title_label = ttk.Label(self, text=title_text, font=('Arial', 18, 'bold'))
         title_label.pack(pady=10)
         
-        version_label = ttk.Label(self, text="Version 2.0.0",
-                                 font=('Arial', 12))
-        version_label.pack()
+        version_text = self.version or ""
+        ttk.Label(
+            self,
+            text=f"{self.translator.get('version')}: {version_text}" if version_text else self.translator.get('version'),
+            font=('Arial', 12),
+        ).pack()
+        ttk.Label(
+            self,
+            text=f"{self.translator.get('author')}: AI Assistant",
+            font=('Arial', 10),
+        ).pack(pady=(2, 0))
         
         # 信息文本
         info_frame = ttk.Frame(self)
@@ -864,29 +993,32 @@ class AboutDialog(BaseDialog):
                           fg=self.theme.ui_text_primary)
         info_text.pack(fill='both', expand=True)
         
-        # 添加信息
-        info_content = f"""
-{self.translator.get('about_description')}
-
-{self.translator.get('features')}:
-• {self.translator.get('feature_1')}
-• {self.translator.get('feature_2')}
-• {self.translator.get('feature_3')}
-• {self.translator.get('feature_4')}
-• {self.translator.get('feature_5')}
-
-{self.translator.get('developers')}:
-AI Assistant
-
-{self.translator.get('license')}:
-MIT License
-
-{self.translator.get('website')}:
-https://github.com/go-master
-
-{self.translator.get('contact')}:
-support@go-master.com
-"""
+        # 添加信息（避免使用特殊项目符号，减少编码环境下的显示问题）
+        info_content = "\n".join(
+            [
+                self.translator.get('about_description'),
+                "",
+                f"{self.translator.get('features')}:",
+                f"- {self.translator.get('feature_1')}",
+                f"- {self.translator.get('feature_2')}",
+                f"- {self.translator.get('feature_3')}",
+                f"- {self.translator.get('feature_4')}",
+                f"- {self.translator.get('feature_5')}",
+                "",
+                f"{self.translator.get('developers')}:",
+                "AI Assistant",
+                "",
+                f"{self.translator.get('license')}:",
+                "MIT License",
+                "",
+                f"{self.translator.get('website')}:",
+                "https://github.com/go-master",
+                "",
+                f"{self.translator.get('contact')}:",
+                "support@go-master.com",
+                "",
+            ]
+        )
         info_text.insert('1.0', info_content)
         info_text.configure(state='disabled')
         

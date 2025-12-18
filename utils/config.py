@@ -31,10 +31,12 @@ class LanguageCode(Enum):
 @dataclass
 class DisplayConfig:
     """显示配置"""
-    theme: str = "wood"
+    theme: str = "classic"
     show_coordinates: bool = True
     show_move_numbers: bool = False
     show_last_move: bool = True
+    show_territory: bool = False
+    show_influence: bool = False
     highlight_legal_moves: bool = False
     board_opacity: float = 1.0
     stone_style: str = "realistic"  # realistic, simple, cartoon
@@ -74,6 +76,7 @@ class AIConfig:
     show_analysis: bool = False
     show_win_rate: bool = False
     show_best_moves: bool = False
+    auto_analyze: bool = False
     analysis_depth: int = 3
     use_opening_book: bool = True
     use_neural_network: bool = False
@@ -99,6 +102,7 @@ class StorageConfig:
     auto_save_interval: int = 60  # 秒
     save_path: str = "./saves"
     sgf_path: str = "./sgf"
+    auto_save_sgf: bool = False
     cloud_sync: bool = False
     cloud_provider: str = "none"  # none, google, dropbox, onedrive
     max_saves: int = 100
@@ -127,6 +131,8 @@ class GameConfig:
     """完整游戏配置"""
     version: str = "2.0.0"
     language: str = "zh"
+    confirm_exit: bool = True
+    debug_mode: bool = False
     
     # 子配置
     display: DisplayConfig = field(default_factory=DisplayConfig)
@@ -149,22 +155,32 @@ class GameConfig:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'GameConfig':
         """从字典创建"""
+        data = dict(data or {})
+
+        def _filter(dc, payload: Dict[str, Any]) -> Dict[str, Any]:
+            allowed = getattr(dc, '__dataclass_fields__', {}).keys()
+            return {k: v for k, v in (payload or {}).items() if k in allowed}
+
         # 处理子配置
         if 'display' in data and isinstance(data['display'], dict):
-            data['display'] = DisplayConfig(**data['display'])
+            data['display'] = DisplayConfig(**_filter(DisplayConfig, data['display']))
         if 'sound' in data and isinstance(data['sound'], dict):
-            data['sound'] = SoundConfig(**data['sound'])
+            data['sound'] = SoundConfig(**_filter(SoundConfig, data['sound']))
         if 'rules' in data and isinstance(data['rules'], dict):
-            data['rules'] = GameRulesConfig(**data['rules'])
+            data['rules'] = GameRulesConfig(**_filter(GameRulesConfig, data['rules']))
         if 'ai' in data and isinstance(data['ai'], dict):
-            data['ai'] = AIConfig(**data['ai'])
+            data['ai'] = AIConfig(**_filter(AIConfig, data['ai']))
         if 'network' in data and isinstance(data['network'], dict):
-            data['network'] = NetworkConfig(**data['network'])
+            data['network'] = NetworkConfig(**_filter(NetworkConfig, data['network']))
         if 'storage' in data and isinstance(data['storage'], dict):
-            data['storage'] = StorageConfig(**data['storage'])
+            data['storage'] = StorageConfig(**_filter(StorageConfig, data['storage']))
         if 'hotkeys' in data and isinstance(data['hotkeys'], dict):
-            data['hotkeys'] = HotkeyConfig(**data['hotkeys'])
-        
+            data['hotkeys'] = HotkeyConfig(**_filter(HotkeyConfig, data['hotkeys']))
+
+        # 过滤顶层未知字段，避免旧配置/插件字段导致加载失败
+        allowed = getattr(cls, '__dataclass_fields__', {}).keys()
+        data = {k: v for k, v in data.items() if k in allowed}
+
         return cls(**data)
 
 

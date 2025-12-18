@@ -153,6 +153,17 @@ class Board:
         if self.is_valid_position(x, y):
             return self.grid[y][x]
         return StoneColor.EMPTY.value
+
+    def get_stone(self, x: int, y: int) -> str:
+        """
+        兼容旧接口：获取指定位置的棋子颜色。
+
+        许多 AI/分析模块使用 `get_stone(x, y)` 读取棋盘；当前实现统一返回颜色字符串：
+        - 空：''
+        - 黑：'black'
+        - 白：'white'
+        """
+        return self.get_color(x, y)
     
     def place_stone(self, x: int, y: int, color: str, move_number: int = 0) -> bool:
         """
@@ -235,6 +246,14 @@ class Board:
             self.groups[stone_pos] = group
         
         return group
+
+    def get_group_at(self, x: int, y: int) -> Optional[Group]:
+        """
+        兼容旧接口：`get_group_at(x, y)`。
+
+        旧版 AI/分析代码使用该方法获取当前位置所属棋块，等价于 `get_group(x, y)`。
+        """
+        return self.get_group(x, y)
     
     def _calculate_group(self, x: int, y: int) -> Group:
         """

@@ -169,22 +169,24 @@ class Game:
     """游戏控制类"""
     
     def __init__(self, board_size: int = 19, rule_set: str = 'chinese',
-                 komi: float = 7.5, handicap: int = 0):
+                 komi: float = 7.5, handicap: int = 0, rules: Optional[str] = None):
         """
         初始化游戏
         
         Args:
             board_size: 棋盘大小
             rule_set: 规则集
+            rules: 规则集（兼容旧参数名）
             komi: 贴目
             handicap: 让子数
         """
+        effective_rule_set = rules if rules is not None else rule_set
         # 核心组件
         self.board = Board(board_size)
-        self.rules = Rules(rule_set, komi)
+        self.rules = Rules(effective_rule_set, komi)
         
         # 游戏信息
-        self.game_info = GameInfo(rules=rule_set, komi=komi, handicap=handicap)
+        self.game_info = GameInfo(rules=effective_rule_set, komi=komi, handicap=handicap)
         
         # 游戏状态
         self.current_player = StoneColor.BLACK.value
@@ -208,6 +210,12 @@ class Game:
         
         # 死活标记
         self.dead_stones: Set[Tuple[int, int]] = set()
+
+        # 兼容层：保存最近一次提子列表，供UI查询
+        self._last_captures: List[Tuple[int, int]] = []
+
+        # 游戏开始时间（用于统计）
+        self._start_time = time.time()
         
         # 设置让子
         if handicap > 0:
@@ -218,6 +226,237 @@ class Game:
         
         # 开始游戏
         self.phase = GamePhase.PLAYING
+
+    # --- 兼容 main.py 的 API（旧版 UI 依赖这些方法名） ---
+
+    @property
+    def board_size(self) -> int:
+        return self.board.size
+
+    def cleanup(self):
+        """清理资源（计时器等）。当前核心层无外部资源，保留接口供UI调用。"""
+        return
+
+    def is_ended(self) -> bool:
+        """兼容旧接口：非对局阶段视为结束/不可落子。"""
+        return self.phase != GamePhase.PLAYING
+
+    def get_current_player(self) -> str:
+        return self.current_player
+
+    def set_player_info(self, black_name: str = "Black", white_name: str = "White", **kwargs):
+        self.game_info.black_player = black_name
+        self.game_info.white_player = white_name
+
+    def set_time_control(self, time_settings: Any):
+        """
+        保存时间控制设置（核心不直接驱动计时器，先记录到 game_info 里）。
+        """
+        try:
+            self.game_info.time_settings = asdict(time_settings)
+        except Exception:
+            try:
+                self.game_info.time_settings = dict(time_settings)
+            except Exception:
+                self.game_info.time_settings = {'raw': repr(time_settings)}
+
+    def place_stone(self, x: int, y: int) -> MoveResult:
+        """
+        兼容旧接口：执行落子并返回 MoveResult。
+        最近一次提子可通过 get_last_captures() 获取。
+        """
+        result, captured = self.make_move(x, y)
+        self._last_captures = captured
+        return result
+
+    def get_last_captures(self) -> List[Tuple[int, int]]:
+        return list(self._last_captures)
+
+    def can_undo(self) -> bool:
+        return len(self.state_history) > 1 and self.phase in (GamePhase.PLAYING, GamePhase.SCORING)
+
+    def can_redo(self) -> bool:
+        # 当前核心未实现redo栈；保留接口避免UI崩溃
+        return False
+
+    def redo_move(self) -> bool:
+        return False
+
+    def pause_timers(self):
+        return
+
+    def resume_timers(self):
+        return
+
+    def enter_scoring_phase(self):
+        """进入点目/数子阶段（兼容旧接口）。"""
+        if self.phase == GamePhase.PLAYING:
+            self.phase = GamePhase.SCORING
+
+    def toggle_dead_stone(self, x: int, y: int):
+        if (x, y) in self.dead_stones:
+            self.dead_stones.remove((x, y))
+        else:
+            self.dead_stones.add((x, y))
+
+    def get_dead_stones(self) -> List[Tuple[int, int]]:
+        return sorted(self.dead_stones)
+
+    def calculate_final_score(self) -> Dict[str, Any]:
+        score = self.calculate_score()
+        winner = score.get('winner')
+        margin = score.get('margin', 0)
+        if winner == 'draw':
+            winner = None
+        return {
+            **score,
+            'winner': winner,
+            'score_difference': margin,
+            'reason': ''
+        }
+
+    def get_result(self) -> Dict[str, Any]:
+        if self.game_info.result:
+            # 解析类似 "B+Resign" / "W+2.5"
+            result = self.game_info.result
+            winner = None
+            score_diff = 0.0
+            reason = ''
+            try:
+                if result.startswith('B+'):
+                    winner = 'black'
+                elif result.startswith('W+'):
+                    winner = 'white'
+                payload = result.split('+', 1)[1]
+                if payload.lower().startswith('resign'):
+                    reason = 'resign'
+                else:
+                    score_diff = float(payload)
+            except Exception:
+                pass
+            return {'winner': winner, 'score_difference': score_diff, 'reason': reason}
+
+        return self.calculate_final_score()
+
+    def get_game_statistics(self):
+        """
+        兼容旧接口：返回 utils.GameStats 对象（若utils不可用则返回摘要字典）。
+        """
+        try:
+            from utils import GameStats as _GameStats  # 避免核心层顶部引入utils
+
+            duration = int(max(0, time.time() - getattr(self, '_start_time', time.time())))
+            result_text = self.game_info.result or ""
+            resignation = "Resign" in result_text
+            timeout = "Time" in result_text
+
+            # prisoners: 黑方提白子数=white被提=captured_white；白方提黑子数=black被提=captured_black
+            captures_black = self.captured_white
+            captures_white = self.captured_black
+
+            return _GameStats(
+                game_id=f"game_{int(time.time())}",
+                date=datetime.now().strftime("%Y-%m-%d"),
+                duration=duration,
+                board_size=self.board.size,
+                player_black=self.game_info.black_player,
+                player_white=self.game_info.white_player,
+                black_rating=None,
+                white_rating=None,
+                result=result_text,
+                move_count=self.move_number,
+                resignation=resignation,
+                timeout=timeout,
+                captures_black=captures_black,
+                captures_white=captures_white,
+                passes=sum(1 for m in self.move_history if m.x < 0 or m.y < 0)
+            )
+        except Exception:
+            return self.get_game_summary()
+
+    def get_game_info(self) -> Dict[str, Any]:
+        """
+        返回提供给 UI/AI 的游戏信息字典。
+        """
+        # prisoners: 玩家视角
+        black_prisoners = self.captured_white
+        white_prisoners = self.captured_black
+
+        return {
+            'board_size': self.board.size,
+            'rules': self.game_info.rules,
+            'komi': self.game_info.komi,
+            'handicap': self.game_info.handicap,
+            'player_black': self.game_info.black_player,
+            'player_white': self.game_info.white_player,
+            'move_number': self.move_number,
+            'current_player': self.current_player,
+            'captured_black': black_prisoners,
+            'captured_white': white_prisoners,
+            'ko_point': self.ko_point,
+            'last_move': self.last_move,
+            'phase': self.phase.value,
+            'result': self.game_info.result,
+        }
+
+    def to_dict(self) -> Dict[str, Any]:
+        """序列化为可存档的字典（供 StorageManager 使用）。"""
+        moves = []
+        for move in self.move_history:
+            # 跳过让子（move_number==0）以免重放时重复
+            if move.move_number == 0 and self.game_info.handicap > 0:
+                continue
+            moves.append({
+                'x': move.x,
+                'y': move.y,
+                'color': move.color,
+                'move_number': move.move_number,
+                'captured': list(move.captured),
+                'comment': move.comment,
+                'timestamp': move.timestamp,
+                'time_spent': move.time_spent,
+            })
+
+        return {
+            'board_size': self.board.size,
+            'rules': self.game_info.rules,
+            'komi': self.game_info.komi,
+            'handicap': self.game_info.handicap,
+            'player_black': self.game_info.black_player,
+            'player_white': self.game_info.white_player,
+            'result': self.game_info.result,
+            'phase': self.phase.value,
+            'moves': moves,
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'Game':
+        game = cls(
+            board_size=data.get('board_size', 19),
+            rule_set=data.get('rules', 'chinese'),
+            komi=data.get('komi', 7.5),
+            handicap=data.get('handicap', 0),
+        )
+        game.set_player_info(
+            black_name=data.get('player_black', 'Black'),
+            white_name=data.get('player_white', 'White'),
+        )
+
+        for move in data.get('moves', []):
+            x = move.get('x', -1)
+            y = move.get('y', -1)
+            if x < 0 or y < 0:
+                game.pass_turn()
+            else:
+                game.make_move(x, y)
+
+        try:
+            game.phase = GamePhase(data.get('phase', game.phase.value))
+        except Exception:
+            pass
+
+        game.game_info.result = data.get('result', game.game_info.result)
+        return game
     
     def _place_handicap_stones(self):
         """放置让子"""
@@ -475,12 +714,13 @@ class Game:
         """
         if accept_score and self.phase == GamePhase.SCORING:
             score = self.calculate_score()
+            margin = float(score.get('margin', score.get('difference', 0) or 0) or 0)
             
             # 设置游戏结果
             if score['winner'] == 'black':
-                self.game_info.result = f"B+{score['difference']:.1f}"
+                self.game_info.result = f"B+{margin:.1f}"
             elif score['winner'] == 'white':
-                self.game_info.result = f"W+{score['difference']:.1f}"
+                self.game_info.result = f"W+{margin:.1f}"
             else:
                 self.game_info.result = "Draw"
         

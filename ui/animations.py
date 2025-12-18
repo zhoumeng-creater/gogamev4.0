@@ -21,7 +21,6 @@ class AnimationType(Enum):
     MOVE = 'move'  # 移动
     ROTATE = 'rotate'  # 旋转
     PULSE = 'pulse'  # 脉冲
-    RIPPLE = 'ripple'  # 涟漪
 
 
 class EasingFunction(Enum):
@@ -333,96 +332,6 @@ class CaptureAnimation(Animation):
         self.canvas.delete(self.stone_id)
 
 
-class RippleAnimation(Animation):
-    """涟漪动画（用于点击反馈）"""
-    
-    def __init__(self, canvas: tk.Canvas, x: int, y: int, 
-                 max_radius: int = 30, **kwargs):
-        """
-        初始化涟漪动画
-        
-        Args:
-            canvas: 画布
-            x, y: 中心位置
-            max_radius: 最大半径
-        """
-        # 提取或设置默认值
-        duration = kwargs.pop('duration', 0.5)
-        on_complete = kwargs.pop('on_complete', None)
-        
-        # 创建第一个涟漪圆圈作为 target
-        ripple = canvas.create_oval(
-            x - 1, y - 1, x + 1, y + 1,
-            outline='#4080ff', width=2, state='hidden'
-        )
-        
-        # 调用父类构造函数
-        super().__init__(
-            type=AnimationType.RIPPLE,
-            target=ripple,
-            duration=duration
-        )
-        
-        self.canvas = canvas
-        self.center_x = x
-        self.center_y = y
-        self.max_radius = max_radius
-        
-        # 设置动画参数
-        self.start_value = 0
-        self.end_value = max_radius
-        self.easing = EasingFunction.EASE_OUT
-        
-        # 创建涟漪圆圈
-        self.ripple_ids = [ripple]  # 第一个已创建
-        self._create_ripples()  # 创建额外的涟漪
-        
-        # 设置回调
-        self.on_update = self._update_ripples
-        self.on_complete = self._complete_ripples or on_complete
-    
-    def _create_ripples(self):
-        """创建涟漪圆圈"""
-        # 创建多个圆圈形成涟漪效果
-        for i in range(3):
-            ripple = self.canvas.create_oval(
-                self.center_x - 1,
-                self.center_y - 1,
-                self.center_x + 1,
-                self.center_y + 1,
-                outline='#4080ff',
-                width=2,
-                state='hidden'
-            )
-            self.ripple_ids.append(ripple)
-    
-    def _update_ripples(self, radius: float):
-        """更新涟漪效果"""
-        for i, ripple_id in enumerate(self.ripple_ids):
-            # 每个涟漪有不同的延迟
-            delay_factor = i * 0.3
-            adjusted_radius = max(0, radius - self.max_radius * delay_factor)
-            
-            if adjusted_radius > 0:
-                self.canvas.coords(
-                    ripple_id,
-                    self.center_x - adjusted_radius,
-                    self.center_y - adjusted_radius,
-                    self.center_x + adjusted_radius,
-                    self.center_y + adjusted_radius
-                )
-                
-                # 透明度效果（通过线宽模拟）
-                alpha = 1.0 - (adjusted_radius / self.max_radius)
-                width = max(1, int(3 * alpha))
-                self.canvas.itemconfig(ripple_id, width=width, state='normal')
-    
-    def _complete_ripples(self):
-        """完成涟漪动画"""
-        for ripple_id in self.ripple_ids:
-            self.canvas.delete(ripple_id)
-
-
 class AnimationManager:
     """动画管理器"""
     
@@ -552,24 +461,6 @@ class AnimationManager:
             canvas=self.canvas,
             stone_id=stone_id,
             on_complete=on_complete
-        )
-        
-        self.add_animation(animation)
-        return animation
-    
-    def create_ripple_animation(self, x: int, y: int) -> RippleAnimation:
-        """
-        创建涟漪动画
-        
-        Args:
-            x, y: 中心位置
-            
-        Returns:
-            涟漪动画对象
-        """
-        animation = RippleAnimation(
-            canvas=self.canvas,
-            x=x, y=y
         )
         
         self.add_animation(animation)

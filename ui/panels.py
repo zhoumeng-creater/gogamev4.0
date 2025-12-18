@@ -29,11 +29,21 @@ class BasePanel(ttk.Frame):
         """应用主题样式"""
         style = ttk.Style(self)
         
-        # 配置面板样式
-        style.configure('Panel.TFrame', 
-                       background=self.theme.ui_panel_background,
-                       relief='raised',
-                       borderwidth=1)
+        # 统一面板样式（只影响使用 Panel.* 样式名的控件）
+        # 外层：更浅的背景；卡片/分组：更深一些的背景，形成层次。
+        style.configure(
+            'Panel.TFrame',
+            background=self.theme.ui_background,
+            relief='flat',
+            borderwidth=0,
+        )
+
+        style.configure(
+            'PanelCard.TFrame',
+            background=self.theme.ui_panel_background,
+            relief='flat',
+            borderwidth=0,
+        )
         
         style.configure('Panel.TLabel',
                        background=self.theme.ui_panel_background,
@@ -41,11 +51,47 @@ class BasePanel(ttk.Frame):
         
         style.configure('Panel.TLabelframe',
                        background=self.theme.ui_panel_background,
-                       foreground=self.theme.ui_text_primary)
+                       foreground=self.theme.ui_text_primary,
+                       relief='solid',
+                       borderwidth=1)
         
         style.configure('Panel.TLabelframe.Label',
                        background=self.theme.ui_panel_background,
-                       foreground=self.theme.ui_text_primary)
+                       foreground=self.theme.ui_text_primary,
+                       font=('Segoe UI', max(10, int(self.theme.font_size_normal)), 'bold'))
+
+        style.configure('Panel.TButton', padding=(10, 6))
+        style.map(
+            'Panel.TButton',
+            foreground=[('disabled', self.theme.ui_text_disabled)],
+        )
+
+        style.configure(
+            'Panel.TCheckbutton',
+            background=self.theme.ui_panel_background,
+            foreground=self.theme.ui_text_primary,
+            padding=(6, 3),
+        )
+        style.map(
+            'Panel.TCheckbutton',
+            background=[('active', self.theme.ui_panel_background)],
+            foreground=[('disabled', self.theme.ui_text_disabled)],
+        )
+
+        style.configure(
+            'Panel.Treeview',
+            background=self.theme.input_background,
+            fieldbackground=self.theme.input_background,
+            foreground=self.theme.ui_text_primary,
+            rowheight=22,
+        )
+        style.configure(
+            'Panel.Treeview.Heading',
+            background=self.theme.ui_panel_background,
+            foreground=self.theme.ui_text_primary,
+            font=('Segoe UI', max(10, int(self.theme.font_size_small)), 'bold'),
+            relief='flat',
+        )
         
         self.configure(style='Panel.TFrame')
     
@@ -81,13 +127,13 @@ class InfoPanel(BasePanel):
         """创建控件"""
         # 玩家信息框架
         self.players_frame = ttk.LabelFrame(
-            self, style='Panel.TLabelframe'
+            self, style='Panel.TLabelframe', padding=(8, 6)
         )
-        self.players_frame.pack(fill='x', padx=5, pady=5)
+        self.players_frame.pack(fill='x', padx=8, pady=(8, 6))
         
         # 黑方信息
-        self.black_frame = ttk.Frame(self.players_frame)
-        self.black_frame.pack(fill='x', padx=5, pady=2)
+        self.black_frame = ttk.Frame(self.players_frame, style='PanelCard.TFrame')
+        self.black_frame.pack(fill='x', padx=4, pady=2)
         
         # 黑方图标
         self.black_stone_icon = tk.Canvas(self.black_frame, width=20, height=20,
@@ -99,7 +145,7 @@ class InfoPanel(BasePanel):
         self.black_name_label = ttk.Label(self.black_frame, style='Panel.TLabel')
         self.black_name_label.pack(side='left')
         
-        self.black_info_frame = ttk.Frame(self.black_frame)
+        self.black_info_frame = ttk.Frame(self.black_frame, style='PanelCard.TFrame')
         self.black_info_frame.pack(side='right')
         
         self.black_time_label = ttk.Label(self.black_info_frame, style='Panel.TLabel')
@@ -109,8 +155,8 @@ class InfoPanel(BasePanel):
         self.black_captured_label.pack(side='right', padx=(0, 10))
         
         # 白方信息
-        self.white_frame = ttk.Frame(self.players_frame)
-        self.white_frame.pack(fill='x', padx=5, pady=2)
+        self.white_frame = ttk.Frame(self.players_frame, style='PanelCard.TFrame')
+        self.white_frame.pack(fill='x', padx=4, pady=2)
         
         # 白方图标
         self.white_stone_icon = tk.Canvas(self.white_frame, width=20, height=20,
@@ -122,7 +168,7 @@ class InfoPanel(BasePanel):
         self.white_name_label = ttk.Label(self.white_frame, style='Panel.TLabel')
         self.white_name_label.pack(side='left')
         
-        self.white_info_frame = ttk.Frame(self.white_frame)
+        self.white_info_frame = ttk.Frame(self.white_frame, style='PanelCard.TFrame')
         self.white_info_frame.pack(side='right')
         
         self.white_time_label = ttk.Label(self.white_info_frame, style='Panel.TLabel')
@@ -133,12 +179,12 @@ class InfoPanel(BasePanel):
         
         # 游戏信息框架
         self.game_frame = ttk.LabelFrame(
-            self, style='Panel.TLabelframe'
+            self, style='Panel.TLabelframe', padding=(8, 6)
         )
-        self.game_frame.pack(fill='x', padx=5, pady=5)
+        self.game_frame.pack(fill='x', padx=8, pady=(0, 6))
         
-        self.current_player_frame = ttk.Frame(self.game_frame)
-        self.current_player_frame.pack(fill='x', padx=5, pady=2)
+        self.current_player_frame = ttk.Frame(self.game_frame, style='PanelCard.TFrame')
+        self.current_player_frame.pack(fill='x', padx=4, pady=2)
         
         self.current_player_label = ttk.Label(self.current_player_frame, style='Panel.TLabel')
         self.current_player_label.pack(side='left')
@@ -221,6 +267,52 @@ class InfoPanel(BasePanel):
             text=f"{self.translator.get('phase')}: {phase_text}"
         )
 
+    def set_phase_text(self, text: str):
+        """直接设置阶段显示文本（用于动态信息，如数子预览结果）。"""
+        self.phase_label.configure(text=text)
+
+    # --- 兼容 main.py 的方法（旧版 UI 调用） ---
+
+    def update_info(self, game_info: Dict[str, Any]):
+        """
+        兼容旧接口：根据 game_info 字典刷新信息面板。
+        期望字段：player_black/player_white/current_player/move_number/captured_black/captured_white/ko_point/phase 等。
+        """
+        black_name = game_info.get('player_black') or game_info.get('black_player') or 'Black'
+        white_name = game_info.get('player_white') or game_info.get('white_player') or 'White'
+
+        black_time = game_info.get('black_time', "∞")
+        white_time = game_info.get('white_time', "∞")
+
+        black_captured = int(game_info.get('captured_black', 0) or 0)
+        white_captured = int(game_info.get('captured_white', 0) or 0)
+
+        self.update_player_info(
+            black_name=black_name,
+            white_name=white_name,
+            black_time=black_time,
+            white_time=white_time,
+            black_captured=black_captured,
+            white_captured=white_captured,
+        )
+
+        self.update_game_info(
+            current_player=game_info.get('current_player', 'black'),
+            move_number=int(game_info.get('move_number', 0) or 0),
+            ko_point=game_info.get('ko_point'),
+            phase=game_info.get('phase', 'playing'),
+        )
+
+    def show_thinking(self, thinking: bool = True):
+        """兼容旧接口：AI思考提示（当前为轻量占位）。"""
+        if thinking:
+            self.phase_label.configure(
+                text=f"{self.translator.get('phase')}: {self.translator.get('analyzing')}"
+            )
+        else:
+            # 恢复为默认显示（由 update_info/update_game_info 再次覆盖）
+            return
+
 
 class ControlPanel(BasePanel):
     """控制面板"""
@@ -233,7 +325,17 @@ class ControlPanel(BasePanel):
                  on_hint=None,
                  on_analyze=None,
                  on_score=None,
+                 on_end_game=None,
+                 on_estimate=None,
                  on_pause=None,
+                 on_show_coordinates=None,
+                 on_show_move_numbers=None,
+                 on_show_territory=None,
+                 on_show_influence=None,
+                 show_coordinates: bool = True,
+                 show_move_numbers: bool = False,
+                 show_territory: bool = False,
+                 show_influence: bool = False,
                  **kwargs):
         # 保存回调函数
         self.callbacks = {
@@ -244,7 +346,27 @@ class ControlPanel(BasePanel):
             'hint': on_hint,
             'analyze': on_analyze,
             'score': on_score,
+            'end_game': on_end_game,
+            'estimate': on_estimate,
             'pause': on_pause
+        }
+
+        # 显示选项回调（用于左侧 display 勾选项）
+        self.callbacks.update(
+            {
+                'show_coordinates': on_show_coordinates,
+                'show_move_numbers': on_show_move_numbers,
+                'show_territory': on_show_territory,
+                'show_influence': on_show_influence,
+            }
+        )
+
+        # 初始显示状态
+        self._display_defaults = {
+            'show_coordinates': bool(show_coordinates),
+            'show_move_numbers': bool(show_move_numbers),
+            'show_territory': bool(show_territory),
+            'show_influence': bool(show_influence),
         }
         
         # 只传递有效的 kwargs 给父类
@@ -257,72 +379,81 @@ class ControlPanel(BasePanel):
         """创建控件"""
         # 游戏控制
         self.game_control_frame = ttk.LabelFrame(
-            self, style='Panel.TLabelframe'
+            self, style='Panel.TLabelframe', padding=(8, 6)
         )
-        self.game_control_frame.pack(fill='x', padx=5, pady=5)
+        self.game_control_frame.pack(fill='x', padx=8, pady=(0, 6))
         
         # 按钮网格
-        button_style = {'width': 8}
+        button_style = {'width': 10, 'style': 'Panel.TButton'}
+
+        self.game_control_frame.columnconfigure(0, weight=1)
+        self.game_control_frame.columnconfigure(1, weight=1)
         
         self.pass_button = ttk.Button(self.game_control_frame, **button_style)
-        self.pass_button.grid(row=0, column=0, padx=2, pady=2)
+        self.pass_button.grid(row=0, column=0, padx=4, pady=3, sticky='ew')
         
         self.resign_button = ttk.Button(self.game_control_frame, **button_style)
-        self.resign_button.grid(row=0, column=1, padx=2, pady=2)
+        self.resign_button.grid(row=0, column=1, padx=4, pady=3, sticky='ew')
         
         self.undo_button = ttk.Button(self.game_control_frame, **button_style)
-        self.undo_button.grid(row=1, column=0, padx=2, pady=2)
+        self.undo_button.grid(row=1, column=0, padx=4, pady=3, sticky='ew')
         
         self.redo_button = ttk.Button(self.game_control_frame, **button_style)
-        self.redo_button.grid(row=1, column=1, padx=2, pady=2)
+        self.redo_button.grid(row=1, column=1, padx=4, pady=3, sticky='ew')
+
+        self.end_game_button = ttk.Button(self.game_control_frame, **button_style)
+        self.end_game_button.grid(row=2, column=0, columnspan=2, padx=4, pady=(6, 3), sticky='ew')
         
         # 分析控制
         self.analysis_control_frame = ttk.LabelFrame(
-            self, style='Panel.TLabelframe'
+            self, style='Panel.TLabelframe', padding=(8, 6)
         )
-        self.analysis_control_frame.pack(fill='x', padx=5, pady=5)
+        self.analysis_control_frame.pack(fill='x', padx=8, pady=(0, 6))
+
+        self.analysis_control_frame.columnconfigure(0, weight=1)
+        self.analysis_control_frame.columnconfigure(1, weight=1)
         
         self.analyze_button = ttk.Button(self.analysis_control_frame, **button_style)
-        self.analyze_button.grid(row=0, column=0, padx=2, pady=2)
+        self.analyze_button.grid(row=0, column=0, padx=4, pady=3, sticky='ew')
         
         self.score_button = ttk.Button(self.analysis_control_frame, **button_style)
-        self.score_button.grid(row=0, column=1, padx=2, pady=2)
+        self.score_button.grid(row=0, column=1, padx=4, pady=3, sticky='ew')
         
         self.hint_button = ttk.Button(self.analysis_control_frame, **button_style)
-        self.hint_button.grid(row=1, column=0, padx=2, pady=2)
+        self.hint_button.grid(row=1, column=0, padx=4, pady=3, sticky='ew')
         
         self.estimate_button = ttk.Button(self.analysis_control_frame, **button_style)
-        self.estimate_button.grid(row=1, column=1, padx=2, pady=2)
+        self.estimate_button.grid(row=1, column=1, padx=4, pady=3, sticky='ew')
         
         # 显示选项
         self.display_frame = ttk.LabelFrame(
-            self, style='Panel.TLabelframe'
+            self, style='Panel.TLabelframe', padding=(8, 6)
         )
-        self.display_frame.pack(fill='x', padx=5, pady=5)
+        self.display_frame.pack(fill='x', padx=8, pady=(0, 8))
         
-        self.show_coordinates_var = tk.BooleanVar(value=True)
+        self.show_coordinates_var = tk.BooleanVar(value=self._display_defaults['show_coordinates'])
         self.show_coordinates_check = ttk.Checkbutton(
-            self.display_frame, variable=self.show_coordinates_var
+            self.display_frame, variable=self.show_coordinates_var, style='Panel.TCheckbutton'
         )
-        self.show_coordinates_check.pack(anchor='w', padx=5, pady=2)
+        self.show_coordinates_check.pack(anchor='w', padx=2, pady=2)
         
-        self.show_move_numbers_var = tk.BooleanVar(value=False)
+        self.show_move_numbers_var = tk.BooleanVar(value=self._display_defaults['show_move_numbers'])
         self.show_move_numbers_check = ttk.Checkbutton(
-            self.display_frame, variable=self.show_move_numbers_var
+            self.display_frame, variable=self.show_move_numbers_var, style='Panel.TCheckbutton'
         )
-        self.show_move_numbers_check.pack(anchor='w', padx=5, pady=2)
+        self.show_move_numbers_check.pack(anchor='w', padx=2, pady=2)
         
-        self.show_territory_var = tk.BooleanVar(value=False)
+        self.show_territory_var = tk.BooleanVar(value=self._display_defaults['show_territory'])
         self.show_territory_check = ttk.Checkbutton(
-            self.display_frame, variable=self.show_territory_var
+            self.display_frame, variable=self.show_territory_var, style='Panel.TCheckbutton'
         )
-        self.show_territory_check.pack(anchor='w', padx=5, pady=2)
+        self.show_territory_check.pack(anchor='w', padx=2, pady=2)
         
-        self.show_influence_var = tk.BooleanVar(value=False)
+        self.show_influence_var = tk.BooleanVar(value=self._display_defaults['show_influence'])
         self.show_influence_check = ttk.Checkbutton(
-            self.display_frame, variable=self.show_influence_var
+            self.display_frame, variable=self.show_influence_var, style='Panel.TCheckbutton'
         )
-        self.show_influence_check.pack(anchor='w', padx=5, pady=2)
+        self.show_influence_check.pack(anchor='w', padx=2, pady=2)
         
         # 绑定事件
         self._bind_events()
@@ -333,6 +464,7 @@ class ControlPanel(BasePanel):
         self.resign_button.configure(command=lambda: self._callback('resign'))
         self.undo_button.configure(command=lambda: self._callback('undo'))
         self.redo_button.configure(command=lambda: self._callback('redo'))
+        self.end_game_button.configure(command=lambda: self._callback('end_game'))
         self.analyze_button.configure(command=lambda: self._callback('analyze'))
         self.score_button.configure(command=lambda: self._callback('score'))
         self.hint_button.configure(command=lambda: self._callback('hint'))
@@ -360,6 +492,7 @@ class ControlPanel(BasePanel):
         self.resign_button.configure(text=self.translator.get('resign'))
         self.undo_button.configure(text=self.translator.get('undo'))
         self.redo_button.configure(text=self.translator.get('redo'))
+        self.end_game_button.configure(text=self.translator.get('end_game'))
         
         self.analysis_control_frame.configure(text=self.translator.get('analysis'))
         self.analyze_button.configure(text=self.translator.get('analyze'))
@@ -385,10 +518,55 @@ class ControlPanel(BasePanel):
         self.resign_button.configure(state=state)
         self.undo_button.configure(state=state)
         self.redo_button.configure(state=state)
+        self.end_game_button.configure(state=state)
         self.analyze_button.configure(state=state)
         self.score_button.configure(state=state)
         self.hint_button.configure(state=state)
         self.estimate_button.configure(state=state)
+
+    # --- 兼容 main.py 的方法（旧版 UI 调用） ---
+
+    def update_buttons(
+        self,
+        can_undo: bool = True,
+        can_redo: bool = True,
+        is_playing: bool = True,
+        is_scoring: bool = False,
+    ):
+        """根据游戏状态更新按钮可用性。"""
+        play_state = 'normal' if is_playing else 'disabled'
+
+        if is_scoring:
+            # 进入数子阶段（通常由连续虚手触发）：仅保留“确认结果”以结束对局
+            self.pass_button.configure(state='disabled')
+            self.resign_button.configure(state='disabled')
+            self.undo_button.configure(state='disabled')
+            self.redo_button.configure(state='disabled')
+            self.end_game_button.configure(state='normal')
+            self.analyze_button.configure(state='disabled')
+            self.score_button.configure(state='disabled')
+            self.hint_button.configure(state='disabled')
+            self.estimate_button.configure(state='disabled')
+            self.end_game_button.configure(text=self.translator.get('finish_scoring', self.translator.get('done')))
+        else:
+            self.pass_button.configure(state=play_state)
+            self.resign_button.configure(state=play_state)
+            self.end_game_button.configure(state=play_state)
+            self.analyze_button.configure(state=play_state)
+            self.score_button.configure(state=play_state)
+            self.hint_button.configure(state=play_state)
+            self.estimate_button.configure(state=play_state)
+            self.score_button.configure(text=self.translator.get('score'))
+            self.end_game_button.configure(text=self.translator.get('end_game'))
+
+        if not is_scoring:
+            self.undo_button.configure(state='normal' if can_undo else 'disabled')
+            self.redo_button.configure(state='normal' if can_redo else 'disabled')
+
+    def set_pause_text(self, text: str):
+        """兼容旧接口：部分UI版本包含暂停按钮；当前版本无该按钮，保留接口避免崩溃。"""
+        if hasattr(self, 'pause_button'):
+            self.pause_button.configure(text=text)
 
 """
 UI面板组件（续）
@@ -402,6 +580,7 @@ class AnalysisPanel(BasePanel):
     
     def __init__(self, parent, **kwargs):
         super().__init__(parent, **kwargs)
+        self._last_winrate = 50.0
         
         self._create_widgets()
         self._update_texts()
@@ -410,13 +589,13 @@ class AnalysisPanel(BasePanel):
         """创建控件"""
         # 形势判断框架
         self.situation_frame = ttk.LabelFrame(
-            self, style='Panel.TLabelframe'
+            self, style='Panel.TLabelframe', padding=(8, 6)
         )
-        self.situation_frame.pack(fill='x', padx=5, pady=5)
+        self.situation_frame.pack(fill='x', padx=8, pady=(0, 6))
         
         # 胜率条
-        self.winrate_frame = ttk.Frame(self.situation_frame)
-        self.winrate_frame.pack(fill='x', padx=5, pady=5)
+        self.winrate_frame = ttk.Frame(self.situation_frame, style='PanelCard.TFrame')
+        self.winrate_frame.pack(fill='x', padx=2, pady=4)
         
         self.winrate_label = ttk.Label(self.winrate_frame, style='Panel.TLabel')
         self.winrate_label.pack()
@@ -428,10 +607,11 @@ class AnalysisPanel(BasePanel):
             highlightbackground=self.theme.ui_panel_border
         )
         self.winrate_canvas.pack(fill='x', padx=5, pady=2)
+        self.winrate_canvas.bind('<Configure>', lambda e: self.update_winrate(self._last_winrate))
         
         # 地盘估算
-        self.territory_frame = ttk.Frame(self.situation_frame)
-        self.territory_frame.pack(fill='x', padx=5, pady=5)
+        self.territory_frame = ttk.Frame(self.situation_frame, style='PanelCard.TFrame')
+        self.territory_frame.pack(fill='x', padx=2, pady=4)
         
         self.black_territory_label = ttk.Label(self.territory_frame, style='Panel.TLabel')
         self.black_territory_label.pack(side='left', padx=5)
@@ -444,16 +624,17 @@ class AnalysisPanel(BasePanel):
         
         # 推荐着法框架
         self.suggestions_frame = ttk.LabelFrame(
-            self, style='Panel.TLabelframe'
+            self, style='Panel.TLabelframe', padding=(8, 6)
         )
-        self.suggestions_frame.pack(fill='both', expand=True, padx=5, pady=5)
+        self.suggestions_frame.pack(fill='both', expand=True, padx=8, pady=(0, 6))
         
         # 着法列表
         self.suggestions_tree = ttk.Treeview(
             self.suggestions_frame,
             columns=('move', 'winrate', 'visits'),
             show='tree headings',
-            height=6
+            height=6,
+            style='Panel.Treeview',
         )
         
         self.suggestions_tree.heading('#0', text='#')
@@ -467,8 +648,11 @@ class AnalysisPanel(BasePanel):
         self.suggestions_tree.column('visits', width=80)
         
         # 滚动条
-        scrollbar = ttk.Scrollbar(self.suggestions_frame, orient='vertical',
-                                 command=self.suggestions_tree.yview)
+        scrollbar = ttk.Scrollbar(
+            self.suggestions_frame,
+            orient='vertical',
+            command=self.suggestions_tree.yview,
+        )
         self.suggestions_tree.configure(yscrollcommand=scrollbar.set)
         
         self.suggestions_tree.pack(side='left', fill='both', expand=True)
@@ -476,9 +660,9 @@ class AnalysisPanel(BasePanel):
         
         # 分析信息框架
         self.info_frame = ttk.LabelFrame(
-            self, style='Panel.TLabelframe'
+            self, style='Panel.TLabelframe', padding=(8, 6)
         )
-        self.info_frame.pack(fill='x', padx=5, pady=5)
+        self.info_frame.pack(fill='x', padx=8, pady=(0, 8))
         
         self.thinking_time_label = ttk.Label(self.info_frame, style='Panel.TLabel')
         self.thinking_time_label.pack(padx=5, pady=2)
@@ -509,6 +693,7 @@ class AnalysisPanel(BasePanel):
         Args:
             winrate: 黑方胜率（0-100）
         """
+        self._last_winrate = winrate
         self.winrate_label.configure(
             text=f"{self.translator.get('black')}: {winrate:.1f}% | "
                  f"{self.translator.get('white')}: {100-winrate:.1f}%"
@@ -612,6 +797,87 @@ class AnalysisPanel(BasePanel):
             text=f"{self.translator.get('search_depth')}: {depth}"
         )
 
+    # --- 兼容 main.py 的方法（旧版 UI 调用） ---
+
+    def update_analysis(self, analysis: Any) -> None:
+        """
+        兼容旧接口：根据 analysis 对象刷新分析面板。
+
+        支持 `features.analysis.PositionAnalysis`（推荐）或字典结构。
+        """
+        if not analysis:
+            return
+
+        # 兼容 dict / dataclass
+        if isinstance(analysis, dict):
+            winrate = analysis.get('winrate', 0.5)
+            territory = analysis.get('territory_estimate', {}) or {}
+            best_moves = analysis.get('best_moves', []) or []
+            depth = analysis.get('analysis_depth', 0) or 0
+        else:
+            winrate = getattr(analysis, 'winrate', 0.5)
+            territory = getattr(analysis, 'territory_estimate', {}) or {}
+            best_moves = getattr(analysis, 'best_moves', []) or []
+            depth = getattr(analysis, 'analysis_depth', 0) or 0
+
+        # 胜率：PositionAnalysis 为 0~1；面板显示使用 0~100
+        try:
+            winrate_value = float(winrate)
+        except Exception:
+            winrate_value = 0.5
+        winrate_percent = winrate_value * 100 if winrate_value <= 1.0 else winrate_value
+        self.update_winrate(winrate_percent)
+
+        # 领地估算
+        try:
+            black_terr = int(territory.get('black', 0) or 0)
+            white_terr = int(territory.get('white', 0) or 0)
+        except Exception:
+            black_terr, white_terr = 0, 0
+        self.update_territory(black_terr, white_terr)
+
+        # 推荐着法
+        suggestions: List[Dict[str, Any]] = []
+        for move in best_moves:
+            if isinstance(move, dict):
+                move_text = move.get('move')
+                if not move_text:
+                    x, y = move.get('x', -1), move.get('y', -1)
+                    move_text = f"{x},{y}"
+                move_winrate = move.get('winrate', 0.0)
+                visits = int(move.get('visits', 0) or 0)
+            else:
+                if hasattr(move, 'get_coordinate_string'):
+                    move_text = move.get_coordinate_string()
+                else:
+                    x, y = getattr(move, 'x', -1), getattr(move, 'y', -1)
+                    move_text = f"{x},{y}"
+                move_winrate = getattr(move, 'winrate', 0.0)
+                visits = int(getattr(move, 'visits', 0) or 0)
+
+            try:
+                move_winrate_value = float(move_winrate)
+            except Exception:
+                move_winrate_value = 0.0
+            move_winrate_percent = move_winrate_value * 100 if move_winrate_value <= 1.0 else move_winrate_value
+
+            suggestions.append(
+                {
+                    'move': move_text,
+                    'winrate': move_winrate_percent,
+                    'visits': visits,
+                }
+            )
+        # 始终刷新（空列表也会清空旧内容，避免显示过期建议）
+        self.update_suggestions(suggestions)
+
+        # 分析信息：当前分析结果不包含真实 nodes/time，做轻量展示
+        try:
+            nodes = int(sum((m.get('visits', 0) if isinstance(m, dict) else getattr(m, 'visits', 0) or 0) for m in best_moves))
+        except Exception:
+            nodes = 0
+        self.update_analysis_info(thinking_time=0.0, nodes=nodes, depth=int(depth or 0))
+
 
 class NavigationPanel(BasePanel):
     """导航面板 - 用于浏览棋谱"""
@@ -630,54 +896,54 @@ class NavigationPanel(BasePanel):
         """创建控件"""
         # 导航按钮框架
         self.nav_frame = ttk.LabelFrame(
-            self, style='Panel.TLabelframe'
+            self, style='Panel.TLabelframe', padding=(8, 6)
         )
-        self.nav_frame.pack(fill='x', padx=5, pady=5)
+        self.nav_frame.pack(fill='x', padx=8, pady=(8, 6))
         
         # 按钮行
-        button_frame = ttk.Frame(self.nav_frame)
-        button_frame.pack(pady=5)
+        button_frame = ttk.Frame(self.nav_frame, style='PanelCard.TFrame')
+        button_frame.pack(pady=4)
         
         # 导航按钮
         self.first_button = ttk.Button(
-            button_frame, text='|◀', width=4,
+            button_frame, text='|◀', width=4, style='Panel.TButton',
             command=lambda: self._callback('first')
         )
         self.first_button.pack(side='left', padx=1)
         
         self.prev10_button = ttk.Button(
-            button_frame, text='◀◀', width=4,
+            button_frame, text='◀◀', width=4, style='Panel.TButton',
             command=lambda: self._callback('prev10')
         )
         self.prev10_button.pack(side='left', padx=1)
         
         self.prev_button = ttk.Button(
-            button_frame, text='◀', width=4,
+            button_frame, text='◀', width=4, style='Panel.TButton',
             command=lambda: self._callback('prev')
         )
         self.prev_button.pack(side='left', padx=1)
         
         self.next_button = ttk.Button(
-            button_frame, text='▶', width=4,
+            button_frame, text='▶', width=4, style='Panel.TButton',
             command=lambda: self._callback('next')
         )
         self.next_button.pack(side='left', padx=1)
         
         self.next10_button = ttk.Button(
-            button_frame, text='▶▶', width=4,
+            button_frame, text='▶▶', width=4, style='Panel.TButton',
             command=lambda: self._callback('next10')
         )
         self.next10_button.pack(side='left', padx=1)
         
         self.last_button = ttk.Button(
-            button_frame, text='▶|', width=4,
+            button_frame, text='▶|', width=4, style='Panel.TButton',
             command=lambda: self._callback('last')
         )
         self.last_button.pack(side='left', padx=1)
         
         # 进度条
-        self.progress_frame = ttk.Frame(self.nav_frame)
-        self.progress_frame.pack(fill='x', padx=5, pady=5)
+        self.progress_frame = ttk.Frame(self.nav_frame, style='PanelCard.TFrame')
+        self.progress_frame.pack(fill='x', padx=2, pady=4)
         
         self.progress_label = ttk.Label(self.progress_frame, style='Panel.TLabel')
         self.progress_label.pack(side='left', padx=5)
@@ -697,9 +963,9 @@ class NavigationPanel(BasePanel):
         
         # 分支控制框架
         self.branch_frame = ttk.LabelFrame(
-            self, style='Panel.TLabelframe'
+            self, style='Panel.TLabelframe', padding=(8, 6)
         )
-        self.branch_frame.pack(fill='x', padx=5, pady=5)
+        self.branch_frame.pack(fill='x', padx=8, pady=(0, 6))
         
         # 分支选择
         self.branch_combo = ttk.Combobox(
@@ -708,29 +974,29 @@ class NavigationPanel(BasePanel):
         self.branch_combo.pack(padx=5, pady=5)
         
         # 分支操作按钮
-        branch_button_frame = ttk.Frame(self.branch_frame)
+        branch_button_frame = ttk.Frame(self.branch_frame, style='PanelCard.TFrame')
         branch_button_frame.pack()
         
         self.create_branch_button = ttk.Button(
-            branch_button_frame, width=10,
+            branch_button_frame, width=10, style='Panel.TButton',
             command=lambda: self._callback('create_branch')
         )
         self.create_branch_button.pack(side='left', padx=2, pady=2)
         
         self.delete_branch_button = ttk.Button(
-            branch_button_frame, width=10,
+            branch_button_frame, width=10, style='Panel.TButton',
             command=lambda: self._callback('delete_branch')
         )
         self.delete_branch_button.pack(side='left', padx=2, pady=2)
         
         # 自动播放框架
         self.autoplay_frame = ttk.LabelFrame(
-            self, style='Panel.TLabelframe'
+            self, style='Panel.TLabelframe', padding=(8, 6)
         )
-        self.autoplay_frame.pack(fill='x', padx=5, pady=5)
+        self.autoplay_frame.pack(fill='x', padx=8, pady=(0, 8))
         
         self.autoplay_button = ttk.Button(
-            self.autoplay_frame, width=10,
+            self.autoplay_frame, width=10, style='Panel.TButton',
             command=lambda: self._callback('toggle_autoplay')
         )
         self.autoplay_button.pack(side='left', padx=5, pady=5)

@@ -145,8 +145,9 @@ class BoardRenderer:
         # 绘制星位
         self.draw_star_points()
         
-        # 绘制坐标
-        self.draw_coordinates()
+        # 绘制坐标（由 BoardCanvas.show_coordinates 控制）
+        if getattr(self.canvas, 'show_coordinates', True):
+            self.draw_coordinates()
     
     def clear(self):
         """清除所有绘制元素"""
@@ -396,6 +397,33 @@ class BoardRenderer:
             width=2,
             tags=('last_move_marker',)
         )
+
+    def _rgba_to_tk(self, color: str) -> Tuple[str, Optional[str]]:
+        """
+        将 `rgba(r, g, b, a)` 转为 Tk 可用颜色，并用 stipple 近似透明度。
+
+        Tkinter 不支持 alpha 通道，因此这里用灰度网格模拟透明效果。
+        """
+        value = (color or "").strip()
+        if not value.lower().startswith('rgba'):
+            return value, None
+
+        try:
+            inside = value[value.find('(') + 1 : value.rfind(')')]
+            parts = [p.strip() for p in inside.split(',')]
+            r = int(float(parts[0]))
+            g = int(float(parts[1]))
+            b = int(float(parts[2]))
+            a = float(parts[3]) if len(parts) >= 4 else 1.0
+        except Exception:
+            return '#808080', 'gray75'
+
+        hex_color = f"#{r:02x}{g:02x}{b:02x}"
+        if a >= 0.9:
+            return hex_color, None
+        if a >= 0.5:
+            return hex_color, 'gray50'
+        return hex_color, 'gray75'
     
     def show_territory(self, territory_map: List[List[str]]):
         """
@@ -421,13 +449,108 @@ class BoardRenderer:
                     else:
                         color = self.theme.territory_neutral_color
                     
+                    fill_color, stipple = self._rgba_to_tk(color)
+                    kwargs = {
+                        'fill': fill_color,
+                        'outline': '',
+                        'tags': ('territory',),
+                    }
+                    if stipple:
+                        kwargs['stipple'] = stipple
+
                     self.canvas.create_rectangle(
                         cx - size, cy - size,
                         cx + size, cy + size,
-                        fill=color,
-                        outline='',
-                        tags=('territory',)
+                        **kwargs
                     )
+
+    def show_influence(self, influence_map):
+        """显示势力图（颜色 + stipple 近似强弱）。"""
+        self.canvas.delete('influence')
+
+        if influence_map is None:
+            return
+
+        # 计算最大势力用于归一化
+        max_abs = 0.0
+        try:
+            for y in range(self.board_size):
+                for x in range(self.board_size):
+                    if (x, y) in self.stones:
+                        continue
+                    v = float(influence_map[y, x])
+                    if abs(v) > max_abs:
+                        max_abs = abs(v)
+        except Exception:
+            return
+
+        if max_abs <= 0.0:
+            return
+
+        size = self.cell_size * 0.38
+        for y in range(self.board_size):
+            for x in range(self.board_size):
+                if (x, y) in self.stones:
+                    continue
+
+                v = float(influence_map[y, x])
+                intensity = abs(v) / max_abs
+                if intensity < 0.2:
+                    continue
+
+                # 黑方为正，白方为负
+                base_color = '#2563eb' if v > 0 else '#ef4444'
+
+                if intensity >= 0.66:
+                    stipple = 'gray25'
+                elif intensity >= 0.4:
+                    stipple = 'gray50'
+                else:
+                    stipple = 'gray75'
+
+                cx = self.margin_x + x * self.cell_size
+                cy = self.margin_y + y * self.cell_size
+                self.canvas.create_rectangle(
+                    cx - size,
+                    cy - size,
+                    cx + size,
+                    cy + size,
+                    fill=base_color,
+                    outline='',
+                    stipple=stipple,
+                    tags=('influence',),
+                )
+
+    def draw_move_numbers(self, move_numbers: Dict[Tuple[int, int], int]):
+        """绘制手数（由 BoardCanvas.show_move_numbers 控制）。"""
+        self.canvas.delete('move_number')
+
+        if not move_numbers:
+            return
+
+        font_size = max(8, int(self.cell_size * 0.28))
+        for (x, y), n in move_numbers.items():
+            if not (0 <= x < self.board_size and 0 <= y < self.board_size):
+                continue
+            if (x, y) not in self.stones:
+                continue
+
+            try:
+                stone_color = getattr(self.canvas, 'board_state', [['']])[y][x]
+            except Exception:
+                stone_color = ''
+
+            text_color = 'white' if stone_color == 'black' else 'black'
+            cx = self.margin_x + x * self.cell_size
+            cy = self.margin_y + y * self.cell_size
+            self.canvas.create_text(
+                cx,
+                cy,
+                text=str(n),
+                fill=text_color,
+                font=('Arial', font_size, 'bold'),
+                tags=('move_number',),
+            )
     
     def mark_dead_stones(self, stones: Set[Tuple[int, int]]):
         """
@@ -499,6 +622,17 @@ class BoardCanvas(Canvas):
         self.move_numbers: Dict[Tuple[int, int], int] = {}
         self.show_territory = False
         self.territory_map = [['' for _ in range(board_size)] for _ in range(board_size)]
+        self.show_influence = False
+        self.influence_map = None
+
+        # 数子/点目模式
+        self.scoring_mode = False
+        self._scoring_on_stone_click = None
+        self._scoring_on_done = None
+        self._dead_stones_marked: Set[Tuple[int, int]] = set()
+
+        # 提示点（用于刷新后重绘）
+        self._hint_pos: Optional[Tuple[int, int]] = None
         
         # 回调函数
         self.on_click: Optional[Callable[[int, int], None]] = None
@@ -527,11 +661,16 @@ class BoardCanvas(Canvas):
         x, y = self._event_to_board_coords(event.x, event.y)
         
         if x is not None and y is not None:
-            # 添加点击动画
-            if self.theme.enable_animations:
-                self.animation_manager.create_ripple_animation(event.x, event.y)
-            
-            # 调用回调
+            # 数子模式：点击棋子标记死活
+            if self.scoring_mode and self._scoring_on_stone_click:
+                try:
+                    if self.board_state[y][x] != '':
+                        self._scoring_on_stone_click(x, y)
+                except Exception:
+                    return
+                return
+
+            # 普通模式：调用回调
             if self.on_click:
                 self.on_click(x, y)
     
@@ -540,6 +679,10 @@ class BoardCanvas(Canvas):
         x, y = self._event_to_board_coords(event.x, event.y)
         
         if x is not None and y is not None:
+            # 数子模式：右键完成
+            if self.scoring_mode and self._scoring_on_done:
+                self._scoring_on_done()
+                return
             if self.on_right_click:
                 self.on_right_click(x, y)
     
@@ -554,13 +697,13 @@ class BoardCanvas(Canvas):
                 
                 self.hover_pos = (x, y)
                 
-                # 显示新预览
-                if self.board_state[y][x] == '':
-                    self.renderer.show_preview(x, y, self.current_player)
-                
                 # 调用回调
                 if self.on_hover:
                     self.on_hover(x, y)
+                else:
+                    # 显示新预览（当没有外部 hover 回调时，使用内置预览逻辑）
+                    if self.board_state[y][x] == '':
+                        self.renderer.show_preview(x, y, self.current_player)
         else:
             self._on_mouse_leave(event)
     
@@ -663,6 +806,11 @@ class BoardCanvas(Canvas):
         self.board_size = size
         self.renderer.board_size = size
         self.board_state = [['' for _ in range(size)] for _ in range(size)]
+        self.move_numbers.clear()
+        self.territory_map = [['' for _ in range(size)] for _ in range(size)]
+        self.influence_map = None
+        self._dead_stones_marked = set()
+        self._hint_pos = None
         self.refresh()
     
     def set_theme(self, theme: Theme):
@@ -682,6 +830,8 @@ class BoardCanvas(Canvas):
                            for _ in range(self.board_size)]
         self.last_move = None
         self.move_numbers.clear()
+        self._hint_pos = None
+        self.delete('hint')
         self.refresh()
     
     def refresh(self):
@@ -694,6 +844,10 @@ class BoardCanvas(Canvas):
                 if self.board_state[y][x]:
                     self.renderer.place_stone(x, y, self.board_state[y][x])
         
+        # 显示手数（需在标记最后一手之前，避免遮挡最后一手标记）
+        if self.show_move_numbers:
+            self.renderer.draw_move_numbers(self.move_numbers)
+        
         # 恢复最后一手标记
         if self.last_move:
             self.renderer.mark_last_move(*self.last_move)
@@ -701,6 +855,18 @@ class BoardCanvas(Canvas):
         # 显示地盘
         if self.show_territory:
             self.renderer.show_territory(self.territory_map)
+
+        # 显示势力
+        if self.show_influence:
+            self.renderer.show_influence(self.influence_map)
+
+        # 数子模式下重绘死子标记
+        if self.scoring_mode and self._dead_stones_marked:
+            self.renderer.mark_dead_stones(self._dead_stones_marked)
+
+        # 重绘提示点
+        if self._hint_pos:
+            self._draw_hint_marker(*self._hint_pos)
     
     def show_territory_map(self, territory_map: List[List[str]]):
         """显示地盘图"""
@@ -712,6 +878,18 @@ class BoardCanvas(Canvas):
         """隐藏地盘图"""
         self.show_territory = False
         self.delete('territory')
+
+    def show_influence_map(self, influence_map):
+        """显示势力图"""
+        self.influence_map = influence_map
+        self.show_influence = True
+        self.renderer.show_influence(influence_map)
+
+    def hide_influence_map(self):
+        """隐藏势力图"""
+        self.show_influence = False
+        self.influence_map = None
+        self.delete('influence')
     
     def mark_dead_stones(self, stones: Set[Tuple[int, int]]):
         """标记死子"""
@@ -726,3 +904,142 @@ class BoardCanvas(Canvas):
         """切换动画开关"""
         self.theme.enable_animations = not self.theme.enable_animations
         self.animation_manager.toggle_animations(self.theme.enable_animations)
+
+    # --- 兼容 main.py 的方法（旧版 UI 调用） ---
+
+    def update_board(self, board):
+        """
+        从 core.Board 同步棋盘显示。
+
+        Args:
+            board: core.board.Board 实例
+        """
+        try:
+            size = board.size
+        except Exception:
+            return
+
+        if size != self.board_size:
+            self.set_board_size(size)
+
+        self.board_state = [row[:] for row in board.grid]
+
+        # 更新手数映射（用于显示手数）
+        self.move_numbers.clear()
+        try:
+            history = getattr(board, 'stone_history', None) or []
+            for stone in history:
+                try:
+                    x, y = int(stone.x), int(stone.y)
+                    if not (0 <= x < size and 0 <= y < size):
+                        continue
+                    if board.grid[y][x] != stone.color:
+                        continue
+                    n = int(getattr(stone, 'move_number', 0) or 0)
+                    if n > 0:
+                        self.move_numbers[(x, y)] = n
+                except Exception:
+                    continue
+        except Exception:
+            pass
+
+        # 尝试根据棋子历史标记最后一手（如果有）
+        last = None
+        try:
+            if getattr(board, 'stone_history', None):
+                last_stone = board.stone_history[-1]
+                last = (last_stone.x, last_stone.y)
+        except Exception:
+            last = None
+
+        self.last_move = last
+
+        # 新局面刷新时清除提示点（避免过期提示）
+        self._hint_pos = None
+        self.delete('hint')
+        self.refresh()
+
+    def show_preview(self, x: int, y: int, color: str):
+        """显示预览（供外部 hover 回调使用）。"""
+        self.renderer.clear_preview()
+        if 0 <= x < self.board_size and 0 <= y < self.board_size:
+            if self.board_state[y][x] == '':
+                self.renderer.show_preview(x, y, color)
+
+    def show_hint(self, x: int, y: int):
+        """显示提示标记（简单高亮）。"""
+        self.delete('hint')
+        self._hint_pos = None
+        if not (0 <= x < self.board_size and 0 <= y < self.board_size):
+            return
+        self._hint_pos = (x, y)
+        self._draw_hint_marker(x, y)
+
+    def _draw_hint_marker(self, x: int, y: int):
+        """内部：按当前尺寸重绘提示标记。"""
+        self.delete('hint')
+        cx = self.renderer.margin_x + x * self.renderer.cell_size
+        cy = self.renderer.margin_y + y * self.renderer.cell_size
+        radius = self.renderer.cell_size * 0.25
+        self.create_oval(
+            cx - radius,
+            cy - radius,
+            cx + radius,
+            cy + radius,
+            outline='#ff8800',
+            width=3,
+            tags=('hint',),
+        )
+
+    def enter_scoring_mode(self, on_stone_click=None, on_done=None):
+        """进入数子模式：点击棋子标记死活，右键完成。"""
+        self.scoring_mode = True
+        self._scoring_on_stone_click = on_stone_click
+        self._scoring_on_done = on_done
+        try:
+            self.focus_set()
+        except Exception:
+            pass
+
+    def update_dead_stones(self, dead_stones):
+        """更新死子标记（使用现有的 X 标记）。"""
+        try:
+            self._dead_stones_marked = set(dead_stones)
+            self.mark_dead_stones(set(dead_stones))
+        except Exception:
+            return
+
+    def exit_scoring_mode(self):
+        """退出数子模式（占位）。"""
+        self.scoring_mode = False
+        self._scoring_on_stone_click = None
+        self._scoring_on_done = None
+        self._dead_stones_marked = set()
+        self.delete('dead_stone_marker')
+
+    def set_show_coordinates(self, show: bool):
+        self.show_coordinates = bool(show)
+        self.refresh()
+
+    def set_show_move_numbers(self, show: bool):
+        self.show_move_numbers = bool(show)
+        self.refresh()
+
+    def set_highlight_last_move(self, show: bool):
+        # 当前实现始终显示最后一手标记；保留接口避免崩溃
+        if not show:
+            self.delete('last_move_marker')
+        else:
+            if self.last_move:
+                self.renderer.mark_last_move(*self.last_move)
+
+    def zoom(self, factor: float):
+        # Tkinter Canvas 缩放会影响坐标换算，先保留接口避免崩溃
+        return
+
+    def reset_zoom(self):
+        return
+
+    def update_theme(self):
+        """从当前 theme 重新渲染。"""
+        self.set_theme(self.theme)

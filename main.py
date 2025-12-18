@@ -28,6 +28,7 @@ from ui import (
     NewGameDialog, SettingsDialog, AboutDialog,
     Theme, ThemeManager, AnimationManager
 )
+from ui.translator import Translator
 
 # 导入AI模块
 from ai import AIFactory, AIPlayer, AILevel
@@ -41,7 +42,7 @@ from features import (
 # 导入工具模块
 from utils import (
     ConfigManager, SoundManager, SGFParser, Timer,
-    Translator, Statistics, StorageManager, TimeControl,
+    Statistics, StorageManager, TimeControl,
     resource_path, GameConfig, TimeSettings, GameStats
 )
 
@@ -93,7 +94,7 @@ class GoMasterApp:
         
         # 加载上次的游戏或开始新游戏
         if not self._load_last_game():
-            self.new_game()
+            self._start_default_game()
         
         # 设置关闭事件
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -170,9 +171,51 @@ class GoMasterApp:
         paned = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
         paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        # 左侧面板（信息和控制）
-        left_frame = ttk.Frame(paned)
-        paned.add(left_frame, weight=1)
+        # 左侧面板（信息/控制/分析）：做成可滚动容器，避免窗口高度不够导致“局势”等区域被挤压不可见
+        left_container = ttk.Frame(paned)
+        paned.add(left_container, weight=1)
+
+        self._left_sidebar_canvas = tk.Canvas(
+            left_container,
+            highlightthickness=0,
+            borderwidth=0,
+            bg=self.root.cget('bg'),
+        )
+        left_scrollbar = ttk.Scrollbar(left_container, orient='vertical', command=self._left_sidebar_canvas.yview)
+        self._left_sidebar_canvas.configure(yscrollcommand=left_scrollbar.set)
+
+        left_scrollbar.pack(side='right', fill='y')
+        self._left_sidebar_canvas.pack(side='left', fill='both', expand=True)
+
+        left_frame = ttk.Frame(self._left_sidebar_canvas)
+        self._left_sidebar_window = self._left_sidebar_canvas.create_window((0, 0), window=left_frame, anchor='nw')
+
+        def _on_left_frame_configure(event):
+            self._left_sidebar_canvas.configure(scrollregion=self._left_sidebar_canvas.bbox('all'))
+
+        def _on_left_canvas_configure(event):
+            # 让内部 Frame 宽度跟随 Canvas，避免出现横向滚动条/裁切
+            self._left_sidebar_canvas.itemconfigure(self._left_sidebar_window, width=event.width)
+
+        left_frame.bind('<Configure>', _on_left_frame_configure)
+        self._left_sidebar_canvas.bind('<Configure>', _on_left_canvas_configure)
+
+        # 鼠标滚轮仅在进入左侧区域时生效
+        def _on_mousewheel(event):
+            try:
+                delta = int(-1 * (event.delta / 120))
+            except Exception:
+                delta = -1 if getattr(event, 'delta', 0) > 0 else 1
+            self._left_sidebar_canvas.yview_scroll(delta, 'units')
+
+        def _bind_mousewheel(_event):
+            self._left_sidebar_canvas.bind_all('<MouseWheel>', _on_mousewheel)
+
+        def _unbind_mousewheel(_event):
+            self._left_sidebar_canvas.unbind_all('<MouseWheel>')
+
+        self._left_sidebar_canvas.bind('<Enter>', _bind_mousewheel)
+        self._left_sidebar_canvas.bind('<Leave>', _unbind_mousewheel)
         
         # 信息面板
         self.info_panel = InfoPanel(
@@ -193,7 +236,17 @@ class GoMasterApp:
             on_hint=self.on_hint,
             on_analyze=self.on_analyze,
             on_score=self.on_score,
-            on_pause=self.on_pause
+            on_end_game=self.on_end_game,
+            on_estimate=self.on_estimate,
+            on_pause=self.on_pause,
+            on_show_coordinates=self.set_show_coordinates,
+            on_show_move_numbers=self.set_show_move_numbers,
+            on_show_territory=self.set_show_territory,
+            on_show_influence=self.set_show_influence,
+            show_coordinates=self.config_manager.get('display.show_coordinates', True),
+            show_move_numbers=self.config_manager.get('display.show_move_numbers', False),
+            show_territory=self.config_manager.get('display.show_territory', False),
+            show_influence=self.config_manager.get('display.show_influence', False),
         )
         self.control_panel.pack(fill=tk.BOTH, expand=False, pady=(0, 5))
         
@@ -359,6 +412,11 @@ class GoMasterApp:
             command=self.on_score,
             accelerator="S"
         )
+        game_menu.add_command(
+            label=self.translator.get('end_game'),
+            command=self.on_end_game,
+            accelerator="E"
+        )
         game_menu.add_separator()
         
         game_menu.add_command(
@@ -455,6 +513,21 @@ class GoMasterApp:
             command=self.show_statistics
         )
         tools_menu.add_separator()
+
+        # 语言切换（用户可直接在菜单中切换，无需进入设置）
+        language_menu = tk.Menu(tools_menu, tearoff=0)
+        tools_menu.add_cascade(label=self.translator.get('language'), menu=language_menu)
+        self.language_var = tk.StringVar(value=getattr(self.translator, 'language', 'zh'))
+        language_labels = {'zh': '中文', 'en': 'English', 'ja': '日本語'}
+        for code in self.translator.get_available_languages():
+            language_menu.add_radiobutton(
+                label=language_labels.get(code, code),
+                variable=self.language_var,
+                value=code,
+                command=lambda c=code: self._apply_language(c),
+            )
+
+        tools_menu.add_separator()
         
         tools_menu.add_command(
             label=self.translator.get('settings'),
@@ -512,6 +585,7 @@ class GoMasterApp:
             'h': lambda e: self.on_hint(),
             'a': lambda e: self.on_analyze(),
             's': lambda e: self.on_score(),
+            'e': lambda e: self.on_end_game(),
         }
         
         for key, handler in shortcuts.items():
@@ -550,6 +624,20 @@ class GoMasterApp:
         if dialog.result:
             # 创建新游戏
             self._start_new_game(dialog.result)
+
+    def _start_default_game(self):
+        """启动时创建一个默认对局（不弹出新对局对话框）。"""
+        settings = {
+            'mode': 'human_vs_human',
+            'black_player': self.translator.get('black'),
+            'white_player': self.translator.get('white'),
+            'board_size': self.config_manager.get('rules.default_board_size', 19),
+            'rules': self.config_manager.get('rules.default_rules', 'chinese'),
+            'komi': self.config_manager.get('rules.default_komi', 7.5),
+            'handicap': self.config_manager.get('rules.default_handicap', 0),
+            'time_control': 'none',
+        }
+        self._start_new_game(settings)
     
     def _start_new_game(self, settings: Dict[str, Any]):
         """
@@ -683,10 +771,7 @@ class GoMasterApp:
             captures = self.game.get_last_captures()
             if captures:
                 self.sound_manager.play('capture')
-                # 播放吃子动画
-                self.animation_manager.play_capture_animation(
-                    self.board_canvas, captures
-                )
+                # 注：吃子动画由 BoardCanvas/AnimationManager 自身负责；此处不再调用旧接口，避免崩溃
             
             # 检查游戏是否结束
             if self.game.is_ended():
@@ -763,20 +848,21 @@ class GoMasterApp:
         if not self.game or self.game.is_ended():
             return
         
-        self.game.pass_turn()
+        entered_scoring = self.game.pass_turn()
         self.sound_manager.play('pass')
         
-        # 检查是否连续虚手（游戏结束）
-        if self.game.is_ended():
-            self.on_game_end()
-        else:
-            self.update_display()
+        # 连续虚手：按规则应进入数子/结算，这里直接结束对局并自动数子
+        if entered_scoring or getattr(self.game, 'phase', None) == GamePhase.SCORING:
+            self.on_end_game(prompt=False)
+            return
+
+        self.update_display()
             
-            # AI回合
-            current_player = self.game.get_current_player()
-            if (current_player == 'black' and self.ai_black) or \
-               (current_player == 'white' and self.ai_white):
-                self.root.after(500, self.ai_move)
+        # AI回合
+        current_player = self.game.get_current_player()
+        if (current_player == 'black' and self.ai_black) or \
+           (current_player == 'white' and self.ai_white):
+            self.root.after(500, self.ai_move)
     
     def on_resign(self):
         """认输"""
@@ -849,36 +935,259 @@ class GoMasterApp:
         
         # 更新分析面板
         self.analysis_panel.update_analysis(analysis)
-    
-    def on_score(self):
-        """数子"""
+        self._scroll_left_sidebar_to(self.analysis_panel)
+
+    def on_estimate(self):
+        """形势估计：快速评估胜率/势力，不做完整搜索。"""
         if not self.game:
             return
-        
+
+        board = self.game.board
+
+        # 1) 快速胜率（以黑方视角），失败则回退到 50%
+        winrate_percent = 50.0
+        try:
+            eval_ai = AIFactory.create_ai('expert', 'black', self.game.board_size)
+            eval_result = eval_ai.evaluate_position(board)
+            winrate_percent = float(getattr(eval_result, 'winning_probability', 0.5) or 0.5) * 100.0
+        except Exception:
+            winrate_percent = 50.0
+
+        # 2) 势力/地盘估计
+        black_terr = 0
+        white_terr = 0
+        influence_map = None
+        try:
+            territory = Territory(board)
+            influence_map = territory.calculate_influence()
+            terr_est = territory.estimate_territory_by_influence()
+            black_terr = int(terr_est.get('black', 0) or 0)
+            white_terr = int(terr_est.get('white', 0) or 0)
+        except Exception:
+            pass
+
+        # 3) 更新左侧“局势/建议”面板（清空建议，避免与上次分析混淆）
+        if self.analysis_panel:
+            self.analysis_panel.update_analysis(
+                {
+                    'winrate': winrate_percent,
+                    'territory_estimate': {'black': black_terr, 'white': white_terr},
+                    'best_moves': [],
+                    'analysis_depth': 0,
+                }
+            )
+            self._scroll_left_sidebar_to(self.analysis_panel)
+
+        # 4) 如果用户开启了显示选项，刷新棋盘叠加层
+        if influence_map is not None and self.board_canvas:
+            if self.config_manager.get('display.show_influence', False):
+                self.board_canvas.show_influence_map(influence_map)
+        self._refresh_board_overlays()
+
+    def _scroll_left_sidebar_to(self, widget: Optional[tk.Widget]):
+        """让左侧滚动面板滚动到指定控件（用于“分析/形势估计”后自动展示局势区域）。"""
+        canvas = getattr(self, '_left_sidebar_canvas', None)
+        if not canvas or not widget:
+            return
+
+        try:
+            canvas.update_idletasks()
+            widget.update_idletasks()
+        except Exception:
+            pass
+
+        # 如果已经可见，就不跳动
+        try:
+            canvas_top = canvas.winfo_rooty()
+            canvas_bottom = canvas_top + canvas.winfo_height()
+            widget_top = widget.winfo_rooty()
+            widget_bottom = widget_top + widget.winfo_height()
+            if widget_top >= canvas_top and widget_bottom <= canvas_bottom:
+                return
+        except Exception:
+            pass
+
+        try:
+            # widget.winfo_y() 是相对于其父容器（left_frame）的 y 坐标
+            target_y = int(widget.winfo_y())
+            bbox = canvas.bbox('all')
+            if not bbox:
+                return
+            total_height = int(bbox[3] - bbox[1])
+            view_height = int(canvas.winfo_height())
+            denom = max(1, total_height - view_height)
+            canvas.yview_moveto(max(0.0, min(1.0, target_y / denom)))
+        except Exception:
+            return
+
+    def _format_scoring_brief(self, score: Dict[str, Any]) -> str:
+        """格式化数子阶段的当前领先信息（用于阶段栏）。"""
+        winner = score.get('winner')
+        margin = score.get('margin', score.get('difference', 0) or 0) or 0
+        try:
+            margin_value = float(margin)
+        except Exception:
+            margin_value = 0.0
+
+        if winner not in ('black', 'white') or margin_value == 0:
+            return self.translator.get('jigo')
+
+        points = self.translator.get('points')
+        if getattr(self.translator, 'language', 'en') == 'zh':
+            return f"{self.translator.get(winner)}+{margin_value:.1f}{points}"
+        return f"{self.translator.get(winner)}+{margin_value:.1f} {points}"
+
+    def _format_final_result_brief(self, result: Dict[str, Any]) -> str:
+        """格式化对局结束结果（用于阶段栏）。"""
+        winner = result.get('winner')
+        diff = result.get('score_difference', 0) or 0
+        try:
+            diff_value = float(diff)
+        except Exception:
+            diff_value = 0.0
+
+        if not winner or diff_value == 0:
+            return self.translator.get('jigo')
+
+        points = self.translator.get('points')
+        wins = self.translator.get('wins')
+        if getattr(self.translator, 'language', 'en') == 'zh':
+            return f"{self.translator.get(winner)}{wins}（{diff_value:.1f}{points}）"
+        return f"{self.translator.get(winner)} {wins} ({diff_value:.1f} {points})"
+
+    def _update_phase_display(self):
+        """在特定阶段（数子/结束）覆盖 InfoPanel 的阶段显示，提供更直观的信息。"""
+        if not self.game or not self.info_panel:
+            return
+
+        phase = getattr(self.game, 'phase', None)
+        if phase == GamePhase.SCORING:
+            try:
+                score = self.game.calculate_score()
+                brief = self._format_scoring_brief(score)
+                self.info_panel.set_phase_text(
+                    f"{self.translator.get('phase')}: {self.translator.get('scoring')}（{brief}）"
+                )
+            except Exception:
+                return
+        elif phase == GamePhase.ENDED:
+            try:
+                result = self.game.get_result()
+                brief = self._format_final_result_brief(result)
+                self.info_panel.set_phase_text(
+                    f"{self.translator.get('phase')}: {self.translator.get('ended')}（{brief}）"
+                )
+            except Exception:
+                return
+
+    def _enter_scoring_mode(self):
+        """进入数子模式：点击棋子标记死活，右键或再次点击“数子”完成。"""
+        if not self.game:
+            return
+
         # 进入数子阶段
-        self.game.enter_scoring_phase()
-        
+        try:
+            self.game.enter_scoring_phase()
+        except Exception:
+            return
+
         # 显示死活标记界面
-        self.board_canvas.enter_scoring_mode(
-            on_stone_click=self.on_mark_dead_stone,
-            on_done=self.on_scoring_done
+        try:
+            self.board_canvas.enter_scoring_mode(
+                on_stone_click=self.on_mark_dead_stone,
+                on_done=self.on_scoring_done,
+            )
+        except Exception:
+            return
+
+        self.update_display()
+    
+    def on_score(self):
+        """数子（预览）：仅计算当前盘面分数，不结束对局。"""
+        if not self.game:
+            return
+
+        try:
+            score = self.game.calculate_score()
+        except Exception:
+            messagebox.showerror(self.translator.get('error'), self.translator.get('score_failed'))
+            return
+
+        try:
+            black_score = float(score.get('black_score', 0) or 0)
+        except Exception:
+            black_score = 0.0
+        try:
+            white_score = float(score.get('white_score', 0) or 0)
+        except Exception:
+            white_score = 0.0
+
+        brief = self._format_scoring_brief(score)
+        message = (
+            f"{self.translator.get('black')}: {black_score:.1f}\n"
+            f"{self.translator.get('white')}: {white_score:.1f}\n"
+            f"{self.translator.get('game_result')}: {brief}"
         )
+
+        messagebox.showinfo(self.translator.get('score'), message)
+
+    def on_end_game(self, prompt: bool = True):
+        """结束对局：自动数子并显示结果。"""
+        if not self.game:
+            return
+
+        if getattr(self.game, 'phase', None) == GamePhase.ENDED:
+            return
+
+        if prompt:
+            ok = messagebox.askyesno(
+                self.translator.get('confirm'),
+                self.translator.get('end_game_confirm'),
+            )
+            if not ok:
+                return
+
+        try:
+            # 确保进入数子阶段以便 end_game 写入 result
+            self.game.enter_scoring_phase()
+            self.game.end_game(accept_score=True)
+        except Exception:
+            return
+
+        try:
+            if self.board_canvas:
+                self.board_canvas.exit_scoring_mode()
+        except Exception:
+            pass
+
+        self.update_display()
+        self.on_game_end()
     
     def on_mark_dead_stone(self, x: int, y: int):
         """标记死子"""
         self.game.toggle_dead_stone(x, y)
         self.board_canvas.update_dead_stones(self.game.get_dead_stones())
+        self._update_phase_display()
     
     def on_scoring_done(self):
         """完成数子"""
-        # 计算最终得分
-        result = self.game.calculate_final_score()
-        
-        # 显示结果
-        self.show_game_result(result)
-        
+        if not self.game:
+            return
+
+        # 结束游戏并固化结果（点目结果写入 game_info.result）
+        try:
+            self.game.end_game(accept_score=True)
+        except Exception:
+            pass
+
         # 退出数子模式
-        self.board_canvas.exit_scoring_mode()
+        try:
+            self.board_canvas.exit_scoring_mode()
+        except Exception:
+            pass
+
+        self.update_display()
+        self.on_game_end()
     
     def on_pause(self):
         """暂停/继续"""
@@ -941,16 +1250,20 @@ class GoMasterApp:
         
         # 更新棋盘
         self.board_canvas.update_board(self.game.board)
+        self._refresh_board_overlays()
         
         # 更新信息面板
         game_info = self.game.get_game_info()
         self.info_panel.update_info(game_info)
+        self._update_phase_display()
         
         # 更新控制面板状态
+        is_scoring = getattr(self.game, 'phase', None) == GamePhase.SCORING
         self.control_panel.update_buttons(
             can_undo=self.game.can_undo(),
             can_redo=self.game.can_redo(),
-            is_playing=not self.game.is_ended()
+            is_playing=not self.game.is_ended(),
+            is_scoring=is_scoring,
         )
     
     def save_game(self, auto: bool = False):
@@ -1123,18 +1436,88 @@ class GoMasterApp:
         """切换编辑模式"""
         # TODO: 实现编辑模式
         pass
+
+    def set_show_coordinates(self, show: bool):
+        """设置坐标显示（供菜单/左侧面板共用）。"""
+        self.config_manager.set('display.show_coordinates', bool(show))
+        try:
+            if hasattr(self, 'show_coords_var'):
+                self.show_coords_var.set(bool(show))
+        except Exception:
+            pass
+        if self.board_canvas:
+            self.board_canvas.set_show_coordinates(bool(show))
+
+    def set_show_move_numbers(self, show: bool):
+        """设置手数显示（供菜单/左侧面板共用）。"""
+        self.config_manager.set('display.show_move_numbers', bool(show))
+        try:
+            if hasattr(self, 'show_move_nums_var'):
+                self.show_move_nums_var.set(bool(show))
+        except Exception:
+            pass
+        if self.board_canvas and self.game:
+            # 先同步棋盘以刷新 move_numbers 映射
+            self.board_canvas.update_board(self.game.board)
+            self.board_canvas.set_show_move_numbers(bool(show))
+
+    def set_show_territory(self, show: bool):
+        """设置地盘显示（需要有当前对局）。"""
+        self.config_manager.set('display.show_territory', bool(show))
+        if not self.game or not self.board_canvas:
+            return
+        if show:
+            self._refresh_territory_overlay()
+        else:
+            self.board_canvas.hide_territory_map()
+
+    def set_show_influence(self, show: bool):
+        """设置势力显示（需要有当前对局）。"""
+        self.config_manager.set('display.show_influence', bool(show))
+        if not self.game or not self.board_canvas:
+            return
+        if show:
+            self._refresh_influence_overlay()
+        else:
+            self.board_canvas.hide_influence_map()
+
+    def _refresh_territory_overlay(self):
+        if not self.game or not self.board_canvas:
+            return
+        try:
+            dead = set(self.game.get_dead_stones()) if hasattr(self.game, 'get_dead_stones') else set()
+            territory = Territory(self.game.board)
+            territory.calculate_territory(dead_stones=dead)
+            self.board_canvas.show_territory_map(territory.territory_map)
+        except Exception:
+            return
+
+    def _refresh_influence_overlay(self):
+        if not self.game or not self.board_canvas:
+            return
+        try:
+            territory = Territory(self.game.board)
+            influence_map = territory.calculate_influence()
+            self.board_canvas.show_influence_map(influence_map)
+        except Exception:
+            return
+
+    def _refresh_board_overlays(self):
+        """根据当前开关刷新棋盘叠加层（地盘/势力）。"""
+        if not self.game or not self.board_canvas:
+            return
+        if getattr(self.board_canvas, 'show_territory', False):
+            self._refresh_territory_overlay()
+        if getattr(self.board_canvas, 'show_influence', False):
+            self._refresh_influence_overlay()
     
     def toggle_coordinates(self):
         """切换坐标显示"""
-        show = self.show_coords_var.get()
-        self.config_manager.set('display.show_coordinates', show)
-        self.board_canvas.set_show_coordinates(show)
+        self.set_show_coordinates(self.show_coords_var.get())
     
     def toggle_move_numbers(self):
         """切换手数显示"""
-        show = self.show_move_nums_var.get()
-        self.config_manager.set('display.show_move_numbers', show)
-        self.board_canvas.set_show_move_numbers(show)
+        self.set_show_move_numbers(self.show_move_nums_var.get())
     
     def toggle_last_move(self):
         """切换最后一手显示"""
@@ -1158,34 +1541,170 @@ class GoMasterApp:
     def reset_view(self):
         """重置视图"""
         self.board_canvas.reset_zoom()
-    
+
+    def _get_settings_dialog_config(self) -> Dict[str, Any]:
+        """为 SettingsDialog 生成扁平化配置字典（兼容 ui/dialogs.py 的接口）。"""
+        theme_name = self.config_manager.get('display.theme', 'classic')
+        if theme_name not in getattr(self.theme_manager, 'themes', {}):
+            theme_name = 'classic'
+
+        return {
+            'language': self.config_manager.get('language', 'zh'),
+            'theme': theme_name,
+            'default_board_size': self.config_manager.get('rules.default_board_size', 19),
+            'default_rules': self.config_manager.get('rules.default_rules', 'chinese'),
+            'default_komi': self.config_manager.get('rules.default_komi', 7.5),
+            'auto_save': self.config_manager.get('storage.auto_save', True),
+            'confirm_exit': self.config_manager.get('confirm_exit', True),
+            'show_coordinates': self.config_manager.get('display.show_coordinates', True),
+            'show_move_numbers': self.config_manager.get('display.show_move_numbers', False),
+            'highlight_last_move': self.config_manager.get('display.show_last_move', True),
+            'show_territory': self.config_manager.get('display.show_territory', False),
+            'show_influence': self.config_manager.get('display.show_influence', False),
+            'enable_animations': self.config_manager.get('display.animation_enabled', True),
+            'animation_speed': self.config_manager.get('display.animation_speed', 1.0),
+            'default_ai_level': self.config_manager.get('ai.default_level', 'medium'),
+            'ai_thinking_time': self.config_manager.get('ai.thinking_time', 1.0),
+            'show_ai_analysis': self.config_manager.get('ai.show_analysis', False),
+            'show_winrate': self.config_manager.get('ai.show_win_rate', False),
+            'show_best_moves': self.config_manager.get('ai.show_best_moves', False),
+            'auto_analyze': self.config_manager.get('ai.auto_analyze', False),
+            'sound_enabled': self.config_manager.get('sound.enabled', True),
+            'sound_volume': self.config_manager.get('sound.volume', 0.7),
+            'stone_sound': self.config_manager.get('sound.stone_sound', True),
+            'capture_sound': self.config_manager.get('sound.capture_sound', True),
+            'time_warning_sound': self.config_manager.get('sound.warning_sound', True),
+            'auto_save_sgf': self.config_manager.get('storage.auto_save_sgf', False),
+            'sgf_path': self.config_manager.get('storage.sgf_path', './sgf'),
+            'use_gpu': self.config_manager.get('ai.gpu_enabled', False),
+            'threads': self.config_manager.get('ai.threads', 4),
+            'debug_mode': self.config_manager.get('debug_mode', False),
+        }
+
+    def _apply_language(self, language: str):
+        """切换语言并刷新 UI 文本（菜单/左侧面板）。"""
+        if not language:
+            return
+
+        self.translator.set_language(language)
+        self.config_manager.set('language', language, save=True)
+
+        if self.info_panel:
+            self.info_panel.update_translator(self.translator)
+        if self.control_panel:
+            self.control_panel.update_translator(self.translator)
+        if self.analysis_panel:
+            self.analysis_panel.update_translator(self.translator)
+
+        self._create_menu()
+        if self.game:
+            self.update_display()
+
+    def _apply_theme(self, theme_name: str):
+        """切换主题并刷新 UI 样式。"""
+        if not theme_name:
+            return
+
+        self.config_manager.set('display.theme', theme_name, save=False)
+        self.theme_manager.set_current_theme(theme_name)
+        theme = self.theme_manager.get_current_theme()
+
+        if self.board_canvas:
+            self.board_canvas.set_theme(theme)
+        if self.info_panel:
+            self.info_panel.update_theme(theme)
+        if self.control_panel:
+            self.control_panel.update_theme(theme)
+        if self.analysis_panel:
+            self.analysis_panel.update_theme(theme)
+
     def show_settings(self):
         """显示设置对话框"""
         dialog = SettingsDialog(
             self.root,
-            config=self.config_manager.config,
+            config=self._get_settings_dialog_config(),
             translator=self.translator
         )
         
         if dialog.result:
-            # 应用设置
-            self.config_manager.config = dialog.result
+            result = dialog.result
+
+            old_language = self.config_manager.get('language', 'zh')
+            old_theme = self.config_manager.get('display.theme', 'classic')
+
+            # 写入配置（尽量不影响其它功能：未知字段会被 ConfigManager 忽略）
+            mappings = {
+                'language': result.get('language'),
+                'display.theme': result.get('theme'),
+                'rules.default_board_size': result.get('default_board_size'),
+                'rules.default_rules': result.get('default_rules'),
+                'rules.default_komi': result.get('default_komi'),
+                'storage.auto_save': result.get('auto_save'),
+                'confirm_exit': result.get('confirm_exit'),
+                'display.show_coordinates': result.get('show_coordinates'),
+                'display.show_move_numbers': result.get('show_move_numbers'),
+                'display.show_last_move': result.get('highlight_last_move'),
+                'display.show_territory': result.get('show_territory'),
+                'display.show_influence': result.get('show_influence'),
+                'display.animation_enabled': result.get('enable_animations'),
+                'display.animation_speed': result.get('animation_speed'),
+                'ai.default_level': result.get('default_ai_level'),
+                'ai.thinking_time': result.get('ai_thinking_time'),
+                'ai.show_analysis': result.get('show_ai_analysis'),
+                'ai.show_win_rate': result.get('show_winrate'),
+                'ai.show_best_moves': result.get('show_best_moves'),
+                'ai.auto_analyze': result.get('auto_analyze'),
+                'sound.enabled': result.get('sound_enabled'),
+                'sound.volume': result.get('sound_volume'),
+                'sound.stone_sound': result.get('stone_sound'),
+                'sound.capture_sound': result.get('capture_sound'),
+                'sound.warning_sound': result.get('time_warning_sound'),
+                'storage.auto_save_sgf': result.get('auto_save_sgf'),
+                'storage.sgf_path': result.get('sgf_path'),
+                'ai.gpu_enabled': result.get('use_gpu'),
+                'ai.threads': result.get('threads'),
+                'debug_mode': result.get('debug_mode'),
+            }
+            for key, value in mappings.items():
+                if value is None:
+                    continue
+                self.config_manager.set(key, value, save=False)
+
             self.config_manager.save_config()
-            
-            # 更新翻译
-            if dialog.result.language != self.translator.language:
-                self.translator.set_language(dialog.result.language)
-                # TODO: 重新创建UI以应用新语言
-            
-            # 更新主题
-            if dialog.result.display.theme != self.theme_manager.current_theme:
-                self.theme_manager.set_theme(dialog.result.display.theme)
-                self.board_canvas.update_theme()
-            
-            messagebox.showinfo(
-                self.translator.get('info'),
-                self.translator.get('settings_applied')
-            )
+
+            # 应用语言/主题
+            new_language = self.config_manager.get('language', old_language)
+            new_theme = self.config_manager.get('display.theme', old_theme)
+
+            if new_language != old_language:
+                self._apply_language(new_language)
+            if new_theme != old_theme:
+                self._apply_theme(new_theme)
+
+            # 应用显示选项（尽量复用现有开关，避免状态不同步）
+            self.set_show_coordinates(bool(result.get('show_coordinates', True)))
+            self.set_show_move_numbers(bool(result.get('show_move_numbers', False)))
+            self.set_show_territory(bool(result.get('show_territory', False)))
+            self.set_show_influence(bool(result.get('show_influence', False)))
+
+            # 最后一手标记
+            show_last = bool(result.get('highlight_last_move', True))
+            self.config_manager.set('display.show_last_move', show_last, save=False)
+            try:
+                if hasattr(self, 'show_last_move_var'):
+                    self.show_last_move_var.set(show_last)
+            except Exception:
+                pass
+            if self.board_canvas:
+                self.board_canvas.set_highlight_last_move(show_last)
+
+            # 动画设置（BoardCanvas 内部已创建 animation_manager）
+            if self.board_canvas and hasattr(self.board_canvas, 'animation_manager'):
+                am = self.board_canvas.animation_manager
+                am.enable_animations = bool(result.get('enable_animations', True))
+                am.animation_speed = float(result.get('animation_speed', 1.0))
+
+            messagebox.showinfo(self.translator.get('info'), self.translator.get('settings_applied'))
     
     def show_game_tree(self):
         """显示游戏树"""
@@ -1278,7 +1797,8 @@ class GoMasterApp:
         R - 认输
         H - 提示
         A - 分析
-        S - 数子
+        S - 数子（预览）
+        E - 结束对局
         
         F1 - 帮助
         F11 - 全屏
@@ -1322,15 +1842,16 @@ class GoMasterApp:
         """关闭应用程序"""
         # 如果有正在进行的游戏，询问是否保存
         if self.game and not self.game.is_ended():
-            response = messagebox.askyesnocancel(
-                self.translator.get('confirm'),
-                self.translator.get('confirm_exit')
-            )
-            
-            if response is None:  # 取消
-                return
-            elif response:  # 保存
-                self.save_game()
+            if self.config_manager.get('confirm_exit', True):
+                response = messagebox.askyesnocancel(
+                    self.translator.get('confirm'),
+                    self.translator.get('save_current_game'),
+                )
+
+                if response is None:  # 取消
+                    return
+                elif response:  # 保存
+                    self.save_game()
         
         # 保存窗口大小和位置
         geometry = self.root.geometry()

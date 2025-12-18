@@ -195,6 +195,32 @@ class Statistics:
         
         # 加载历史数据
         self.load_statistics()
+
+    def _normalize_global_stats(self) -> None:
+        """
+        规范化全局统计结构。
+
+        注意：JSON 反序列化会把 defaultdict 还原为普通 dict，导致后续 `+= 1` 时 KeyError。
+        """
+        daily_games = self.global_stats.get('daily_games') or {}
+        if not isinstance(daily_games, defaultdict):
+            try:
+                self.global_stats['daily_games'] = defaultdict(int, daily_games)
+            except Exception:
+                self.global_stats['daily_games'] = defaultdict(int)
+
+        hourly_distribution = self.global_stats.get('hourly_distribution') or {}
+        if not isinstance(hourly_distribution, defaultdict):
+            try:
+                self.global_stats['hourly_distribution'] = defaultdict(int, hourly_distribution)
+            except Exception:
+                self.global_stats['hourly_distribution'] = defaultdict(int)
+
+        # 兜底关键字段
+        self.global_stats.setdefault('total_games', 0)
+        self.global_stats.setdefault('total_time', 0)
+        self.global_stats.setdefault('most_popular_board', 19)
+        self.global_stats.setdefault('most_popular_rules', 'chinese')
     
     def load_statistics(self) -> bool:
         """加载统计数据"""
@@ -215,6 +241,9 @@ class Statistics:
                 
                 # 加载全局统计
                 self.global_stats.update(data.get('global_stats', {}))
+
+                # 修复 defaultdict 丢失问题（避免 record_game 出现 KeyError）
+                self._normalize_global_stats()
                 
             return True
             
@@ -254,6 +283,9 @@ class Statistics:
         """
         # 添加到历史
         self.game_history.append(game_stats)
+
+        # 确保结构类型正确（防止外部修改或旧数据导致 KeyError）
+        self._normalize_global_stats()
         
         # 更新全局统计
         self.global_stats['total_games'] += 1
@@ -276,6 +308,15 @@ class Statistics:
         
         # 保存数据
         self.save_statistics()
+
+    def record_game_start(self, settings: Dict[str, Any]) -> None:
+        """
+        兼容旧接口：记录对局开始事件。
+
+        旧版 UI 会在开局时调用该方法；当前统计系统主要在对局结束时通过
+        `record_game()` 记录完整数据，因此这里保持轻量实现以避免崩溃。
+        """
+        return
     
     def _update_player_stats(self, player_name: str, game: GameStats, color: str) -> None:
         """更新玩家统计"""
