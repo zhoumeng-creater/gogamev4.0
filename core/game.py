@@ -272,6 +272,37 @@ class Game:
         self._last_captures = captured
         return result
 
+    def clear_board(self):
+        """清空棋盘但保留当前对局信息（玩家、规则等），用于“清盘/编辑模式”."""
+        size = self.board.size
+        rules = self.game_info.rules
+        komi = self.game_info.komi
+        handicap = self.game_info.handicap
+
+        self.board = Board(size)
+        self.rules = Rules(rules, komi)
+        self.current_player = StoneColor.BLACK.value
+        self.phase = GamePhase.PLAYING
+        self.move_history.clear()
+        self.state_history.clear()
+        self._redo_stack.clear()
+        self.current_branch = MoveSequence(name="Main")
+        self.branches.clear()
+        self.captured_black = 0
+        self.captured_white = 0
+        self.pass_count = 0
+        self.move_number = 0
+        self.ko_point = None
+        self.last_move = None
+        self.dead_stones.clear()
+        self._last_captures = []
+        self._start_time = time.time()
+
+        if handicap > 0:
+            self._place_handicap_stones()
+
+        self._save_state()
+
     def get_last_captures(self) -> List[Tuple[int, int]]:
         return list(self._last_captures)
 

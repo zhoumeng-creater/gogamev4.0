@@ -21,6 +21,7 @@ from core import (
     Board, Rules, Game, Territory, ScoringSystem,
     GamePhase, MoveResult, GameState
 )
+from core.board import StoneColor
 
 # 导入UI模块
 from ui import (
@@ -50,7 +51,7 @@ from utils import (
 class GoMasterApp:
     """围棋大师主应用程序"""
     
-    VERSION = "2.0.0"
+    VERSION = "4.3"
     APP_NAME = "围棋大师 Go Master"
     
     def __init__(self, root: tk.Tk):
@@ -377,8 +378,9 @@ class GoMasterApp:
             command=self.clear_board
         )
         edit_menu.add_command(
-            label=self.translator.get('edit_mode'),
-            command=self.toggle_edit_mode
+            label=self.translator.get('teaching_mode'),
+            command=self.toggle_teaching_mode,
+            accelerator="Ctrl+M"
         )
         
         # 游戏菜单
@@ -586,6 +588,7 @@ class GoMasterApp:
             'a': lambda e: self.on_analyze(),
             's': lambda e: self.on_score(),
             'e': lambda e: self.on_end_game(),
+            'm': lambda e: self.toggle_teaching_mode(),
         }
         
         for key, handler in shortcuts.items():
@@ -637,9 +640,9 @@ class GoMasterApp:
             'handicap': self.config_manager.get('rules.default_handicap', 0),
             'time_control': 'none',
         }
-        self._start_new_game(settings)
+        self._start_new_game(settings, initial=True)
     
-    def _start_new_game(self, settings: Dict[str, Any]):
+    def _start_new_game(self, settings: Dict[str, Any], initial: bool = False):
         """
         开始新游戏
         
@@ -696,11 +699,11 @@ class GoMasterApp:
         self.board_canvas.clear_board()
         self.update_display()
         
-        # 播放开始音效
-        self.sound_manager.play('game_start')
-        
-        # 记录统计
-        self.statistics.record_game_start(settings)
+        if not initial:
+            # 播放开始音效
+            self.sound_manager.play('game_start')
+            # 记录统计
+            self.statistics.record_game_start(settings)
         
         # 如果AI执黑，让AI先下
         if self.ai_black:
@@ -716,7 +719,28 @@ class GoMasterApp:
         """
         if not self.game or self.game.is_ended():
             return
-        
+
+        # 教学/推演模式：交替落子（黑白交替），不走规则，不记录正式历史
+        if getattr(self, '_teaching_mode', False):
+            try:
+                next_color = getattr(self, '_teaching_next_color', StoneColor.BLACK.value)
+                # 覆盖原位置
+                self.game.board.remove_stone(x, y)
+                self._teaching_move_number = getattr(self, '_teaching_move_number', 0) + 1
+                self._teaching_move_number = max(1, self._teaching_move_number)
+                # 直接放置并附带手数，便于显示手数
+                self.game.board.place_stone(x, y, next_color, move_number=self._teaching_move_number)
+                self.game.last_move = (x, y)
+                self.game.move_number = self._teaching_move_number
+                # 交替颜色
+                self._teaching_next_color = StoneColor.opposite(next_color)
+                self.game.current_player = self._teaching_next_color
+                # 重新刷新界面，确保手数/当前玩家同步
+                self.update_display()
+            except Exception:
+                return
+            return
+
         if self.is_ai_thinking:
             return
         
@@ -1088,6 +1112,13 @@ class GoMasterApp:
         if not self.game or not self.info_panel:
             return
 
+        # 教学/推演模式下优先提示当前模式
+        if getattr(self, '_teaching_mode', False):
+            self.info_panel.set_phase_text(
+                f"{self.translator.get('phase')}: {self.translator.get('teaching_mode')}"
+            )
+            return
+
         phase = getattr(self.game, 'phase', None)
         if phase == GamePhase.SCORING:
             try:
@@ -1161,6 +1192,9 @@ class GoMasterApp:
 
     def on_end_game(self, prompt: bool = True):
         """结束对局：自动数子并显示结果。"""
+        if getattr(self, '_teaching_mode', False):
+            self.toggle_teaching_mode()
+            return
         if not self.game:
             return
 
@@ -1292,11 +1326,13 @@ class GoMasterApp:
         
         # 更新控制面板状态
         is_scoring = getattr(self.game, 'phase', None) == GamePhase.SCORING
+        is_teaching = getattr(self, '_teaching_mode', False)
         self.control_panel.update_buttons(
             can_undo=self.game.can_undo(),
             can_redo=self.game.can_redo(),
             is_playing=not self.game.is_ended(),
             is_scoring=is_scoring,
+            is_teaching=is_teaching,
         )
     
     def save_game(self, auto: bool = False):
@@ -1462,13 +1498,104 @@ class GoMasterApp:
         )
         
         if response and self.game:
-            self.game.clear_board()
+            if hasattr(self.game, 'clear_board'):
+                self.game.clear_board()
+            else:
+                try:
+                    # 兼容缺少 clear_board 方法的旧 Game 实例
+                    size = getattr(self.game, 'board_size', 19)
+                    rules = getattr(self.game.game_info, 'rules', 'chinese')
+                    komi = getattr(self.game.game_info, 'komi', 7.5)
+                    handicap = getattr(self.game.game_info, 'handicap', 0)
+                    self.game = Game(board_size=size, rules=rules, komi=komi, handicap=handicap)
+                except Exception:
+                    return
             self.update_display()
     
-    def toggle_edit_mode(self):
-        """切换编辑模式"""
-        # TODO: 实现编辑模式
-        pass
+    def toggle_teaching_mode(self):
+        """切换教学/推演模式：进入后可随意摆子，退出后不保留改动。"""
+        if not self.game:
+            return
+
+        if getattr(self, '_teaching_mode', False):
+            # 退出：还原备份
+            backup = getattr(self, '_teaching_backup', None)
+            if backup:
+                try:
+                    self.game = Game.from_dict(backup)
+                    self.ai_black = None
+                    self.ai_white = None
+                except Exception:
+                    pass
+            self._teaching_mode = False
+            self._teaching_backup = None
+            self._teaching_move_number = 0
+            self._teaching_next_color = StoneColor.BLACK.value
+            # 恢复阶段显示
+            self.update_display()
+            return
+
+        # 进入编辑模式前确认
+        ui_pref = self.config_manager.get('ui', {})
+        skip_prompt = ui_pref.get('skip_teaching_mode_prompt', ui_pref.get('skip_edit_mode_prompt', False))
+        dont_show_again = False
+        proceed = True
+        if not skip_prompt:
+            proceed, dont_show_again = self._confirm_teaching_mode()
+            if dont_show_again:
+                ui_pref['skip_teaching_mode_prompt'] = True
+                self.config_manager.set('ui', ui_pref, save=False)
+        if not proceed:
+            return
+
+        # 备份当前对局
+        try:
+            self._teaching_backup = self.game.to_dict()
+        except Exception:
+            return
+
+        self._teaching_mode = True
+        self._teaching_move_number = 0
+        self._teaching_next_color = StoneColor.BLACK.value
+        # 阶段栏提示
+        try:
+            if self.info_panel:
+                self.info_panel.set_phase_text(f"{self.translator.get('phase')}: {self.translator.get('teaching_mode')}")
+        except Exception:
+            pass
+        # 清除提示点等
+        if self.board_canvas:
+            self.board_canvas.delete('hint')
+        # 刷新界面以应用禁用状态和按钮文本
+        self.update_display()
+
+    def _confirm_teaching_mode(self) -> Tuple[bool, bool]:
+        """弹窗确认进入教学模式，返回 (是否进入, 是否不再提示)。"""
+        top = tk.Toplevel(self.root)
+        top.title(self.translator.get('teaching_mode'))
+        top.grab_set()
+        top.transient(self.root)
+        ttk.Label(top, text=self.translator.get('teaching_mode_prompt'), wraplength=320).pack(padx=12, pady=10)
+        dont_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(top, text=self.translator.get('dont_show_again'), variable=dont_var).pack(anchor='w', padx=12, pady=(0, 10))
+
+        result = {'ok': False}
+        def on_ok():
+            result['ok'] = True
+            top.destroy()
+        def on_cancel():
+            result['ok'] = False
+            top.destroy()
+
+        btn_frame = ttk.Frame(top)
+        btn_frame.pack(fill='x', pady=8)
+        ttk.Button(btn_frame, text=self.translator.get('ok', 'OK'), command=on_ok).pack(side='left', expand=True, padx=8)
+        ttk.Button(btn_frame, text=self.translator.get('cancel', 'Cancel'), command=on_cancel).pack(side='right', expand=True, padx=8)
+
+        top.update_idletasks()
+        top.geometry(f"+{self.root.winfo_rootx()+80}+{self.root.winfo_rooty()+80}")
+        top.wait_window()
+        return result['ok'], dont_var.get()
 
     def set_show_coordinates(self, show: bool):
         """设置坐标显示（供菜单/左侧面板共用）。"""
@@ -1839,6 +1966,7 @@ class GoMasterApp:
         Ctrl+Q - 退出
         Ctrl+Z - 悔棋
         Ctrl+Y - 重做
+        Ctrl+M - 教学模式
         
         P - 虚手
         R - 认输
@@ -1862,6 +1990,8 @@ class GoMasterApp:
         dialog = AboutDialog(
             self.root,
             version=self.VERSION,
+            author="周盟",
+            contact="violentadvance@proton.me",
             translator=self.translator
         )
     

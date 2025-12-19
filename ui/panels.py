@@ -532,6 +532,7 @@ class ControlPanel(BasePanel):
         can_redo: bool = True,
         is_playing: bool = True,
         is_scoring: bool = False,
+        is_teaching: bool = False,
     ):
         """根据游戏状态更新按钮可用性。"""
         play_state = 'normal' if is_playing else 'disabled'
@@ -548,6 +549,17 @@ class ControlPanel(BasePanel):
             self.hint_button.configure(state='disabled')
             self.estimate_button.configure(state='disabled')
             self.end_game_button.configure(text=self.translator.get('finish_scoring', self.translator.get('done')))
+        elif is_teaching:
+            self.pass_button.configure(state=play_state)
+            self.resign_button.configure(state='disabled')
+            self.undo_button.configure(state='disabled')
+            self.redo_button.configure(state='disabled')
+            self.end_game_button.configure(state='normal')
+            self.analyze_button.configure(state=play_state)
+            self.score_button.configure(state=play_state)
+            self.hint_button.configure(state=play_state)
+            self.estimate_button.configure(state=play_state)
+            self.end_game_button.configure(text=self.translator.get('exit_teaching', self.translator.get('done')))
         else:
             self.pass_button.configure(state=play_state)
             self.resign_button.configure(state=play_state)
@@ -559,7 +571,7 @@ class ControlPanel(BasePanel):
             self.score_button.configure(text=self.translator.get('score'))
             self.end_game_button.configure(text=self.translator.get('end_game'))
 
-        if not is_scoring:
+        if not is_scoring and not is_teaching:
             self.undo_button.configure(state='normal' if can_undo else 'disabled')
             self.redo_button.configure(state='normal' if can_redo else 'disabled')
 

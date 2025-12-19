@@ -28,7 +28,7 @@ def resource_path(relative_path: str) -> str:
 
 
 # 版本信息
-__version__ = '2.0.0'
+__version__ = '4.3'
 __author__ = 'Go Master Team'
 
 

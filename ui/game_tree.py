@@ -14,14 +14,15 @@ import tkinter as tk
 from tkinter import ttk
 from typing import Optional, Dict, Any, List
 
-from core import Board, Game
+from core import Board, Game, Rules
 from .board_canvas import BoardCanvas
 from .translator import Translator
 from .themes import Theme
+from features.replay import ReplayManager, MoveNode
 
 
 class GameTreeWindow(tk.Toplevel):
-    """棋谱树窗口（主线浏览 + 预览棋盘）。"""
+    """棋谱树窗口（支持主线 + 变化分支的浏览）。"""
 
     def __init__(
         self,
@@ -45,7 +46,14 @@ class GameTreeWindow(tk.Toplevel):
         self.minsize(820, 560)
         self.protocol("WM_DELETE_WINDOW", self.destroy)
 
-        self._moves_by_number: Dict[int, Any] = {}
+        self.replay = ReplayManager(game)
+        self._node_map: Dict[str, MoveNode] = {}
+
+        # 默认跳转到主线最后一手，方便直接看到当前局面
+        node = self.replay.move_tree.root
+        while node.children:
+            node = node.children[-1]
+        self.replay.move_tree.current_node = node
 
         self._create_widgets()
         self._populate_moves()
@@ -60,7 +68,7 @@ class GameTreeWindow(tk.Toplevel):
         paned = ttk.PanedWindow(container, orient=tk.HORIZONTAL)
         paned.pack(fill="both", expand=True)
 
-        # 左侧：手顺列表
+        # 左侧：手顺/分支列表
         left = ttk.Frame(paned)
         paned.add(left, weight=1)
 
@@ -100,6 +108,13 @@ class GameTreeWindow(tk.Toplevel):
         )
         self.preview_canvas.pack(fill="both", expand=True)
         self.preview_canvas.set_show_move_numbers(self._show_move_numbers)
+        # 预览棋盘只读：屏蔽交互/阴影
+        self.preview_canvas.unbind("<Button-1>")
+        self.preview_canvas.unbind("<Button-3>")
+        self.preview_canvas.unbind("<Motion>")
+        self.preview_canvas.on_click = None
+        self.preview_canvas.on_hover = None
+        self.preview_canvas.on_right_click = None
 
         # 底部按钮
         bottom = ttk.Frame(container)
@@ -112,52 +127,64 @@ class GameTreeWindow(tk.Toplevel):
     def _populate_moves(self) -> None:
         for item in self.tree.get_children():
             self.tree.delete(item)
+        self._node_map.clear()
 
-        # move_number -> Move（仅统计对局手数，忽略让子(第0手)）
-        self._moves_by_number = {
-            int(getattr(m, "move_number", 0) or 0): m
-            for m in (self.game.move_history or [])
-            if int(getattr(m, "move_number", 0) or 0) > 0
-        }
+        def add_node(node: MoveNode, parent_id: str):
+            move = node.move
+            move_num = node.get_move_number()
+            iid = f"n{len(self._node_map)}"
+            self._node_map[iid] = node
 
-        # 初始局面（0手）
-        self.tree.insert(
-            "",
-            "end",
-            iid="0",
-            text="0",
-            values=("-", self.translator.get("start"), ""),
-        )
-
-        max_move = int(getattr(self.game, "move_number", 0) or 0)
-        for n in range(1, max_move + 1):
-            m = self._moves_by_number.get(n)
-            if not m:
-                continue
-
-            player = self.translator.get(getattr(m, "color", ""))
-            move_text = self._format_move(getattr(m, "x", -1), getattr(m, "y", -1))
-            captured = ""
-            try:
-                captured = str(len(getattr(m, "captured", []) or []))
-            except Exception:
-                captured = "0"
+            if move:
+                player = self.translator.get(getattr(move, "color", ""))
+                move_text = self._format_move(move.x, move.y)
+                try:
+                    captured = str(len(getattr(move, "captured", []) or []))
+                except Exception:
+                    captured = ""
+            else:
+                player = "-"
+                move_text = self.translator.get("start")
+                captured = ""
 
             self.tree.insert(
-                "",
+                parent_id,
                 "end",
-                iid=str(n),
-                text=str(n),
+                iid=iid,
+                text=str(move_num),
                 values=(player, move_text, captured),
             )
 
+            # 先主线，再变化
+            for child in node.children:
+                add_node(child, iid)
+            for var in node.variations:
+                # 预览模式仅遍历已有 variation 节点，不修改原树
+                if not var.moves:
+                    continue
+                var_root = MoveNode(var.moves[0], node)
+                current = var_root
+                for mv in var.moves[1:]:
+                    current = current.add_child(mv)
+                add_node(var_root, iid)
+
+        add_node(self.replay.move_tree.root, "")
+
     def _select_default(self) -> None:
-        target = str(int(getattr(self.game, "move_number", 0) or 0))
-        if target not in self.tree.get_children(""):
-            target = "0"
-        self.tree.selection_set(target)
-        self.tree.see(target)
-        self._show_position(int(target))
+        # 默认选中当前手数对应的节点（如果存在），否则根节点
+        # 选中当前节点；若不存在则选中首个
+        current = self.replay.move_tree.current_node
+        target_id = None
+        for iid, node in self._node_map.items():
+            if node is current:
+                target_id = iid
+                break
+        if not target_id:
+            target_id = next(iter(self._node_map.keys()), None)
+        if target_id:
+            self.tree.selection_set(target_id)
+            self.tree.see(target_id)
+            self._show_position_by_id(target_id)
 
     def _format_move(self, x: int, y: int) -> str:
         if x < 0 or y < 0:
@@ -170,21 +197,26 @@ class GameTreeWindow(tk.Toplevel):
         row = self.game.board_size - int(y)
         return f"{col}{row}"
 
-    def _build_preview_board(self, move_number: int) -> Board:
-        # 基于 state_history 预览局面；state_history[0] 为初始局面
-        state = self.game.state_history[move_number]
-
+    def _build_preview_board(self, node: MoveNode) -> Board:
+        """根据 MoveNode 路径重放到当前节点，支持分支。"""
         board = Board(self.game.board_size)
-        board.grid = [row[:] for row in state.board]
+        rules = Rules(self.game.game_info.rules, self.game.game_info.komi)
 
-        # 给 BoardCanvas.update_board 提供 fallback：用 move_history 推导手数/最后一手
-        history: List[Any] = []
-        for m in (self.game.move_history or []):
-            mn = int(getattr(m, "move_number", 0) or 0)
-            if mn == 0 or mn <= move_number:
-                history.append(m)
-        setattr(board, "move_history", history)
+        path = node.get_path_to_root()
+        for step in path:
+            mv = step.move
+            if not mv:
+                continue
+            if mv.x < 0 or mv.y < 0:
+                # pass，不用处理棋盘
+                continue
+            # 忽略合法性，直接执行（需通过 rules 以便吃子/劫）
+            ok, _, _ = rules.execute_move(board, mv.x, mv.y, mv.color, mv.move_number)
+            if not ok:
+                board.place_stone(mv.x, mv.y, mv.color)
 
+        # 提供 move_history 作为 fallback（方便显示手数/最后一手）
+        setattr(board, "move_history", [step.move for step in path if step.move])
         return board
 
     # --- 事件 ---
@@ -193,17 +225,12 @@ class GameTreeWindow(tk.Toplevel):
         sel = self.tree.selection()
         if not sel:
             return
-        try:
-            move_number = int(sel[0])
-        except Exception:
-            return
-        self._show_position(move_number)
+        self._show_position_by_id(sel[0])
 
-    def _show_position(self, move_number: int) -> None:
-        if not self.game:
+    def _show_position_by_id(self, iid: str) -> None:
+        node = self._node_map.get(iid)
+        if not node:
             return
-        if move_number < 0 or move_number >= len(self.game.state_history):
-            return
-        board = self._build_preview_board(move_number)
+        self.replay.move_tree.current_node = node
+        board = self._build_preview_board(node)
         self.preview_canvas.update_board(board)
-

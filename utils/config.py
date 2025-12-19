@@ -129,10 +129,16 @@ class HotkeyConfig:
 @dataclass
 class GameConfig:
     """完整游戏配置"""
-    version: str = "2.0.0"
+    version: str = "4.3"
     language: str = "zh"
     confirm_exit: bool = True
     debug_mode: bool = False
+    ui: Dict[str, Any] = field(
+        default_factory=lambda: {
+            "skip_teaching_mode_prompt": False,
+            "skip_edit_mode_prompt": False,
+        }
+    )
     
     # 子配置
     display: DisplayConfig = field(default_factory=DisplayConfig)
@@ -176,6 +182,8 @@ class GameConfig:
             data['storage'] = StorageConfig(**_filter(StorageConfig, data['storage']))
         if 'hotkeys' in data and isinstance(data['hotkeys'], dict):
             data['hotkeys'] = HotkeyConfig(**_filter(HotkeyConfig, data['hotkeys']))
+        if 'ui' in data and isinstance(data['ui'], dict):
+            data['ui'] = dict(data['ui'])
 
         # 过滤顶层未知字段，避免旧配置/插件字段导致加载失败
         allowed = getattr(cls, '__dataclass_fields__', {}).keys()
@@ -215,7 +223,14 @@ class ConfigManager:
             try:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                    return GameConfig.from_dict(data)
+                    cfg = GameConfig.from_dict(data)
+                    # 补齐新增的 UI 配置项，兼容旧配置
+                    if not isinstance(getattr(cfg, 'ui', None), dict):
+                        cfg.ui = {}
+                    cfg.ui.setdefault('skip_teaching_mode_prompt',
+                                      cfg.ui.get('skip_edit_mode_prompt', False))
+                    cfg.ui.setdefault('skip_edit_mode_prompt', False)
+                    return cfg
             except Exception as e:
                 print(f"加载配置失败: {e}")
         

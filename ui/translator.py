@@ -20,6 +20,10 @@ class Translator:
             'version': 'Version',
             'author': 'Author',
             'description': 'A professional Go game application',
+            'teaching_mode': 'Teaching Mode',
+            'teaching_mode_prompt': 'Enter teaching/sandbox mode? Changes will NOT be saved when you exit.',
+            'exit_teaching': 'Exit Teaching',
+            'dont_show_again': 'Do not show again',
             
             # 菜单
             'file': 'File',
@@ -51,7 +55,8 @@ class Translator:
             'copy': 'Copy',
             'paste': 'Paste',
             'clear_board': 'Clear Board',
-            'edit_mode': 'Edit Mode',
+            # 兼容旧键：保持 edit_mode 映射到教学模式
+            'edit_mode': 'Teaching Mode',
             
             # 视图菜单
             'show_coordinates': 'Show Coordinates',
@@ -359,6 +364,10 @@ class Translator:
             'version': '版本',
             'author': '作者',
             'description': '专业的围棋游戏应用',
+            'teaching_mode': '教学模式',
+            'teaching_mode_prompt': '进入教学/推演模式？退出时所做改动不会被保存。',
+            'exit_teaching': '退出教学模式',
+            'dont_show_again': '不再提示',
             
             # 菜单
             'file': '文件',
@@ -390,7 +399,8 @@ class Translator:
             'copy': '复制',
             'paste': '粘贴',
             'clear_board': '清空棋盘',
-            'edit_mode': '编辑模式',
+            # 兼容旧键：保持 edit_mode 映射到教学模式
+            'edit_mode': '教学模式',
             
             # 视图菜单
             'show_coordinates': '显示坐标',
@@ -699,6 +709,10 @@ class Translator:
             'version': 'バージョン',
             'author': '作者',
             'description': 'AI対戦と解析ツールを備えた囲碁アプリ',
+            'teaching_mode': '練習モード',
+            'teaching_mode_prompt': '練習/検討モードに入りますか？終了時に変更は保存されません。',
+            'exit_teaching': '練習モードを終了',
+            'dont_show_again': '次回から表示しない',
 
             # 菜单
             'file': 'ファイル',
@@ -730,7 +744,8 @@ class Translator:
             'copy': 'コピー',
             'paste': '貼り付け',
             'clear_board': '盤面をクリア',
-            'edit_mode': '編集モード',
+            # 互換キー：edit_mode を練習モードに揃える
+            'edit_mode': '練習モード',
 
             # 视图菜单
             'show_coordinates': '座標を表示',

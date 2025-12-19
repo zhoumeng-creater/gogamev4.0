@@ -86,7 +86,11 @@
   "copy": "Copy",
   "paste": "Paste",
   "clear_board": "Clear Board",
-  "edit_mode": "Edit Mode",
+  "edit_mode": "Teaching Mode",
+  "teaching_mode": "Teaching Mode",
+  "teaching_mode_prompt": "Enter teaching/sandbox mode? Changes will NOT be saved when you exit.",
+  "exit_teaching": "Exit Teaching",
+  "dont_show_again": "Do not show again",
   
   "view": "View",
   "show_coordinates": "Show Coordinates",

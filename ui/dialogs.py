@@ -18,7 +18,8 @@ class BaseDialog(tk.Toplevel):
     def __init__(self, parent, title: str = "", 
                  translator: Optional[Translator] = None,
                  theme: Optional[Theme] = None,
-                 modal: bool = True):
+                 modal: bool = True,
+                 auto_wait: bool = True):
         super().__init__(parent)
         
         self.title(title)
@@ -51,7 +52,7 @@ class BaseDialog(tk.Toplevel):
         self.bind('<Escape>', lambda e: self.cancel())
 
         # 重要：如果是模态对话框，需等待用户操作后再返回，否则调用方读取 result 会永远是 None
-        if self._modal:
+        if self._modal and auto_wait:
             self.wait_window()
     
     def _apply_theme(self):
@@ -923,11 +924,15 @@ class AboutDialog(BaseDialog):
         parent,
         version: Optional[str] = None,
         app_name: Optional[str] = None,
+        author: Optional[str] = None,
+        contact: Optional[str] = None,
         **kwargs,
     ):
         # AboutDialog 额外参数不应透传给 BaseDialog（否则会触发 TypeError）
         self.version = version
         self.app_name = app_name
+        self.author = author or "周盟"
+        self.contact = contact
 
         translator = kwargs.get('translator') or Translator()
         super().__init__(
@@ -936,8 +941,13 @@ class AboutDialog(BaseDialog):
             translator=kwargs.get('translator'),
             theme=kwargs.get('theme'),
             modal=kwargs.get('modal', True),
+            auto_wait=False,  # 延后 wait_window，避免窗口被销毁后再几何设置
         )
         self.geometry('420x520')
+        if self._modal:
+            self.transient(parent)
+            self.grab_set()
+            self.wait_window()
     
     def _create_widgets(self):
         """创建控件"""
@@ -980,7 +990,7 @@ class AboutDialog(BaseDialog):
         ).pack()
         ttk.Label(
             self,
-            text=f"{self.translator.get('author')}: AI Assistant",
+            text=f"{self.translator.get('author')}: {self.author}",
             font=('Arial', 10),
         ).pack(pady=(2, 0))
         
@@ -1006,16 +1016,13 @@ class AboutDialog(BaseDialog):
                 f"- {self.translator.get('feature_5')}",
                 "",
                 f"{self.translator.get('developers')}:",
-                "AI Assistant",
+                self.author,
                 "",
                 f"{self.translator.get('license')}:",
                 "MIT License",
                 "",
-                f"{self.translator.get('website')}:",
-                "https://github.com/go-master",
-                "",
                 f"{self.translator.get('contact')}:",
-                "support@go-master.com",
+                self.contact or "",
                 "",
             ]
         )
