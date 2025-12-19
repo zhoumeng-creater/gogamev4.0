@@ -10,6 +10,7 @@ from .dialogs import (
 )
 from .themes import Theme, ThemeManager
 from .animations import AnimationManager, StoneAnimation, CaptureAnimation
+from .game_tree import GameTreeWindow
 
 __all__ = [
     # 棋盘
@@ -26,5 +27,8 @@ __all__ = [
     'Theme', 'ThemeManager',
     
     # 动画
-    'AnimationManager', 'StoneAnimation', 'CaptureAnimation'
+    'AnimationManager', 'StoneAnimation', 'CaptureAnimation',
+
+    # 棋谱树
+    'GameTreeWindow'
 ]

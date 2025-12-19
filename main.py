@@ -26,7 +26,7 @@ from core import (
 from ui import (
     BoardCanvas, InfoPanel, ControlPanel, AnalysisPanel,
     NewGameDialog, SettingsDialog, AboutDialog,
-    Theme, ThemeManager, AnimationManager
+    Theme, ThemeManager, AnimationManager, GameTreeWindow
 )
 from ui.translator import Translator
 
@@ -932,10 +932,44 @@ class GoMasterApp:
             self.game.board,
             self.game.get_current_player()
         )
-        
-        # 更新分析面板
-        self.analysis_panel.update_analysis(analysis)
-        self._scroll_left_sidebar_to(self.analysis_panel)
+
+        # 分析：专注于“推荐着法/搜索信息”，不直接覆盖“局势(胜率/地盘)”显示
+        if self.analysis_panel:
+            # 组装推荐列表
+            best_moves = getattr(analysis, 'best_moves', []) or []
+            suggestions: List[Dict[str, Any]] = []
+            for m in best_moves:
+                try:
+                    move_text = m.get_coordinate_string() if hasattr(m, 'get_coordinate_string') else f"{m.x},{m.y}"
+                except Exception:
+                    move_text = ""
+
+                try:
+                    wr = float(getattr(m, 'winrate', 0.0) or 0.0)
+                except Exception:
+                    wr = 0.0
+                wr_percent = wr * 100.0 if wr <= 1.0 else wr
+
+                try:
+                    visits = int(getattr(m, 'visits', 0) or 0)
+                except Exception:
+                    visits = 0
+
+                suggestions.append({'move': move_text, 'winrate': wr_percent, 'visits': visits})
+
+            self.analysis_panel.update_suggestions(suggestions)
+
+            try:
+                depth = int(getattr(analysis, 'analysis_depth', 0) or 0)
+            except Exception:
+                depth = 0
+            try:
+                nodes = int(sum(int(s.get('visits', 0) or 0) for s in suggestions))
+            except Exception:
+                nodes = 0
+            self.analysis_panel.update_analysis_info(thinking_time=0.0, nodes=nodes, depth=depth)
+
+            self._scroll_left_sidebar_to(self.analysis_panel)
 
     def on_estimate(self):
         """形势估计：快速评估胜率/势力，不做完整搜索。"""
@@ -966,16 +1000,10 @@ class GoMasterApp:
         except Exception:
             pass
 
-        # 3) 更新左侧“局势/建议”面板（清空建议，避免与上次分析混淆）
+        # 3) 更新左侧“局势”面板（不清空推荐着法，避免覆盖“分析”的输出）
         if self.analysis_panel:
-            self.analysis_panel.update_analysis(
-                {
-                    'winrate': winrate_percent,
-                    'territory_estimate': {'black': black_terr, 'white': white_terr},
-                    'best_moves': [],
-                    'analysis_depth': 0,
-                }
-            )
+            self.analysis_panel.update_winrate(winrate_percent)
+            self.analysis_panel.update_territory(black_terr, white_terr)
             self._scroll_left_sidebar_to(self.analysis_panel)
 
         # 4) 如果用户开启了显示选项，刷新棋盘叠加层
@@ -1249,6 +1277,11 @@ class GoMasterApp:
             return
         
         # 更新棋盘
+        try:
+            # 供 BoardCanvas.update_board 在必要时从 move_history 推导手数/最后一手（例如悔棋/重做后）
+            setattr(self.game.board, 'move_history', list(self.game.move_history))
+        except Exception:
+            pass
         self.board_canvas.update_board(self.game.board)
         self._refresh_board_overlays()
         
@@ -1708,21 +1741,35 @@ class GoMasterApp:
     
     def show_game_tree(self):
         """显示游戏树"""
-        if self.game:
-            # TODO: 实现游戏树窗口
-            messagebox.showinfo(
-                self.translator.get('info'),
-                "游戏树功能开发中..."
-            )
+        if not self.game:
+            return
+
+        try:
+            if getattr(self, '_game_tree_window', None) and self._game_tree_window.winfo_exists():
+                self._game_tree_window.lift()
+                self._game_tree_window.focus_force()
+                return
+        except Exception:
+            pass
+
+        theme = self.theme_manager.get_current_theme()
+        self._game_tree_window = GameTreeWindow(
+            self.root,
+            game=self.game,
+            translator=self.translator,
+            theme=theme,
+            show_coordinates=self.config_manager.get('display.show_coordinates', True),
+            show_move_numbers=self.config_manager.get('display.show_move_numbers', False),
+        )
     
     def show_position_analysis(self):
         """显示局面分析"""
-        if self.game:
-            # TODO: 实现局面分析窗口
-            messagebox.showinfo(
-                self.translator.get('info'),
-                "局面分析功能开发中..."
-            )
+        if not self.game:
+            return
+
+        # 作为“备用入口”：一键运行【形势估计 + 分析】
+        self.on_estimate()
+        self.on_analyze()
     
     def show_joseki_dictionary(self):
         """显示定式词典"""

@@ -194,7 +194,10 @@ class Game:
         
         # 历史记录
         self.move_history: List[Move] = []
-        self.state_history: List[GameState] = []  # 完整状态历史，用于悔棋
+        # 状态历史：保存“每一手之后”的完整状态，供悔棋/重做使用
+        self.state_history: List[GameState] = []
+        # 重做栈：保存 (棋步, 该棋步执行后的状态)
+        self._redo_stack: List[Tuple[Move, GameState]] = []
         self.current_branch: MoveSequence = MoveSequence(name="Main")  # 主分支
         self.branches: List[MoveSequence] = []  # 所有分支
         
@@ -220,12 +223,12 @@ class Game:
         # 设置让子
         if handicap > 0:
             self._place_handicap_stones()
-        
-        # 保存初始状态
-        self._save_state()
-        
+
         # 开始游戏
         self.phase = GamePhase.PLAYING
+
+        # 保存初始状态（处于 PLAYING 阶段，供悔棋/重做使用）
+        self._save_state()
 
     # --- 兼容 main.py 的 API（旧版 UI 依赖这些方法名） ---
 
@@ -276,11 +279,29 @@ class Game:
         return len(self.state_history) > 1 and self.phase in (GamePhase.PLAYING, GamePhase.SCORING)
 
     def can_redo(self) -> bool:
-        # 当前核心未实现redo栈；保留接口避免UI崩溃
-        return False
+        return bool(self._redo_stack) and self.phase in (GamePhase.PLAYING, GamePhase.SCORING)
 
     def redo_move(self) -> bool:
-        return False
+        """重做 - 前进到下一个状态"""
+        if not self.can_redo():
+            return False
+
+        move, state = self._redo_stack.pop()
+
+        # 恢复棋步与状态
+        self.move_history.append(move)
+        if self.current_branch.moves is not None:
+            self.current_branch.moves.append(move)
+
+        self.state_history.append(state)
+        self._load_state(state)
+
+        # 供 UI 查询最近一次提子
+        try:
+            self._last_captures = list(getattr(move, 'captured', []) or [])
+        except Exception:
+            self._last_captures = []
+        return True
 
     def pause_timers(self):
         return
@@ -494,9 +515,6 @@ class Game:
         if result != MoveResult.SUCCESS:
             return result, []
         
-        # 保存当前状态（用于悔棋）
-        self._save_state()
-        
         # 执行落子和吃子
         success, captured_stones, new_ko_point = self.rules.execute_move(
             self.board, x, y, self.current_player, self.move_number + 1
@@ -527,9 +545,15 @@ class Game:
         )
         self.move_history.append(move)
         self.current_branch.add_move(move)
+
+        # 对局有新进展：清空 redo 栈
+        self._redo_stack.clear()
         
         # 切换玩家
         self._switch_player()
+
+        # 保存“此手之后”的状态（供悔棋/重做使用）
+        self._save_state()
         
         return MoveResult.SUCCESS, captured_stones
     
@@ -543,15 +567,15 @@ class Game:
         if self.phase != GamePhase.PLAYING:
             return False
         
-        # 保存状态
-        self._save_state()
-        
         # 记录虚手
         self.move_number += 1
         move = Move(-1, -1, self.current_player, self.move_number)
         move.comment = "Pass"
         self.move_history.append(move)
         self.current_branch.add_move(move)
+
+        # 对局有新进展：清空 redo 栈
+        self._redo_stack.clear()
         
         # 更新状态
         self.pass_count += 1
@@ -560,10 +584,15 @@ class Game:
         # 检查是否结束
         if self.pass_count >= 2:
             self.phase = GamePhase.SCORING
+            # 保存“此手之后”的状态
+            self._save_state()
             return True
         
         # 切换玩家
         self._switch_player()
+
+        # 保存“此手之后”的状态
+        self._save_state()
         
         return False
     
@@ -589,22 +618,35 @@ class Game:
         
         if self.phase not in [GamePhase.PLAYING, GamePhase.SCORING]:
             return False
-        
-        # 移除最后的状态和棋步
-        self.state_history.pop()
-        if self.move_history:
-            last_move = self.move_history.pop()
-            if self.current_branch.moves:
-                self.current_branch.moves.pop()
-        
-        # 恢复到上一个状态
-        previous_state = self.state_history[-1]
-        self._load_state(previous_state)
-        
-        # 如果之前在点目阶段，回到对局阶段
-        if self.phase == GamePhase.SCORING:
-            self.phase = GamePhase.PLAYING
-        
+
+        # 当前（最后一手之后）的状态，用于 redo
+        state_after_move = self.state_history.pop()
+
+        # 移除最后一手
+        if not self.move_history:
+            # 理论上不应发生：len(state_history)>1 意味着至少有一手
+            self.state_history.append(state_after_move)
+            return False
+
+        last_move = self.move_history.pop()
+        if self.current_branch.moves:
+            self.current_branch.moves.pop()
+
+        self._redo_stack.append((last_move, state_after_move))
+
+        # 恢复到上一个状态（也就是 state_history 现在的最后一个）
+        self._load_state(self.state_history[-1])
+
+        # 更新最近一次提子列表（供 UI 查询）
+        try:
+            prev = self.move_history[-1] if self.move_history else None
+            if prev and getattr(prev, 'move_number', 0) > 0:
+                self._last_captures = list(getattr(prev, 'captured', []) or [])
+            else:
+                self._last_captures = []
+        except Exception:
+            self._last_captures = []
+
         return True
     
     def undo_to_move(self, move_number: int) -> bool:
@@ -617,18 +659,24 @@ class Game:
         Returns:
             是否成功
         """
-        if move_number < 0 or move_number >= len(self.state_history):
+        if move_number < 0:
             return False
-        
-        # 回退到指定状态
-        self.state_history = self.state_history[:move_number + 1]
-        self.move_history = self.move_history[:move_number]
-        self.current_branch.moves = self.current_branch.moves[:move_number]
-        
-        # 加载状态
-        self._load_state(self.state_history[-1])
-        
-        return True
+
+        changed = False
+
+        # 向后（悔棋）
+        while self.move_number > move_number:
+            if not self.undo_move():
+                break
+            changed = True
+
+        # 向前（重做）
+        while self.move_number < move_number:
+            if not self.redo_move():
+                break
+            changed = True
+
+        return changed
     
     def create_branch(self, name: str = "") -> MoveSequence:
         """

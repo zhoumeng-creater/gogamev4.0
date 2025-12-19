@@ -943,6 +943,27 @@ class BoardCanvas(Canvas):
         except Exception:
             pass
 
+        # fallback：某些场景（例如悔棋/重做后）stone_history 可能不完整，可从 move_history 推导手数
+        if not self.move_numbers:
+            try:
+                moves = getattr(board, 'move_history', None) or []
+                for mv in moves:
+                    try:
+                        x, y = int(mv.x), int(mv.y)
+                        if x < 0 or y < 0:
+                            continue
+                        if not (0 <= x < size and 0 <= y < size):
+                            continue
+                        if board.grid[y][x] != getattr(mv, 'color', ''):
+                            continue
+                        n = int(getattr(mv, 'move_number', 0) or 0)
+                        if n > 0:
+                            self.move_numbers[(x, y)] = n
+                    except Exception:
+                        continue
+            except Exception:
+                pass
+
         # 尝试根据棋子历史标记最后一手（如果有）
         last = None
         try:
@@ -951,6 +972,26 @@ class BoardCanvas(Canvas):
                 last = (last_stone.x, last_stone.y)
         except Exception:
             last = None
+
+        # fallback：从 move_history 推导最后一手（忽略虚手）
+        if last is None:
+            try:
+                moves = getattr(board, 'move_history', None) or []
+                for mv in reversed(moves):
+                    try:
+                        x, y = int(mv.x), int(mv.y)
+                        if x < 0 or y < 0:
+                            continue
+                        if not (0 <= x < size and 0 <= y < size):
+                            continue
+                        if board.grid[y][x] != getattr(mv, 'color', ''):
+                            continue
+                        last = (x, y)
+                        break
+                    except Exception:
+                        continue
+            except Exception:
+                pass
 
         self.last_move = last
 
