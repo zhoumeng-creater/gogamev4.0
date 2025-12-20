@@ -27,7 +27,8 @@ from core.board import StoneColor
 from ui import (
     BoardCanvas, InfoPanel, ControlPanel, AnalysisPanel,
     NewGameDialog, SettingsDialog, AboutDialog,
-    Theme, ThemeManager, AnimationManager, GameTreeWindow
+    Theme, ThemeManager, AnimationManager, GameTreeWindow,
+    RulesHelpDialog, TutorialDialog
 )
 from ui.translator import Translator
 
@@ -1940,10 +1941,10 @@ class GoMasterApp:
     
     def show_rules_help(self):
         """显示规则说明"""
-        # TODO: 实现规则说明窗口
-        messagebox.showinfo(
-            self.translator.get('info'),
-            "规则说明功能开发中..."
+        RulesHelpDialog(
+            self.root,
+            translator=self.translator,
+            theme=self.theme_manager.get_current_theme()
         )
     
     def show_tutorial(self):
@@ -1951,10 +1952,11 @@ class GoMasterApp:
         if not self.teaching_system:
             self.teaching_system = TeachingSystem(self.translator)
         
-        # TODO: 实现教程窗口
-        messagebox.showinfo(
-            self.translator.get('info'),
-            "教程功能开发中..."
+        TutorialDialog(
+            self.root,
+            teaching_system=self.teaching_system,
+            translator=self.translator,
+            theme=self.theme_manager.get_current_theme()
         )
     
     def show_shortcuts(self):

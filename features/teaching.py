@@ -102,7 +102,9 @@ class Puzzle:
 class TeachingSystem:
     """教学系统"""
     
-    def __init__(self):
+    def __init__(self, translator=None):
+        # translator 目前仅作占位，便于未来本地化提示
+        self.translator = translator
         self.lessons: Dict[str, Lesson] = {}
         self.puzzles: Dict[str, Puzzle] = {}
         self.user_progress: Dict[str, Any] = {

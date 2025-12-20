@@ -19,7 +19,8 @@ class BaseDialog(tk.Toplevel):
                  translator: Optional[Translator] = None,
                  theme: Optional[Theme] = None,
                  modal: bool = True,
-                 auto_wait: bool = True):
+                 auto_wait: bool = True,
+                 resizable: bool = True):
         super().__init__(parent)
         
         self.title(title)
@@ -37,7 +38,7 @@ class BaseDialog(tk.Toplevel):
         self.protocol("WM_DELETE_WINDOW", self.cancel)
         
         # 配置窗口
-        self.resizable(False, False)
+        self.resizable(resizable, resizable)
         
         # 应用主题
         self._apply_theme()
