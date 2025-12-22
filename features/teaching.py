@@ -310,13 +310,13 @@ class TeachingSystem:
             board_state=self._create_puzzle_board_1(),
             player_color='black',
             objective='吃掉白子',
-            solution=[(10, 10)],
+            solution=[(10, 9)],
             wrong_moves={
-                (9, 11): '这里不能直接吃掉白子',
-                (11, 10): '这里也不对，想想白子的气在哪里'
+                (8, 10): '这里不能直接吃掉白子',
+                (10, 10): '这里也不对，想想白子的气在哪里'
             },
             hint='白子只有一口气了',
-            explanation='白子只剩最后一口气在(10,10)，黑子下在这里就可以提取白子。'
+            explanation='白子只剩最后一口气，黑子落子即可提取白子。'
         )
         
         # 征子题
@@ -326,14 +326,14 @@ class TeachingSystem:
             difficulty=2,
             board_state=self._create_ladder_board_1(),
             player_color='black',
-            objective='用征子吃掉白子',
-            solution=[(10, 9), (11, 9), (11, 10)],
+            objective='用征子追击白子',
+            solution=[(2, 2), (1, 3), (2, 3)],
             wrong_moves={
-                (9, 9): '这样白子会逃掉',
-                (10, 10): '方向不对'
+                (1, 3): '这是白棋的应对点',
+                (2, 1): '方向不对'
             },
             hint='从正确的方向追击',
-            explanation='征子需要选择正确的追击方向，让白子无路可逃。'
+            explanation='征子需要沿着边线持续追击，迫使白子没有活路。'
         )
     
     def _create_puzzle_board_1(self) -> List[List[str]]:
@@ -341,18 +341,18 @@ class TeachingSystem:
         board = [[''] * 19 for _ in range(19)]
         # 设置棋子
         board[9][9] = 'white'
+        board[9][8] = 'black'
+        board[8][9] = 'black'
         board[9][10] = 'black'
-        board[10][9] = 'black'
-        board[9][11] = 'black'
         return board
     
     def _create_ladder_board_1(self) -> List[List[str]]:
         """创建征子棋盘1"""
         board = [[''] * 19 for _ in range(19)]
-        # 设置征子局面
-        board[9][9] = 'white'
-        board[9][10] = 'black'
-        board[10][10] = 'black'
+        # 设置征子局面（靠近边线，便于形成征子）
+        board[2][1] = 'white'
+        board[2][0] = 'black'
+        board[1][1] = 'black'
         return board
     
     def get_lesson(self, lesson_id: str) -> Optional[Lesson]:

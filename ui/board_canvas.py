@@ -32,6 +32,10 @@ class BoardRenderer:
         # 计算尺寸
         self.margin = 40
         self.update_dimensions()
+
+        self.coord_offset_x = 0
+        self.coord_offset_y = 0
+        self.coord_board_size = board_size
         
         # 缓存的图形元素
         self.grid_lines = []
@@ -62,6 +66,8 @@ class BoardRenderer:
             available_width // (self.board_size - 1),
             available_height // (self.board_size - 1)
         )
+        if self.cell_size < 1:
+            self.cell_size = 1
         
         # 调整边距使棋盘居中
         board_width = (self.board_size - 1) * self.cell_size
@@ -103,7 +109,8 @@ class BoardRenderer:
             if color == 'white':
                 highlight_size = stone_radius // 2
                 highlight_pos = (stone_radius // 3, stone_radius // 3)
-                for i in range(3):
+                max_steps = min(3, highlight_size // 2 + 1)
+                for i in range(max_steps):
                     alpha = 40 - i * 10
                     draw.ellipse(
                         [highlight_pos[0] + i, highlight_pos[1] + i,
@@ -115,12 +122,13 @@ class BoardRenderer:
                 # 黑子的微弱高光
                 highlight_size = stone_radius // 3
                 highlight_pos = (stone_radius // 4, stone_radius // 4)
-                draw.ellipse(
-                    [highlight_pos[0], highlight_pos[1],
-                     highlight_pos[0] + highlight_size,
-                     highlight_pos[1] + highlight_size],
-                    fill=(100, 100, 100, 30)
-                )
+                if highlight_size > 0:
+                    draw.ellipse(
+                        [highlight_pos[0], highlight_pos[1],
+                         highlight_pos[0] + highlight_size,
+                         highlight_pos[1] + highlight_size],
+                        fill=(100, 100, 100, 30)
+                    )
             
             # 转换为PhotoImage
             self.stone_images[color] = ImageTk.PhotoImage(img)
@@ -199,12 +207,18 @@ class BoardRenderer:
     
     def draw_star_points(self):
         """绘制星位"""
-        # 获取星位坐标
-        star_positions = self._get_star_positions()
+        coord_board_size = getattr(self, 'coord_board_size', self.board_size)
+        offset_x = getattr(self, 'coord_offset_x', 0)
+        offset_y = getattr(self, 'coord_offset_y', 0)
+        star_positions = self._get_star_positions(coord_board_size)
         
         for x, y in star_positions:
-            cx = self.margin_x + x * self.cell_size
-            cy = self.margin_y + y * self.cell_size
+            local_x = x - offset_x
+            local_y = y - offset_y
+            if not (0 <= local_x < self.board_size and 0 <= local_y < self.board_size):
+                continue
+            cx = self.margin_x + local_x * self.cell_size
+            cy = self.margin_y + local_y * self.cell_size
             radius = max(3, self.cell_size // 10)
             
             star = self.canvas.create_oval(
@@ -215,30 +229,36 @@ class BoardRenderer:
             )
             self.star_points.append(star)
     
-    def _get_star_positions(self) -> List[Tuple[int, int]]:
+    def _get_star_positions(self, board_size: Optional[int] = None) -> List[Tuple[int, int]]:
         """获取星位坐标"""
-        if self.board_size == 19:
+        size = board_size or self.board_size
+        if size == 19:
             return [(3, 3), (3, 9), (3, 15), (9, 3), (9, 9),
                    (9, 15), (15, 3), (15, 9), (15, 15)]
-        elif self.board_size == 13:
+        elif size == 13:
             return [(3, 3), (3, 9), (9, 3), (9, 9), (6, 6)]
-        elif self.board_size == 9:
+        elif size == 9:
             return [(2, 2), (2, 6), (6, 2), (6, 6), (4, 4)]
         else:
             return []
     
     def draw_coordinates(self):
         """绘制坐标"""
-        letters = 'ABCDEFGHJKLMNOPQRST'[:self.board_size]
+        coord_board_size = getattr(self, 'coord_board_size', self.board_size)
+        offset_x = getattr(self, 'coord_offset_x', 0)
+        offset_y = getattr(self, 'coord_offset_y', 0)
+        letters_full = 'ABCDEFGHJKLMNOPQRST'[:coord_board_size]
         
         for i in range(self.board_size):
+            letter_index = offset_x + i
+            letter = letters_full[letter_index] if 0 <= letter_index < len(letters_full) else '?'
             # 横坐标（字母）
             x = self.margin_x + i * self.cell_size
             
             # 上方坐标
             text = self.canvas.create_text(
                 x, self.margin_y - 20,
-                text=letters[i],
+                text=letter,
                 fill=self.theme.board_coordinate_color,
                 font=('Arial', 10)
             )
@@ -247,7 +267,7 @@ class BoardRenderer:
             # 下方坐标
             text = self.canvas.create_text(
                 x, self.margin_y + self.board_size * self.cell_size + 5,
-                text=letters[i],
+                text=letter,
                 fill=self.theme.board_coordinate_color,
                 font=('Arial', 10)
             )
@@ -255,7 +275,8 @@ class BoardRenderer:
             
             # 纵坐标（数字）
             y = self.margin_y + i * self.cell_size
-            number = str(self.board_size - i)
+            row_index = offset_y + i
+            number = str(coord_board_size - row_index)
             
             # 左侧坐标
             text = self.canvas.create_text(
@@ -716,6 +737,7 @@ class BoardCanvas(Canvas):
         """处理窗口大小改变"""
         # 更新尺寸并重绘
         self.renderer.update_dimensions()
+        self.renderer._prerender_stones()
         self.refresh()
     
     def _event_to_board_coords(self, event_x: int, event_y: int) -> Tuple[Optional[int], Optional[int]]:
@@ -801,16 +823,22 @@ class BoardCanvas(Canvas):
         self.last_move = (x, y)
         self.renderer.mark_last_move(x, y)
     
-    def set_board_size(self, size: int):
+    def set_board_size(self, size: int, reset_coord: bool = True):
         """改变棋盘大小"""
         self.board_size = size
         self.renderer.board_size = size
+        if reset_coord:
+            self.renderer.coord_offset_x = 0
+            self.renderer.coord_offset_y = 0
+            self.renderer.coord_board_size = size
         self.board_state = [['' for _ in range(size)] for _ in range(size)]
         self.move_numbers.clear()
         self.territory_map = [['' for _ in range(size)] for _ in range(size)]
         self.influence_map = None
         self._dead_stones_marked = set()
         self._hint_pos = None
+        self.renderer.update_dimensions()
+        self.renderer._prerender_stones()
         self.refresh()
     
     def set_theme(self, theme: Theme):
@@ -1073,6 +1101,20 @@ class BoardCanvas(Canvas):
         else:
             if self.last_move:
                 self.renderer.mark_last_move(*self.last_move)
+
+    def set_coordinate_mapping(
+        self,
+        offset_x: int = 0,
+        offset_y: int = 0,
+        board_size: Optional[int] = None,
+        refresh: bool = True,
+    ):
+        """设置坐标显示映射，用于预览裁切视图。"""
+        self.renderer.coord_offset_x = max(0, int(offset_x))
+        self.renderer.coord_offset_y = max(0, int(offset_y))
+        self.renderer.coord_board_size = int(board_size) if board_size else self.board_size
+        if refresh:
+            self.refresh()
 
     def zoom(self, factor: float):
         # Tkinter Canvas 缩放会影响坐标换算，先保留接口避免崩溃

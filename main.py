@@ -28,7 +28,8 @@ from ui import (
     BoardCanvas, InfoPanel, ControlPanel, AnalysisPanel,
     NewGameDialog, SettingsDialog, AboutDialog,
     Theme, ThemeManager, AnimationManager, GameTreeWindow,
-    RulesHelpDialog, TutorialDialog
+    RulesHelpDialog, TutorialDialog,
+    JosekiDictionaryWindow, PatternSearchWindow, ProblemLibraryWindow
 )
 from ui.translator import Translator
 
@@ -1901,26 +1902,66 @@ class GoMasterApp:
     
     def show_joseki_dictionary(self):
         """显示定式词典"""
-        # TODO: 实现定式词典窗口
-        messagebox.showinfo(
-            self.translator.get('info'),
-            "定式词典功能开发中..."
+        try:
+            if getattr(self, '_joseki_window', None) and self._joseki_window.winfo_exists():
+                self._joseki_window.lift()
+                self._joseki_window.focus_force()
+                return
+        except Exception:
+            pass
+
+        theme = self.theme_manager.get_current_theme()
+        self._joseki_window = JosekiDictionaryWindow(
+            self.root,
+            database=self.joseki_db,
+            translator=self.translator,
+            theme=theme,
+            board_size=19,
+            show_coordinates=self.config_manager.get('display.show_coordinates', True),
+            show_move_numbers=self.config_manager.get('display.show_move_numbers', False),
         )
     
     def show_pattern_search(self):
         """显示模式搜索"""
-        # TODO: 实现模式搜索窗口
-        messagebox.showinfo(
-            self.translator.get('info'),
-            "模式搜索功能开发中..."
+        try:
+            if getattr(self, '_pattern_window', None) and self._pattern_window.winfo_exists():
+                self._pattern_window.lift()
+                self._pattern_window.focus_force()
+                return
+        except Exception:
+            pass
+
+        theme = self.theme_manager.get_current_theme()
+        self._pattern_window = PatternSearchWindow(
+            self.root,
+            get_game=lambda: self.game,
+            translator=self.translator,
+            theme=theme,
+            show_coordinates=self.config_manager.get('display.show_coordinates', True),
+            show_move_numbers=self.config_manager.get('display.show_move_numbers', False),
         )
     
     def show_problem_library(self):
         """显示死活题库"""
-        # TODO: 实现死活题库窗口
-        messagebox.showinfo(
-            self.translator.get('info'),
-            "死活题库功能开发中..."
+        try:
+            if getattr(self, '_problem_library_window', None) and self._problem_library_window.winfo_exists():
+                self._problem_library_window.lift()
+                self._problem_library_window.focus_force()
+                return
+        except Exception:
+            pass
+
+        if not self.teaching_system:
+            self.teaching_system = TeachingSystem(self.translator)
+
+        theme = self.theme_manager.get_current_theme()
+        self._problem_library_window = ProblemLibraryWindow(
+            self.root,
+            teaching_system=self.teaching_system,
+            translator=self.translator,
+            theme=theme,
+            show_coordinates=self.config_manager.get('display.show_coordinates', True),
+            show_move_numbers=self.config_manager.get('display.show_move_numbers', False),
         )
     
     def show_statistics(self):

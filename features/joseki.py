@@ -5,6 +5,7 @@
 
 import json
 import os
+import hashlib
 from typing import List, Dict, Optional, Tuple, Set, Any
 from dataclasses import dataclass, field, asdict
 from enum import Enum
@@ -24,6 +25,8 @@ class JosekiType(Enum):
     INVASION = 'invasion'  # 打入定式
     REDUCTION = 'reduction'  # 消减定式
     SPECIAL = 'special'  # 特殊定式
+    OPENING = 'opening'  # 布局定式
+    FIGHTING = 'fighting'  # 战斗定式
 
 
 class JosekiResult(Enum):
@@ -46,6 +49,7 @@ class JosekiMove:
     order: int  # 手数顺序
     is_main_line: bool = True  # 是否主线
     comment: str = ""
+    comment_key: str = ""
     next_moves: List['JosekiMove'] = field(default_factory=list)
     
     def to_coords(self) -> Tuple[int, int]:
@@ -64,12 +68,13 @@ class JosekiSequence:
     type: JosekiType
     first_move: JosekiMove
     result: JosekiResult
+    key: str = ""
     popularity: int = 0  # 流行度(0-100)
     difficulty: int = 1  # 难度(1-5)
     era: str = ""  # 流行年代
     comment: str = ""
     tags: List[str] = field(default_factory=list)
-    
+
     def get_main_line(self) -> List[JosekiMove]:
         """获取主线变化"""
         moves = []
@@ -123,6 +128,24 @@ class JosekiSequence:
         return current
 
 
+JOSEKI_KEY_BY_NAME = {
+    "三三定式-基本型": "san_san_basic",
+    "星位定式-小飞挂": "star_point_small_approach_joseki",
+    "小目定式-高挂": "komoku_high_approach_joseki",
+    "高目定式-基本型": "takamoku_basic",
+    "3-3点入侵": "three_three_invasion",
+    "星位小飞挂": "star_point_small_approach",
+    "小目一间高挂": "komoku_one_space_high_approach",
+    "中国流布局": "chinese_fuseki",
+    "三连星布局": "three_star_fuseki",
+    "小林流布局": "kobayashi_fuseki",
+    "雪崩定式": "avalanche_joseki",
+    "大斜定式": "taisha_joseki",
+    "双飞燕定式": "double_flying_goose_joseki",
+    "镇神头": "zhen_shen_tou",
+}
+
+
 class JosekiDatabase:
     """定式数据库"""
     
@@ -139,6 +162,7 @@ class JosekiDatabase:
         
         self._init_database()
         self._load_basic_joseki()
+        self._load_joseki_from_json()
     
     def _init_database(self):
         """初始化数据库"""
@@ -187,6 +211,117 @@ class JosekiDatabase:
         # 高目定式
         takamoku = self._create_takamoku_joseki()
         self.add_joseki(takamoku)
+
+    def _load_joseki_from_json(self):
+        """从JSON文件加载定式数据"""
+        base_dir = Path(__file__).resolve().parents[1]
+        json_path = base_dir / 'assets' / 'joseki' / 'joseki_db.json'
+
+        if not json_path.exists():
+            return
+
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except Exception:
+            return
+
+        sequences = data.get('joseki_sequences', [])
+        category_labels = data.get('categories', {})
+        difficulty_labels = data.get('difficulty_levels', {})
+
+        difficulty_map = {
+            'basic': 1,
+            'intermediate': 3,
+            'advanced': 4
+        }
+        popularity_map = {
+            'basic': 85,
+            'intermediate': 65,
+            'advanced': 45
+        }
+        type_map = {
+            'corner': JosekiType.CORNER,
+            'side': JosekiType.SIDE,
+            'opening': JosekiType.OPENING,
+            'fighting': JosekiType.FIGHTING,
+            'invasion': JosekiType.INVASION,
+            'reduction': JosekiType.REDUCTION
+        }
+        result_map = {
+            'equal': JosekiResult.EVEN,
+            'favorable_black': JosekiResult.BETTER_BLACK,
+            'favorable_white': JosekiResult.BETTER_WHITE,
+            'complex': JosekiResult.COMPLICATED,
+            'fighting': JosekiResult.COMPLICATED
+        }
+
+        for item in sequences:
+            name = item.get('name', '').strip()
+            moves = item.get('moves', []) or []
+            if not name or not moves:
+                continue
+
+            first_move = self._build_main_line(moves)
+            if not first_move:
+                continue
+
+            category_key = str(item.get('category', 'special')).lower()
+            difficulty_key = str(item.get('difficulty', 'basic')).lower()
+            result_key = str(item.get('result', 'equal')).lower()
+            joseki_key = self._get_joseki_key(name)
+
+            tags = [
+                category_labels.get(category_key, category_key),
+                difficulty_labels.get(difficulty_key, difficulty_key)
+            ]
+            tags = [tag for tag in tags if tag]
+
+            joseki = JosekiSequence(
+                name=name,
+                type=type_map.get(category_key, JosekiType.SPECIAL),
+                first_move=first_move,
+                result=result_map.get(result_key, JosekiResult.DEPENDS),
+                key=joseki_key,
+                popularity=popularity_map.get(difficulty_key, 50),
+                difficulty=difficulty_map.get(difficulty_key, 2),
+                comment=item.get('description', '') or "",
+                tags=tags
+            )
+            self.add_joseki(joseki)
+
+    def _get_joseki_key(self, name: str) -> str:
+        key = JOSEKI_KEY_BY_NAME.get(name)
+        if key:
+            return key
+        digest = hashlib.md5(name.encode('utf-8')).hexdigest()[:8]
+        return f"joseki_{digest}"
+
+    def _build_main_line(self, moves: List[Dict[str, Any]]) -> Optional[JosekiMove]:
+        """根据顺序着法构建主线"""
+        first_move = None
+        prev_move = None
+        order = 1
+
+        for move in moves:
+            try:
+                x = int(move.get('x'))
+                y = int(move.get('y'))
+            except Exception:
+                continue
+            color = str(move.get('color', '')).strip() or 'black'
+            if color not in ('black', 'white'):
+                continue
+
+            current = JosekiMove(x, y, color, order)
+            if prev_move:
+                prev_move.next_moves.append(current)
+            else:
+                first_move = current
+            prev_move = current
+            order += 1
+
+        return first_move
     
     def _create_san_san_joseki(self) -> JosekiSequence:
         """创建三三定式"""
@@ -214,6 +349,7 @@ class JosekiDatabase:
             type=JosekiType.CORNER,
             first_move=first,
             result=JosekiResult.EVEN,
+            key="san_san_basic",
             popularity=90,
             difficulty=2,
             comment="最基本的三三定式，黑角实地，白获外势",
@@ -230,15 +366,37 @@ class JosekiDatabase:
         first.next_moves.append(w2)
         
         # 黑一间夹
-        b3_a = JosekiMove(2, 4, 'black', 3, comment="一间夹，积极作战")
+        b3_a = JosekiMove(
+            2,
+            4,
+            'black',
+            3,
+            comment="一间夹，积极作战",
+            comment_key="joseki_move_comment_star_point_small_approach_joseki_one_space_pincer",
+        )
         w2.next_moves.append(b3_a)
         
         # 黑二间夹
-        b3_b = JosekiMove(2, 5, 'black', 3, is_main_line=False, comment="二间夹，重视外势")
+        b3_b = JosekiMove(
+            2,
+            5,
+            'black',
+            3,
+            is_main_line=False,
+            comment="二间夹，重视外势",
+            comment_key="joseki_move_comment_star_point_small_approach_joseki_two_space_pincer",
+        )
         w2.next_moves.append(b3_b)
         
         # 黑小飞应
-        b3_c = JosekiMove(2, 5, 'black', 3, comment="小飞应，简明")
+        b3_c = JosekiMove(
+            2,
+            5,
+            'black',
+            3,
+            comment="小飞应，简明",
+            comment_key="joseki_move_comment_star_point_small_approach_joseki_small_knight_reply",
+        )
         w2.next_moves.append(b3_c)
         
         # 继续主线（一间夹后）
@@ -251,6 +409,7 @@ class JosekiDatabase:
             type=JosekiType.CORNER,
             first_move=first,
             result=JosekiResult.EVEN,
+            key="star_point_small_approach_joseki",
             popularity=85,
             difficulty=3,
             comment="星位小飞挂是最常见的定式之一",
@@ -275,6 +434,7 @@ class JosekiDatabase:
             type=JosekiType.CORNER,
             first_move=first,
             result=JosekiResult.EVEN,
+            key="komoku_high_approach_joseki",
             popularity=75,
             difficulty=3,
             comment="小目高挂定式，变化丰富",
@@ -295,6 +455,7 @@ class JosekiDatabase:
             type=JosekiType.CORNER,
             first_move=first,
             result=JosekiResult.EVEN,
+            key="takamoku_basic",
             popularity=60,
             difficulty=4,
             comment="高目定式强调外势",
@@ -338,11 +499,12 @@ class JosekiDatabase:
         """获取定式"""
         return self.joseki_dict.get(name)
     
-    def search_joseki(self, **criteria) -> List[JosekiSequence]:
+    def search_joseki(self, keyword: Optional[str] = None, **criteria) -> List[JosekiSequence]:
         """
         搜索定式
         
         Args:
+            keyword: 关键字（名称/标签/评注）
             type: 定式类型
             min_popularity: 最低流行度
             max_difficulty: 最高难度
@@ -354,6 +516,8 @@ class JosekiDatabase:
         results = []
         
         for joseki in self.joseki_dict.values():
+            if keyword and not self._match_keyword(joseki, keyword):
+                continue
             # 检查类型
             if 'type' in criteria and joseki.type != criteria['type']:
                 continue
@@ -378,6 +542,16 @@ class JosekiDatabase:
         results.sort(key=lambda j: j.popularity, reverse=True)
         
         return results
+
+    def _match_keyword(self, joseki: JosekiSequence, keyword: str) -> bool:
+        value = keyword.strip().lower()
+        if not value:
+            return True
+
+        name = (joseki.name or '').lower()
+        comment = (joseki.comment or '').lower()
+        tags = [str(tag).lower() for tag in joseki.tags]
+        return value in name or value in comment or any(value in tag for tag in tags)
     
     def update_statistics(self, joseki_name: str, success: bool):
         """更新定式统计"""

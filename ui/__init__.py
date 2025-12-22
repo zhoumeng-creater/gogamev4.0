@@ -12,6 +12,9 @@ from .themes import Theme, ThemeManager
 from .animations import AnimationManager, StoneAnimation, CaptureAnimation
 from .game_tree import GameTreeWindow
 from .help import RulesHelpDialog, TutorialDialog
+from .joseki_dictionary import JosekiDictionaryWindow
+from .pattern_search import PatternSearchWindow
+from .problem_library import ProblemLibraryWindow
 
 __all__ = [
     # 棋盘
@@ -34,5 +37,8 @@ __all__ = [
     'GameTreeWindow',
 
     # 帮助/教程
-    'RulesHelpDialog', 'TutorialDialog'
+    'RulesHelpDialog', 'TutorialDialog',
+
+    # 定式/棋型
+    'JosekiDictionaryWindow', 'PatternSearchWindow', 'ProblemLibraryWindow'
 ]
