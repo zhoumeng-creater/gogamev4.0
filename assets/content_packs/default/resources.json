@@ -1,0 +1,100 @@
+{
+  "resources": [
+    {
+      "id": "rules_1",
+      "category": "rules_help",
+      "language": "zh",
+      "label": "中国围棋规则（2018版）",
+      "url": "https://www.qipai.org.cn/web/article/word/id/50301",
+      "sort_order": 1
+    },
+    {
+      "id": "rules_2",
+      "category": "rules_help",
+      "language": "zh",
+      "label": "日本棋院规则（英文）",
+      "url": "https://www.nihonkiin.or.jp/match/ki_rules/download.html",
+      "sort_order": 2
+    },
+    {
+      "id": "rules_3",
+      "category": "rules_help",
+      "language": "zh",
+      "label": "AGA Rules of Go",
+      "url": "https://www.usgo.org/aga-rules-go",
+      "sort_order": 3
+    },
+    {
+      "id": "rules_4",
+      "category": "rules_help",
+      "language": "zh",
+      "label": "Sensei's Library - Rules of Go",
+      "url": "https://senseis.xmp.net/?RulesOfGo",
+      "sort_order": 4
+    },
+    {
+      "id": "tutorial_1",
+      "category": "tutorial",
+      "language": "zh",
+      "label": "在线围棋入门（OGS）",
+      "url": "https://online-go.com/learn-to-play-go",
+      "sort_order": 1
+    },
+    {
+      "id": "tutorial_2",
+      "category": "tutorial",
+      "language": "zh",
+      "label": "AGA Learn to Play Go",
+      "url": "https://www.usgo.org/learn-play-go",
+      "sort_order": 2
+    },
+    {
+      "id": "tutorial_3",
+      "category": "tutorial",
+      "language": "zh",
+      "label": "Sensei's Library - Beginner Exercises",
+      "url": "https://senseis.xmp.net/?BeginnerExercises",
+      "sort_order": 3
+    },
+    {
+      "id": "problem_1",
+      "category": "problem_library",
+      "language": "zh",
+      "label": "Online-Go.com Puzzles",
+      "url": "https://online-go.com/puzzles",
+      "sort_order": 1
+    },
+    {
+      "id": "problem_2",
+      "category": "problem_library",
+      "language": "zh",
+      "label": "GoProblems.com",
+      "url": "https://www.goproblems.com/",
+      "sort_order": 2
+    },
+    {
+      "id": "problem_3",
+      "category": "problem_library",
+      "language": "zh",
+      "label": "Tsumego Hero",
+      "url": "https://tsumego-hero.com/",
+      "sort_order": 3
+    },
+    {
+      "id": "problem_4",
+      "category": "problem_library",
+      "language": "zh",
+      "label": "101weiqi Tsumego",
+      "url": "https://www.101weiqi.com/",
+      "sort_order": 4
+    },
+    {
+      "id": "problem_5",
+      "category": "problem_library",
+      "language": "zh",
+      "label": "Sensei's Library Tsumego",
+      "url": "https://senseis.xmp.net/?Tsumego",
+      "sort_order": 5
+    }
+  ]
+}

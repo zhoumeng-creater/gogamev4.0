@@ -1,0 +1,76 @@
+{
+  "patterns": [
+    {
+      "name": "san_san_invasion",
+      "category": "joseki",
+      "stones": [[3, 3, "O"]],
+      "empty_points": [[3, 4], [4, 3]],
+      "next_moves": [[3, 4, 0.6], [4, 3, 0.4]],
+      "context": "三三入侵应对"
+    },
+    {
+      "name": "star_point_approach",
+      "category": "joseki",
+      "stones": [[3, 3, "X"]],
+      "empty_points": [[5, 3], [3, 5]],
+      "next_moves": [[5, 3, 0.5], [3, 5, 0.5]],
+      "context": "星位小飞挂"
+    },
+    {
+      "name": "komoku_approach",
+      "category": "joseki",
+      "stones": [[3, 4, "X"]],
+      "empty_points": [[5, 3], [5, 4]],
+      "next_moves": [[5, 3, 0.6], [5, 4, 0.4]],
+      "context": "小目一间高挂"
+    },
+    {
+      "name": "cut_point",
+      "category": "tactical",
+      "stones": [[0, 1, "O"], [1, 0, "O"]],
+      "empty_points": [[0, 0], [1, 1]],
+      "next_moves": [[1, 1, 0.8]],
+      "context": "切断对方连接"
+    },
+    {
+      "name": "double_atari",
+      "category": "tactical",
+      "stones": [[-1, 0, "O"], [1, 0, "O"], [0, -1, "X"], [0, 1, "X"]],
+      "empty_points": [[0, 0]],
+      "next_moves": [[0, 0, 1.0]],
+      "context": "双叫吃"
+    },
+    {
+      "name": "hane",
+      "category": "tactical",
+      "stones": [[0, 1, "O"], [1, 1, "X"]],
+      "empty_points": [[1, 0]],
+      "next_moves": [[1, 0, 0.7]],
+      "context": "扳头"
+    },
+    {
+      "name": "tiger_mouth",
+      "category": "tactical",
+      "stones": [[0, 1, "X"], [1, 0, "X"]],
+      "empty_points": [[1, 1]],
+      "next_moves": [[1, 1, 0.6]],
+      "context": "虎口补强"
+    },
+    {
+      "name": "straight_three_eyes",
+      "category": "life_death",
+      "stones": [[-1, 0, "X"], [0, 0, "."], [1, 0, "X"], [0, 1, "X"], [0, -1, "X"]],
+      "empty_points": [[0, 0]],
+      "next_moves": [[0, 0, 1.0]],
+      "context": "直三做眼"
+    },
+    {
+      "name": "bent_three_eyes",
+      "category": "life_death",
+      "stones": [[0, 0, "."], [1, 0, "X"], [2, 0, "X"], [0, 1, "X"], [0, -1, "X"]],
+      "empty_points": [[0, 0]],
+      "next_moves": [[0, 0, 1.0]],
+      "context": "曲三做眼"
+    }
+  ]
+}

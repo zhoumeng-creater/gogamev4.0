@@ -7,7 +7,7 @@ from __future__ import annotations
 import tkinter as tk
 from dataclasses import dataclass
 from tkinter import ttk, messagebox, filedialog
-from typing import List, Optional
+from typing import Dict, List, Optional
 from urllib.parse import quote_plus
 import webbrowser
 
@@ -15,6 +15,7 @@ from features.teaching import TeachingSystem, Puzzle
 from ui.board_canvas import BoardCanvas
 from ui.themes import Theme
 from ui.translator import Translator
+from utils.content_db import get_content_db
 
 
 @dataclass
@@ -40,7 +41,11 @@ class ProblemLibraryWindow(tk.Toplevel):
 
         self.translator = translator or Translator()
         self.theme = theme or Theme(name="default")
-        self.teaching_system = teaching_system or TeachingSystem(self.translator)
+        self.content_db = get_content_db()
+        self.teaching_system = teaching_system or TeachingSystem(
+            self.translator,
+            content_db=self.content_db,
+        )
 
         self._entries = self._build_catalog()
         self._list_items: List[ProblemEntry] = []
@@ -61,28 +66,7 @@ class ProblemLibraryWindow(tk.Toplevel):
         self._solution_board: Optional[BoardCanvas] = None
         self._solution_title: Optional[ttk.Label] = None
 
-        self._resources = [
-            {
-                "label": "Online-Go.com Puzzles",
-                "url": "https://online-go.com/puzzles",
-            },
-            {
-                "label": "GoProblems.com",
-                "url": "https://www.goproblems.com/",
-            },
-            {
-                "label": "Tsumego Hero",
-                "url": "https://tsumego-hero.com/",
-            },
-            {
-                "label": "101weiqi Tsumego",
-                "url": "https://www.101weiqi.com/",
-            },
-            {
-                "label": "Sensei's Library Tsumego",
-                "url": "https://senseis.xmp.net/?Tsumego",
-            },
-        ]
+        self._resources = self._load_resources("problem_library")
 
         self.title(self.translator.get("problem_library"))
         self.geometry("1040x680")
@@ -301,6 +285,39 @@ class ProblemLibraryWindow(tk.Toplevel):
         widget.delete("1.0", "end")
         widget.insert("1.0", text)
         widget.configure(state="disabled")
+
+    def _load_resources(self, category: str) -> List[Dict[str, str]]:
+        language = getattr(self.translator, "language", "zh")
+        try:
+            resources = self.content_db.list_resources(category, language)
+            if resources:
+                return resources
+        except Exception:
+            pass
+        if category == "problem_library":
+            return [
+                {
+                    "label": "Online-Go.com Puzzles",
+                    "url": "https://online-go.com/puzzles",
+                },
+                {
+                    "label": "GoProblems.com",
+                    "url": "https://www.goproblems.com/",
+                },
+                {
+                    "label": "Tsumego Hero",
+                    "url": "https://tsumego-hero.com/",
+                },
+                {
+                    "label": "101weiqi Tsumego",
+                    "url": "https://www.101weiqi.com/",
+                },
+                {
+                    "label": "Sensei's Library Tsumego",
+                    "url": "https://senseis.xmp.net/?Tsumego",
+                },
+            ]
+        return []
 
     def _puzzle_text(self, puzzle: Puzzle, field: str) -> str:
         if not puzzle:

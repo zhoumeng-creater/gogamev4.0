@@ -1,0 +1,81 @@
+{
+  "lessons": [
+    {
+      "id": "rules_basic",
+      "type": "rules",
+      "difficulty": 1,
+      "estimated_time": 20,
+      "prerequisites": [],
+      "sort_order": 1,
+      "language": "zh",
+      "title": "围棋基本规则",
+      "description": "学习围棋的基本规则和概念",
+      "objectives": [
+        "了解围棋的基本规则",
+        "掌握气的概念",
+        "学会基本的提子"
+      ]
+    },
+    {
+      "id": "basics_capture",
+      "type": "basics",
+      "difficulty": 1,
+      "estimated_time": 30,
+      "prerequisites": ["rules_basic"],
+      "sort_order": 2,
+      "language": "zh",
+      "title": "基本吃子技术",
+      "description": "学习各种基本的吃子方法",
+      "objectives": [
+        "掌握直接吃子",
+        "学会征子技术",
+        "理解门吃和双吃"
+      ]
+    },
+    {
+      "id": "basics_territory",
+      "type": "basics",
+      "difficulty": 2,
+      "estimated_time": 25,
+      "prerequisites": ["rules_basic"],
+      "sort_order": 3,
+      "language": "zh",
+      "title": "围地基础",
+      "description": "学习如何围地和计算地盘",
+      "objectives": [
+        "理解地盘概念",
+        "学会基本围地"
+      ]
+    },
+    {
+      "id": "tactics_ladder",
+      "type": "tactics",
+      "difficulty": 2,
+      "estimated_time": 40,
+      "prerequisites": ["basics_capture"],
+      "sort_order": 4,
+      "language": "zh",
+      "title": "征子战术",
+      "description": "深入学习征子及其变化",
+      "objectives": [
+        "掌握征子判断",
+        "学会征子相关战术"
+      ]
+    },
+    {
+      "id": "tactics_net",
+      "type": "tactics",
+      "difficulty": 3,
+      "estimated_time": 35,
+      "prerequisites": ["basics_capture"],
+      "sort_order": 5,
+      "language": "zh",
+      "title": "网罩战术",
+      "description": "学习网罩的技巧",
+      "objectives": [
+        "理解网罩原理",
+        "掌握网罩技巧"
+      ]
+    }
+  ]
+}

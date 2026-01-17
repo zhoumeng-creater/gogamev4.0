@@ -13,6 +13,7 @@ import numpy as np
 from .base import AIPlayer, Move, AILevel
 from .search_ai import MonteCarloAI
 from core import Board, Rules, MoveResult
+from utils.content_db import get_content_db
 
 
 @dataclass
@@ -96,99 +97,100 @@ class PatternLibrary:
     
     def _load_patterns(self):
         """加载内置模式"""
-        # 角部定式
-        self.patterns['joseki'].extend([
-            # 三三定式
-            Pattern(
-                name="san_san_invasion",
-                stones=[(3, 3, 'O')],  # 对方占三三
-                empty_points=[(3, 4), (4, 3)],
-                next_moves=[(3, 4, 0.6), (4, 3, 0.4)],
-                context="三三入侵应对"
-            ),
-            # 星位定式
-            Pattern(
-                name="star_point_approach",
-                stones=[(3, 3, 'X')],  # 己方占星位
-                empty_points=[(5, 3), (3, 5)],
-                next_moves=[(5, 3, 0.5), (3, 5, 0.5)],
-                context="星位小飞挂"
-            ),
-            # 小目定式
-            Pattern(
-                name="komoku_approach",
-                stones=[(3, 4, 'X')],  # 己方占小目
-                empty_points=[(5, 3), (5, 4)],
-                next_moves=[(5, 3, 0.6), (5, 4, 0.4)],
-                context="小目一间高挂"
-            )
-        ])
-        
-        # 战术模式
-        self.patterns['tactical'].extend([
-            # 断点
-            Pattern(
-                name="cut_point",
-                stones=[(0, 1, 'O'), (1, 0, 'O')],
-                empty_points=[(0, 0), (1, 1)],
-                next_moves=[(1, 1, 0.8)],
-                context="切断对方连接"
-            ),
-            # 双叫吃
-            Pattern(
-                name="double_atari",
-                stones=[
-                    (-1, 0, 'O'), (1, 0, 'O'),
-                    (0, -1, 'X'), (0, 1, 'X')
-                ],
-                empty_points=[(0, 0)],
-                next_moves=[(0, 0, 1.0)],
-                context="双叫吃"
-            ),
-            # 扳
-            Pattern(
-                name="hane",
-                stones=[(0, 1, 'O'), (1, 1, 'X')],
-                empty_points=[(1, 0)],
-                next_moves=[(1, 0, 0.7)],
-                context="扳头"
-            ),
-            # 虎口
-            Pattern(
-                name="tiger_mouth",
-                stones=[(0, 1, 'X'), (1, 0, 'X')],
-                empty_points=[(1, 1)],
-                next_moves=[(1, 1, 0.6)],
-                context="虎口补强"
-            )
-        ])
-        
-        # 死活模式
-        self.patterns['life_death'].extend([
-            # 直三做眼
-            Pattern(
-                name="straight_three_eyes",
-                stones=[
-                    (-1, 0, 'X'), (0, 0, '.'), (1, 0, 'X'),
-                    (0, 1, 'X'), (0, -1, 'X')
-                ],
-                empty_points=[(0, 0)],
-                next_moves=[(0, 0, 1.0)],
-                context="直三做眼"
-            ),
-            # 曲三做眼
-            Pattern(
-                name="bent_three_eyes",
-                stones=[
-                    (0, 0, '.'), (1, 0, 'X'), (2, 0, 'X'),
-                    (0, 1, 'X'), (0, -1, 'X')
-                ],
-                empty_points=[(0, 0)],
-                next_moves=[(0, 0, 1.0)],
-                context="曲三做眼"
-            )
-        ])
-        
+        if not self._load_patterns_from_content():
+            # 角部定式
+            self.patterns['joseki'].extend([
+                # 三三定式
+                Pattern(
+                    name="san_san_invasion",
+                    stones=[(3, 3, 'O')],  # 对方占三三
+                    empty_points=[(3, 4), (4, 3)],
+                    next_moves=[(3, 4, 0.6), (4, 3, 0.4)],
+                    context="三三入侵应对"
+                ),
+                # 星位定式
+                Pattern(
+                    name="star_point_approach",
+                    stones=[(3, 3, 'X')],  # 己方占星位
+                    empty_points=[(5, 3), (3, 5)],
+                    next_moves=[(5, 3, 0.5), (3, 5, 0.5)],
+                    context="星位小飞挂"
+                ),
+                # 小目定式
+                Pattern(
+                    name="komoku_approach",
+                    stones=[(3, 4, 'X')],  # 己方占小目
+                    empty_points=[(5, 3), (5, 4)],
+                    next_moves=[(5, 3, 0.6), (5, 4, 0.4)],
+                    context="小目一间高挂"
+                )
+            ])
+            
+            # 战术模式
+            self.patterns['tactical'].extend([
+                # 断点
+                Pattern(
+                    name="cut_point",
+                    stones=[(0, 1, 'O'), (1, 0, 'O')],
+                    empty_points=[(0, 0), (1, 1)],
+                    next_moves=[(1, 1, 0.8)],
+                    context="切断对方连接"
+                ),
+                # 双叫吃
+                Pattern(
+                    name="double_atari",
+                    stones=[
+                        (-1, 0, 'O'), (1, 0, 'O'),
+                        (0, -1, 'X'), (0, 1, 'X')
+                    ],
+                    empty_points=[(0, 0)],
+                    next_moves=[(0, 0, 1.0)],
+                    context="双叫吃"
+                ),
+                # 扳
+                Pattern(
+                    name="hane",
+                    stones=[(0, 1, 'O'), (1, 1, 'X')],
+                    empty_points=[(1, 0)],
+                    next_moves=[(1, 0, 0.7)],
+                    context="扳头"
+                ),
+                # 虎口
+                Pattern(
+                    name="tiger_mouth",
+                    stones=[(0, 1, 'X'), (1, 0, 'X')],
+                    empty_points=[(1, 1)],
+                    next_moves=[(1, 1, 0.6)],
+                    context="虎口补强"
+                )
+            ])
+            
+            # 死活模式
+            self.patterns['life_death'].extend([
+                # 直三做眼
+                Pattern(
+                    name="straight_three_eyes",
+                    stones=[
+                        (-1, 0, 'X'), (0, 0, '.'), (1, 0, 'X'),
+                        (0, 1, 'X'), (0, -1, 'X')
+                    ],
+                    empty_points=[(0, 0)],
+                    next_moves=[(0, 0, 1.0)],
+                    context="直三做眼"
+                ),
+                # 曲三做眼
+                Pattern(
+                    name="bent_three_eyes",
+                    stones=[
+                        (0, 0, '.'), (1, 0, 'X'), (2, 0, 'X'),
+                        (0, 1, 'X'), (0, -1, 'X')
+                    ],
+                    empty_points=[(0, 0)],
+                    next_moves=[(0, 0, 1.0)],
+                    context="曲三做眼"
+                )
+            ])
+
         # 为每个模式生成旋转和镜像变体
         for category in self.patterns:
             original_patterns = self.patterns[category].copy()
@@ -202,6 +204,38 @@ class PatternLibrary:
                 # 生成镜像
                 mirrored = pattern.mirror_horizontal()
                 self.patterns[category].append(mirrored)
+
+    def _load_patterns_from_content(self) -> bool:
+        try:
+            content_db = get_content_db()
+            patterns = content_db.list_patterns()
+        except Exception:
+            patterns = []
+        if not patterns:
+            return False
+
+        for item in patterns:
+            name = str(item.get('name') or '').strip()
+            category = str(item.get('category') or '').strip()
+            if not name or not category:
+                continue
+            stones_raw = item.get('stones') or []
+            empty_raw = item.get('empty_points') or []
+            next_raw = item.get('next_moves') or []
+            stones = [(int(x), int(y), str(color)) for x, y, color in stones_raw]
+            empty_points = [(int(x), int(y)) for x, y in empty_raw]
+            next_moves = [(int(x), int(y), float(weight)) for x, y, weight in next_raw]
+
+            self.patterns.setdefault(category, []).append(
+                Pattern(
+                    name=name,
+                    stones=stones,
+                    empty_points=empty_points,
+                    next_moves=next_moves,
+                    context=str(item.get('context') or ''),
+                )
+            )
+        return any(self.patterns.values())
     
     def find_matching_patterns(self, board: Board, x: int, y: int, 
                                color: str, category: str = None) -> List[Pattern]:

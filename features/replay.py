@@ -15,6 +15,7 @@ import numpy as np
 # 导入核心模块
 from core import Board, Game, GamePhase, Move, MoveSequence
 from ai import AIFactory
+from utils.content_db import get_content_db
 
 
 class NodeType(Enum):
@@ -22,6 +23,30 @@ class NodeType(Enum):
     MAIN = 'main'  # 主线
     VARIATION = 'variation'  # 变化
     COMMENT = 'comment'  # 评注节点
+
+
+_EVALUATION_CACHE: Optional[Dict[str, Dict[str, str]]] = None
+
+
+def _get_evaluation_catalog(language: str = 'zh') -> Dict[str, Dict[str, str]]:
+    global _EVALUATION_CACHE
+    if _EVALUATION_CACHE is not None:
+        return _EVALUATION_CACHE
+    try:
+        _EVALUATION_CACHE = get_content_db().list_comment_evaluations(language)
+    except Exception:
+        _EVALUATION_CACHE = {}
+    return _EVALUATION_CACHE
+
+
+def _get_evaluation_symbol(key: Optional[str]) -> str:
+    if not key:
+        return ''
+    catalog = _get_evaluation_catalog()
+    item = catalog.get(key)
+    if item and item.get('symbol'):
+        return str(item['symbol'])
+    return ''
 
 
 @dataclass
@@ -45,7 +70,11 @@ class Comment:
         """转换为SGF格式的评注"""
         sgf_text = self.text
         if self.move_evaluation:
-            sgf_text = f"{self.EVALUATIONS.get(self.move_evaluation, '')} {sgf_text}"
+            symbol = _get_evaluation_symbol(self.move_evaluation)
+            if not symbol:
+                symbol = self.EVALUATIONS.get(self.move_evaluation, '')
+            if symbol:
+                sgf_text = f"{symbol} {sgf_text}"
         if self.author:
             sgf_text = f"[{self.author}] {sgf_text}"
         return sgf_text
@@ -616,20 +645,13 @@ class ReplayViewer(tk.Frame):
         
         eval_var = tk.StringVar()
         eval_combo = ttk.Combobox(eval_frame, textvariable=eval_var, width=15)
-        eval_combo['values'] = ['', '好手', '妙手', '恶手', '大恶手', '有趣', '疑问']
+        options, eval_map = self._get_evaluation_options()
+        eval_combo['values'] = options
         eval_combo.pack(side='left', padx=5)
         
         def save_comment():
             comment_text = text.get('1.0', 'end').strip()
             if comment_text:
-                eval_map = {
-                    '好手': 'good',
-                    '妙手': 'excellent', 
-                    '恶手': 'bad',
-                    '大恶手': 'very_bad',
-                    '有趣': 'interesting',
-                    '疑问': 'dubious'
-                }
                 evaluation = eval_map.get(eval_var.get())
                 
                 self.replay_manager.add_comment(comment_text, evaluation=evaluation)
@@ -637,6 +659,30 @@ class ReplayViewer(tk.Frame):
                 dialog.destroy()
         
         ttk.Button(dialog, text="保存", command=save_comment).pack(pady=5)
+
+    def _get_evaluation_options(self) -> Tuple[List[str], Dict[str, str]]:
+        order = ['good', 'excellent', 'bad', 'very_bad', 'interesting', 'dubious']
+        labels: List[str] = []
+        mapping: Dict[str, str] = {}
+        catalog = _get_evaluation_catalog()
+        for key in order:
+            label = catalog.get(key, {}).get('label') if catalog else None
+            if label:
+                labels.append(label)
+                mapping[label] = key
+        if labels:
+            return [''] + labels, mapping
+
+        fallback_labels = ['好手', '妙手', '恶手', '大恶手', '有趣', '疑问']
+        fallback_map = {
+            '好手': 'good',
+            '妙手': 'excellent',
+            '恶手': 'bad',
+            '大恶手': 'very_bad',
+            '有趣': 'interesting',
+            '疑问': 'dubious',
+        }
+        return [''] + fallback_labels, fallback_map
     
     def add_variation(self):
         """添加变化分支（需要棋盘交互）"""

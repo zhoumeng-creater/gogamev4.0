@@ -46,7 +46,8 @@ from features import (
 from utils import (
     ConfigManager, SoundManager, SGFParser, Timer,
     Statistics, StorageManager, TimeControl,
-    resource_path, GameConfig, TimeSettings, GameStats
+    resource_path, GameConfig, TimeSettings, GameStats,
+    get_content_db
 )
 
 
@@ -110,6 +111,9 @@ class GoMasterApp:
         # 配置管理
         self.config_manager = ConfigManager()
         config = self.config_manager.config
+
+        # 内容数据库
+        self.content_db = get_content_db()
         
         # 翻译系统
         self.translator = Translator(config.language)
@@ -1952,7 +1956,10 @@ class GoMasterApp:
             pass
 
         if not self.teaching_system:
-            self.teaching_system = TeachingSystem(self.translator)
+            self.teaching_system = TeachingSystem(
+                self.translator,
+                content_db=self.content_db,
+            )
 
         theme = self.theme_manager.get_current_theme()
         self._problem_library_window = ProblemLibraryWindow(
@@ -1991,7 +1998,10 @@ class GoMasterApp:
     def show_tutorial(self):
         """显示教程"""
         if not self.teaching_system:
-            self.teaching_system = TeachingSystem(self.translator)
+            self.teaching_system = TeachingSystem(
+                self.translator,
+                content_db=self.content_db,
+            )
         
         TutorialDialog(
             self.root,

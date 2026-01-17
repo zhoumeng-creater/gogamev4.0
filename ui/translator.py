@@ -1470,6 +1470,9 @@ class Translator:
         # 加载自定义翻译
         if custom_translations:
             self._load_custom_translations(custom_translations)
+
+        # 从内容数据库加载翻译（作为最高优先级）
+        self._load_content_db_translations()
     
     def _load_custom_translations(self, file_path: str):
         """
@@ -1488,6 +1491,25 @@ class Translator:
                         self.translations[lang] = trans
         except Exception as e:
             print(f"加载自定义翻译失败: {e}")
+
+    def _load_content_db_translations(self):
+        """从内容数据库加载翻译"""
+        try:
+            from utils.content_db import get_content_db
+
+            db_translations = get_content_db().list_translations()
+        except Exception:
+            return
+
+        if not isinstance(db_translations, dict):
+            return
+        for lang_code, mapping in db_translations.items():
+            if not isinstance(mapping, dict):
+                continue
+            if lang_code in self.translations:
+                self.translations[lang_code].update(mapping)
+            else:
+                self.translations[lang_code] = mapping
     
     def get(self, key: str, default: Optional[str] = None, **kwargs) -> str:
         """

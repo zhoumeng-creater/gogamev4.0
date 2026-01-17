@@ -1,0 +1,21 @@
+{
+  "achievements": [
+    {"key": "first_win", "language": "zh", "label": "首胜"},
+    {"key": "first_10_wins", "language": "zh", "label": "十连胜"},
+    {"key": "first_100_wins", "language": "zh", "label": "百胜"},
+    {"key": "winning_streak_5", "language": "zh", "label": "五连胜"},
+    {"key": "winning_streak_10", "language": "zh", "label": "十连胜"},
+    {"key": "perfect_game", "language": "zh", "label": "完美对局"},
+    {"key": "comeback_king", "language": "zh", "label": "逆转大师"},
+    {"key": "speed_demon", "language": "zh", "label": "快枪手"},
+    {"key": "marathon_player", "language": "zh", "label": "马拉松选手"},
+    {"key": "joseki_master", "language": "zh", "label": "定式大师"},
+    {"key": "fighting_spirit", "language": "zh", "label": "战斗精神"},
+    {"key": "peaceful_player", "language": "zh", "label": "和平主义者"},
+    {"key": "territory_king", "language": "zh", "label": "领地之王"},
+    {"key": "capture_master", "language": "zh", "label": "吃子大师"},
+    {"key": "early_bird", "language": "zh", "label": "早起鸟"},
+    {"key": "night_owl", "language": "zh", "label": "夜猫子"},
+    {"key": "dedication", "language": "zh", "label": "勤奋玩家"}
+  ]
+}

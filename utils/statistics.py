@@ -10,6 +10,7 @@ from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, asdict, field
 from collections import defaultdict
 import statistics as stats
+from .content_db import get_content_db
 
 
 @dataclass
@@ -192,9 +193,20 @@ class Statistics:
             'daily_games': defaultdict(int),
             'hourly_distribution': defaultdict(int),
         }
+
+        # 尝试从内容库加载成就名称（优先于内置）
+        self.achievements_map = self._load_achievements_from_content()
+        if self.achievements_map:
+            Statistics.ACHIEVEMENTS = self.achievements_map
         
         # 加载历史数据
         self.load_statistics()
+
+    def _load_achievements_from_content(self) -> Dict[str, str]:
+        try:
+            return get_content_db().list_achievements('zh')
+        except Exception:
+            return {}
 
     def _normalize_global_stats(self) -> None:
         """

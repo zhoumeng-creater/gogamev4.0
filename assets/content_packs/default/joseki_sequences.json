@@ -1,0 +1,901 @@
+{
+  "joseki_sequences": [
+    {
+      "name": "3-3点入侵",
+      "type": "corner",
+      "first_move": {
+        "x": 2,
+        "y": 2,
+        "color": "black",
+        "order": 1,
+        "is_main_line": true,
+        "comment": "",
+        "comment_key": "",
+        "next_moves": [
+          {
+            "x": 3,
+            "y": 3,
+            "color": "white",
+            "order": 2,
+            "is_main_line": true,
+            "comment": "",
+            "comment_key": "",
+            "next_moves": [
+              {
+                "x": 3,
+                "y": 2,
+                "color": "black",
+                "order": 3,
+                "is_main_line": true,
+                "comment": "",
+                "comment_key": "",
+                "next_moves": [
+                  {
+                    "x": 2,
+                    "y": 3,
+                    "color": "white",
+                    "order": 4,
+                    "is_main_line": true,
+                    "comment": "",
+                    "comment_key": "",
+                    "next_moves": [
+                      {
+                        "x": 4,
+                        "y": 2,
+                        "color": "black",
+                        "order": 5,
+                        "is_main_line": true,
+                        "comment": "",
+                        "comment_key": "",
+                        "next_moves": [
+                          {
+                            "x": 4,
+                            "y": 3,
+                            "color": "white",
+                            "order": 6,
+                            "is_main_line": true,
+                            "comment": "",
+                            "comment_key": "",
+                            "next_moves": [
+                              {
+                                "x": 5,
+                                "y": 2,
+                                "color": "black",
+                                "order": 7,
+                                "is_main_line": true,
+                                "comment": "",
+                                "comment_key": "",
+                                "next_moves": []
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "result": "even",
+      "key": "three_three_invasion",
+      "popularity": 85,
+      "difficulty": 1,
+      "era": "",
+      "comment": "基础的3-3点入侵定式，双方均势",
+      "tags": [
+        "角部定式",
+        "基础"
+      ]
+    },
+    {
+      "name": "三三定式-基本型",
+      "type": "corner",
+      "first_move": {
+        "x": 2,
+        "y": 2,
+        "color": "black",
+        "order": 1,
+        "is_main_line": true,
+        "comment": "",
+        "comment_key": "",
+        "next_moves": [
+          {
+            "x": 4,
+            "y": 2,
+            "color": "white",
+            "order": 2,
+            "is_main_line": true,
+            "comment": "",
+            "comment_key": "",
+            "next_moves": [
+              {
+                "x": 4,
+                "y": 3,
+                "color": "black",
+                "order": 3,
+                "is_main_line": true,
+                "comment": "",
+                "comment_key": "",
+                "next_moves": [
+                  {
+                    "x": 5,
+                    "y": 2,
+                    "color": "white",
+                    "order": 4,
+                    "is_main_line": true,
+                    "comment": "",
+                    "comment_key": "",
+                    "next_moves": [
+                      {
+                        "x": 3,
+                        "y": 3,
+                        "color": "black",
+                        "order": 5,
+                        "is_main_line": true,
+                        "comment": "",
+                        "comment_key": "",
+                        "next_moves": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "result": "even",
+      "key": "san_san_basic",
+      "popularity": 90,
+      "difficulty": 2,
+      "era": "",
+      "comment": "最基本的三三定式，黑角实地，白获外势",
+      "tags": [
+        "三三",
+        "实地",
+        "基本定式"
+      ]
+    },
+    {
+      "name": "三连星布局",
+      "type": "opening",
+      "first_move": {
+        "x": 3,
+        "y": 3,
+        "color": "black",
+        "order": 1,
+        "is_main_line": true,
+        "comment": "",
+        "comment_key": "",
+        "next_moves": [
+          {
+            "x": 9,
+            "y": 3,
+            "color": "black",
+            "order": 2,
+            "is_main_line": true,
+            "comment": "",
+            "comment_key": "",
+            "next_moves": [
+              {
+                "x": 15,
+                "y": 3,
+                "color": "black",
+                "order": 3,
+                "is_main_line": true,
+                "comment": "",
+                "comment_key": "",
+                "next_moves": []
+              }
+            ]
+          }
+        ]
+      },
+      "result": "better_black",
+      "key": "three_star_fuseki",
+      "popularity": 85,
+      "difficulty": 1,
+      "era": "",
+      "comment": "三连星布局，重视中央势力",
+      "tags": [
+        "布局定式",
+        "基础"
+      ]
+    },
+    {
+      "name": "中国流布局",
+      "type": "opening",
+      "first_move": {
+        "x": 3,
+        "y": 3,
+        "color": "black",
+        "order": 1,
+        "is_main_line": true,
+        "comment": "",
+        "comment_key": "",
+        "next_moves": [
+          {
+            "x": 15,
+            "y": 3,
+            "color": "black",
+            "order": 2,
+            "is_main_line": true,
+            "comment": "",
+            "comment_key": "",
+            "next_moves": [
+              {
+                "x": 9,
+                "y": 2,
+                "color": "black",
+                "order": 3,
+                "is_main_line": true,
+                "comment": "",
+                "comment_key": "",
+                "next_moves": []
+              }
+            ]
+          }
+        ]
+      },
+      "result": "better_black",
+      "key": "chinese_fuseki",
+      "popularity": 65,
+      "difficulty": 3,
+      "era": "",
+      "comment": "中国流开局，黑棋构筑大模样",
+      "tags": [
+        "布局定式",
+        "中级"
+      ]
+    },
+    {
+      "name": "双飞燕定式",
+      "type": "side",
+      "first_move": {
+        "x": 3,
+        "y": 2,
+        "color": "black",
+        "order": 1,
+        "is_main_line": true,
+        "comment": "",
+        "comment_key": "",
+        "next_moves": [
+          {
+            "x": 5,
+            "y": 3,
+            "color": "black",
+            "order": 2,
+            "is_main_line": true,
+            "comment": "",
+            "comment_key": "",
+            "next_moves": [
+              {
+                "x": 3,
+                "y": 4,
+                "color": "black",
+                "order": 3,
+                "is_main_line": true,
+                "comment": "",
+                "comment_key": "",
+                "next_moves": []
+              }
+            ]
+          }
+        ]
+      },
+      "result": "better_black",
+      "key": "double_flying_goose_joseki",
+      "popularity": 65,
+      "difficulty": 3,
+      "era": "",
+      "comment": "双飞燕阵型，强调外势",
+      "tags": [
+        "边部定式",
+        "中级"
+      ]
+    },
+    {
+      "name": "大斜定式",
+      "type": "corner",
+      "first_move": {
+        "x": 2,
+        "y": 3,
+        "color": "black",
+        "order": 1,
+        "is_main_line": true,
+        "comment": "",
+        "comment_key": "",
+        "next_moves": [
+          {
+            "x": 4,
+            "y": 2,
+            "color": "white",
+            "order": 2,
+            "is_main_line": true,
+            "comment": "",
+            "comment_key": "",
+            "next_moves": [
+              {
+                "x": 4,
+                "y": 4,
+                "color": "black",
+                "order": 3,
+                "is_main_line": true,
+                "comment": "",
+                "comment_key": "",
+                "next_moves": [
+                  {
+                    "x": 3,
+                    "y": 3,
+                    "color": "white",
+                    "order": 4,
+                    "is_main_line": true,
+                    "comment": "",
+                    "comment_key": "",
+                    "next_moves": [
+                      {
+                        "x": 5,
+                        "y": 3,
+                        "color": "black",
+                        "order": 5,
+                        "is_main_line": true,
+                        "comment": "",
+                        "comment_key": "",
+                        "next_moves": [
+                          {
+                            "x": 5,
+                            "y": 2,
+                            "color": "white",
+                            "order": 6,
+                            "is_main_line": true,
+                            "comment": "",
+                            "comment_key": "",
+                            "next_moves": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "result": "complicated",
+      "key": "taisha_joseki",
+      "popularity": 45,
+      "difficulty": 4,
+      "era": "",
+      "comment": "大斜定式的基本型",
+      "tags": [
+        "角部定式",
+        "高级"
+      ]
+    },
+    {
+      "name": "小林流布局",
+      "type": "opening",
+      "first_move": {
+        "x": 3,
+        "y": 2,
+        "color": "black",
+        "order": 1,
+        "is_main_line": true,
+        "comment": "",
+        "comment_key": "",
+        "next_moves": [
+          {
+            "x": 15,
+            "y": 3,
+            "color": "black",
+            "order": 2,
+            "is_main_line": true,
+            "comment": "",
+            "comment_key": "",
+            "next_moves": [
+              {
+                "x": 9,
+                "y": 2,
+                "color": "black",
+                "order": 3,
+                "is_main_line": true,
+                "comment": "",
+                "comment_key": "",
+                "next_moves": []
+              }
+            ]
+          }
+        ]
+      },
+      "result": "even",
+      "key": "kobayashi_fuseki",
+      "popularity": 45,
+      "difficulty": 4,
+      "era": "",
+      "comment": "小林流布局，平衡实地与外势",
+      "tags": [
+        "布局定式",
+        "高级"
+      ]
+    },
+    {
+      "name": "小目一间高挂",
+      "type": "corner",
+      "first_move": {
+        "x": 3,
+        "y": 2,
+        "color": "black",
+        "order": 1,
+        "is_main_line": true,
+        "comment": "",
+        "comment_key": "",
+        "next_moves": [
+          {
+            "x": 2,
+            "y": 4,
+            "color": "white",
+            "order": 2,
+            "is_main_line": true,
+            "comment": "",
+            "comment_key": "",
+            "next_moves": [
+              {
+                "x": 4,
+                "y": 4,
+                "color": "black",
+                "order": 3,
+                "is_main_line": true,
+                "comment": "",
+                "comment_key": "",
+                "next_moves": [
+                  {
+                    "x": 1,
+                    "y": 2,
+                    "color": "white",
+                    "order": 4,
+                    "is_main_line": true,
+                    "comment": "",
+                    "comment_key": "",
+                    "next_moves": [
+                      {
+                        "x": 1,
+                        "y": 3,
+                        "color": "black",
+                        "order": 5,
+                        "is_main_line": true,
+                        "comment": "",
+                        "comment_key": "",
+                        "next_moves": [
+                          {
+                            "x": 2,
+                            "y": 2,
+                            "color": "white",
+                            "order": 6,
+                            "is_main_line": true,
+                            "comment": "",
+                            "comment_key": "",
+                            "next_moves": []
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "result": "even",
+      "key": "komoku_one_space_high_approach",
+      "popularity": 65,
+      "difficulty": 3,
+      "era": "",
+      "comment": "小目一间高挂的常见变化",
+      "tags": [
+        "角部定式",
+        "中级"
+      ]
+    },
+    {
+      "name": "小目定式-高挂",
+      "type": "corner",
+      "first_move": {
+        "x": 3,
+        "y": 4,
+        "color": "black",
+        "order": 1,
+        "is_main_line": true,
+        "comment": "",
+        "comment_key": "",
+        "next_moves": [
+          {
+            "x": 5,
+            "y": 2,
+            "color": "white",
+            "order": 2,
+            "is_main_line": true,
+            "comment": "",
+            "comment_key": "",
+            "next_moves": [
+              {
+                "x": 4,
+                "y": 2,
+                "color": "black",
+                "order": 3,
+                "is_main_line": true,
+                "comment": "",
+                "comment_key": "",
+                "next_moves": []
+              }
+            ]
+          }
+        ]
+      },
+      "result": "even",
+      "key": "komoku_high_approach_joseki",
+      "popularity": 75,
+      "difficulty": 3,
+      "era": "",
+      "comment": "小目高挂定式，变化丰富",
+      "tags": [
+        "小目",
+        "高挂"
+      ]
+    },
+    {
+      "name": "星位定式-小飞挂",
+      "type": "corner",
+      "first_move": {
+        "x": 3,
+        "y": 3,
+        "color": "black",
+        "order": 1,
+        "is_main_line": true,
+        "comment": "",
+        "comment_key": "",
+        "next_moves": [
+          {
+            "x": 5,
+            "y": 2,
+            "color": "white",
+            "order": 2,
+            "is_main_line": true,
+            "comment": "",
+            "comment_key": "",
+            "next_moves": [
+              {
+                "x": 2,
+                "y": 4,
+                "color": "black",
+                "order": 3,
+                "is_main_line": true,
+                "comment": "一间夹，积极作战",
+                "comment_key": "joseki_move_comment_star_point_small_approach_joseki_one_space_pincer",
+                "next_moves": [
+                  {
+                    "x": 2,
+                    "y": 2,
+                    "color": "white",
+                    "order": 4,
+                    "is_main_line": true,
+                    "comment": "",
+                    "comment_key": "",
+                    "next_moves": []
+                  }
+                ]
+              },
+              {
+                "x": 2,
+                "y": 5,
+                "color": "black",
+                "order": 3,
+                "is_main_line": false,
+                "comment": "二间夹，重视外势",
+                "comment_key": "joseki_move_comment_star_point_small_approach_joseki_two_space_pincer",
+                "next_moves": []
+              },
+              {
+                "x": 2,
+                "y": 5,
+                "color": "black",
+                "order": 3,
+                "is_main_line": true,
+                "comment": "小飞应，简明",
+                "comment_key": "joseki_move_comment_star_point_small_approach_joseki_small_knight_reply",
+                "next_moves": []
+              }
+            ]
+          }
+        ]
+      },
+      "result": "even",
+      "key": "star_point_small_approach_joseki",
+      "popularity": 85,
+      "difficulty": 3,
+      "era": "",
+      "comment": "星位小飞挂是最常见的定式之一",
+      "tags": [
+        "星位",
+        "小飞挂",
+        "夹攻"
+      ]
+    },
+    {
+      "name": "星位小飞挂",
+      "type": "corner",
+      "first_move": {
+        "x": 3,
+        "y": 3,
+        "color": "black",
+        "order": 1,
+        "is_main_line": true,
+        "comment": "",
+        "comment_key": "",
+        "next_moves": [
+          {
+            "x": 2,
+            "y": 5,
+            "color": "white",
+            "order": 2,
+            "is_main_line": true,
+            "comment": "",
+            "comment_key": "",
+            "next_moves": [
+              {
+                "x": 2,
+                "y": 2,
+                "color": "black",
+                "order": 3,
+                "is_main_line": true,
+                "comment": "",
+                "comment_key": "",
+                "next_moves": [
+                  {
+                    "x": 4,
+                    "y": 2,
+                    "color": "white",
+                    "order": 4,
+                    "is_main_line": true,
+                    "comment": "",
+                    "comment_key": "",
+                    "next_moves": [
+                      {
+                        "x": 5,
+                        "y": 3,
+                        "color": "black",
+                        "order": 5,
+                        "is_main_line": true,
+                        "comment": "",
+                        "comment_key": "",
+                        "next_moves": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "result": "even",
+      "key": "star_point_small_approach",
+      "popularity": 85,
+      "difficulty": 1,
+      "era": "",
+      "comment": "星位小飞挂角的基本应对",
+      "tags": [
+        "角部定式",
+        "基础"
+      ]
+    },
+    {
+      "name": "镇神头",
+      "type": "fighting",
+      "first_move": {
+        "x": 9,
+        "y": 9,
+        "color": "black",
+        "order": 1,
+        "is_main_line": true,
+        "comment": "",
+        "comment_key": "",
+        "next_moves": [
+          {
+            "x": 8,
+            "y": 8,
+            "color": "white",
+            "order": 2,
+            "is_main_line": true,
+            "comment": "",
+            "comment_key": "",
+            "next_moves": [
+              {
+                "x": 8,
+                "y": 9,
+                "color": "black",
+                "order": 3,
+                "is_main_line": true,
+                "comment": "",
+                "comment_key": "",
+                "next_moves": [
+                  {
+                    "x": 9,
+                    "y": 8,
+                    "color": "white",
+                    "order": 4,
+                    "is_main_line": true,
+                    "comment": "",
+                    "comment_key": "",
+                    "next_moves": [
+                      {
+                        "x": 7,
+                        "y": 9,
+                        "color": "black",
+                        "order": 5,
+                        "is_main_line": true,
+                        "comment": "",
+                        "comment_key": "",
+                        "next_moves": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "result": "complicated",
+      "key": "zhen_shen_tou",
+      "popularity": 45,
+      "difficulty": 4,
+      "era": "",
+      "comment": "镇神头战术，用于攻击",
+      "tags": [
+        "战斗定式",
+        "高级"
+      ]
+    },
+    {
+      "name": "雪崩定式",
+      "type": "corner",
+      "first_move": {
+        "x": 2,
+        "y": 3,
+        "color": "black",
+        "order": 1,
+        "is_main_line": true,
+        "comment": "",
+        "comment_key": "",
+        "next_moves": [
+          {
+            "x": 3,
+            "y": 2,
+            "color": "white",
+            "order": 2,
+            "is_main_line": true,
+            "comment": "",
+            "comment_key": "",
+            "next_moves": [
+              {
+                "x": 3,
+                "y": 3,
+                "color": "black",
+                "order": 3,
+                "is_main_line": true,
+                "comment": "",
+                "comment_key": "",
+                "next_moves": [
+                  {
+                    "x": 2,
+                    "y": 2,
+                    "color": "white",
+                    "order": 4,
+                    "is_main_line": true,
+                    "comment": "",
+                    "comment_key": "",
+                    "next_moves": [
+                      {
+                        "x": 4,
+                        "y": 3,
+                        "color": "black",
+                        "order": 5,
+                        "is_main_line": true,
+                        "comment": "",
+                        "comment_key": "",
+                        "next_moves": [
+                          {
+                            "x": 1,
+                            "y": 2,
+                            "color": "white",
+                            "order": 6,
+                            "is_main_line": true,
+                            "comment": "",
+                            "comment_key": "",
+                            "next_moves": [
+                              {
+                                "x": 4,
+                                "y": 2,
+                                "color": "black",
+                                "order": 7,
+                                "is_main_line": true,
+                                "comment": "",
+                                "comment_key": "",
+                                "next_moves": [
+                                  {
+                                    "x": 1,
+                                    "y": 3,
+                                    "color": "white",
+                                    "order": 8,
+                                    "is_main_line": true,
+                                    "comment": "",
+                                    "comment_key": "",
+                                    "next_moves": []
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "result": "complicated",
+      "key": "avalanche_joseki",
+      "popularity": 45,
+      "difficulty": 4,
+      "era": "",
+      "comment": "复杂的雪崩定式，需要精确计算",
+      "tags": [
+        "角部定式",
+        "高级"
+      ]
+    },
+    {
+      "name": "高目定式-基本型",
+      "type": "corner",
+      "first_move": {
+        "x": 3,
+        "y": 5,
+        "color": "black",
+        "order": 1,
+        "is_main_line": true,
+        "comment": "",
+        "comment_key": "",
+        "next_moves": [
+          {
+            "x": 5,
+            "y": 3,
+            "color": "white",
+            "order": 2,
+            "is_main_line": true,
+            "comment": "",
+            "comment_key": "",
+            "next_moves": []
+          }
+        ]
+      },
+      "result": "even",
+      "key": "takamoku_basic",
+      "popularity": 60,
+      "difficulty": 4,
+      "era": "",
+      "comment": "高目定式强调外势",
+      "tags": [
+        "高目",
+        "外势"
+      ]
+    }
+  ]
+}

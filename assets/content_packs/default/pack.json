@@ -1,0 +1,7 @@
+{
+  "id": "default",
+  "name": "Go Master Content Pack",
+  "version": "1.0.0",
+  "languages": ["zh", "en", "ja"],
+  "description": "Built-in content pack"
+}

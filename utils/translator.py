@@ -579,6 +579,9 @@ class Translator:
         
         # 尝试从文件加载额外翻译
         self._load_translation_files()
+
+        # 从内容数据库加载翻译（作为最高优先级）
+        self._load_content_db_translations()
     
     def _load_translation_files(self):
         """从文件加载翻译"""
@@ -599,9 +602,27 @@ class Translator:
                                 self.translations[lang_code].update(translations)
                             else:
                                 self.translations[lang_code] = translations
-                                
                     except Exception as e:
                         print(f"加载翻译文件 {file_name} 失败: {e}")
+
+    def _load_content_db_translations(self):
+        """从内容数据库加载翻译"""
+        try:
+            from .content_db import get_content_db
+
+            db_translations = get_content_db().list_translations()
+        except Exception:
+            return
+
+        if not isinstance(db_translations, dict):
+            return
+        for lang_code, mapping in db_translations.items():
+            if not isinstance(mapping, dict):
+                continue
+            if lang_code in self.translations:
+                self.translations[lang_code].update(mapping)
+            else:
+                self.translations[lang_code] = mapping
     
     def _load_custom_translations(self, file_path: str):
         """

@@ -16,6 +16,7 @@ from pathlib import Path
 
 # 导入核心模块
 from core import Board
+from utils.content_db import ContentDatabase, get_content_db
 
 
 class JosekiType(Enum):
@@ -149,7 +150,7 @@ JOSEKI_KEY_BY_NAME = {
 class JosekiDatabase:
     """定式数据库"""
     
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: Optional[str] = None, content_db: Optional[ContentDatabase] = None):
         """
         初始化定式数据库
         
@@ -159,10 +160,13 @@ class JosekiDatabase:
         self.db_path = db_path or ":memory:"
         self.connection = None
         self.joseki_dict: Dict[str, JosekiSequence] = {}
+        self.content_db = content_db or get_content_db()
         
         self._init_database()
-        self._load_basic_joseki()
-        self._load_joseki_from_json()
+        loaded = self._load_joseki_from_content()
+        if not loaded:
+            self._load_basic_joseki()
+            self._load_joseki_from_json()
     
     def _init_database(self):
         """初始化数据库"""
@@ -193,6 +197,84 @@ class JosekiDatabase:
         """)
         
         self.connection.commit()
+
+    def _load_joseki_from_content(self) -> bool:
+        """从内容数据库加载定式数据"""
+        if not self.content_db:
+            return False
+        try:
+            sequences = self.content_db.list_joseki_sequences()
+        except Exception:
+            sequences = []
+        if not sequences:
+            return False
+
+        for data in sequences:
+            joseki = self._joseki_from_dict(data)
+            if joseki:
+                self.add_joseki(joseki)
+        return True
+
+    def _joseki_from_dict(self, data: Dict[str, Any]) -> Optional[JosekiSequence]:
+        if not isinstance(data, dict):
+            return None
+
+        name = str(data.get('name') or '').strip()
+        if not name:
+            return None
+
+        type_value = str(data.get('type') or 'special')
+        result_value = str(data.get('result') or 'depends')
+        type_enum = JosekiType(type_value) if type_value in JosekiType._value2member_map_ else JosekiType.SPECIAL
+        result_enum = (
+            JosekiResult(result_value)
+            if result_value in JosekiResult._value2member_map_
+            else JosekiResult.DEPENDS
+        )
+
+        first_move = self._move_from_dict(data.get('first_move'))
+        if not first_move:
+            return None
+
+        return JosekiSequence(
+            name=name,
+            type=type_enum,
+            first_move=first_move,
+            result=result_enum,
+            key=str(data.get('key') or ''),
+            popularity=int(data.get('popularity') or 0),
+            difficulty=int(data.get('difficulty') or 1),
+            era=str(data.get('era') or ''),
+            comment=str(data.get('comment') or ''),
+            tags=list(data.get('tags') or []),
+        )
+
+    def _move_from_dict(self, data: Any) -> Optional[JosekiMove]:
+        if not isinstance(data, dict):
+            return None
+
+        try:
+            x = int(data.get('x'))
+            y = int(data.get('y'))
+        except Exception:
+            return None
+        color = str(data.get('color') or '').strip() or 'black'
+        order = int(data.get('order') or 0)
+        move = JosekiMove(
+            x=x,
+            y=y,
+            color=color,
+            order=order,
+            is_main_line=bool(data.get('is_main_line', True)),
+            comment=str(data.get('comment') or ''),
+            comment_key=str(data.get('comment_key') or ''),
+        )
+
+        for child in data.get('next_moves') or []:
+            next_move = self._move_from_dict(child)
+            if next_move:
+                move.next_moves.append(next_move)
+        return move
     
     def _load_basic_joseki(self):
         """加载基础定式"""

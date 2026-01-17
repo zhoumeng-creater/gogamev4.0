@@ -11,6 +11,7 @@ from typing import Optional, Dict, List
 from .dialogs import BaseDialog
 from .translator import Translator
 from .themes import Theme
+from utils.content_db import get_content_db
 from features.teaching import (
     RulesTutorial,
     TeachingSystem,
@@ -33,30 +34,17 @@ class RulesHelpDialog(BaseDialog):
     ):
         self.translator = translator or Translator()
         self.theme = theme or Theme(name="default")
-        self.rules_tutorial = rules_tutorial or RulesTutorial()
+        self.content_db = get_content_db()
+        self.rules_tutorial = rules_tutorial or RulesTutorial(
+            content_db=self.content_db,
+            language=getattr(self.translator, "language", "zh"),
+        )
         self._rule_options = [
             ("chinese", self.translator.get("chinese_rules", "中国规则")),
             ("japanese", self.translator.get("japanese_rules", "日本规则")),
             ("aga", self.translator.get("aga_rules", "AGA规则")),
         ]
-        self._resources = [
-            {
-                "label": "中国围棋规则（2018版）",
-                "url": "https://www.qipai.org.cn/web/article/word/id/50301",
-            },
-            {
-                "label": "日本棋院规则（英文）",
-                "url": "https://www.nihonkiin.or.jp/match/ki_rules/download.html",
-            },
-            {
-                "label": "AGA Rules of Go",
-                "url": "https://www.usgo.org/aga-rules-go",
-            },
-            {
-                "label": "Sensei's Library - Rules of Go",
-                "url": "https://senseis.xmp.net/?RulesOfGo",
-            },
-        ]
+        self._resources = self._load_resources("rules_help")
         super().__init__(
             parent,
             title=self.translator.get("rules_help", "规则说明"),
@@ -174,6 +162,14 @@ class RulesHelpDialog(BaseDialog):
 
     def _build_highlights(self, rule_key: str) -> List[str]:
         """不同规则的简要提示"""
+        language = getattr(self.translator, "language", "zh")
+        try:
+            rule_data = self.content_db.get_rule_text(rule_key, language)
+            if rule_data and rule_data.get("highlights"):
+                return list(rule_data.get("highlights") or [])
+        except Exception:
+            pass
+
         hints: Dict[str, List[str]] = {
             "chinese": [
                 "数子法：活子与空点都计入地盘",
@@ -192,6 +188,50 @@ class RulesHelpDialog(BaseDialog):
             ],
         }
         return hints.get(rule_key, [])
+
+    def _load_resources(self, category: str) -> List[Dict[str, str]]:
+        language = getattr(self.translator, "language", "zh")
+        try:
+            resources = self.content_db.list_resources(category, language)
+            if resources:
+                return resources
+        except Exception:
+            pass
+        if category == "rules_help":
+            return [
+                {
+                    "label": "中国围棋规则（2018版）",
+                    "url": "https://www.qipai.org.cn/web/article/word/id/50301",
+                },
+                {
+                    "label": "日本棋院规则（英文）",
+                    "url": "https://www.nihonkiin.or.jp/match/ki_rules/download.html",
+                },
+                {
+                    "label": "AGA Rules of Go",
+                    "url": "https://www.usgo.org/aga-rules-go",
+                },
+                {
+                    "label": "Sensei's Library - Rules of Go",
+                    "url": "https://senseis.xmp.net/?RulesOfGo",
+                },
+            ]
+        if category == "tutorial":
+            return [
+                {
+                    "label": "在线围棋入门（OGS）",
+                    "url": "https://online-go.com/learn-to-play-go",
+                },
+                {
+                    "label": "AGA Learn to Play Go",
+                    "url": "https://www.usgo.org/learn-play-go",
+                },
+                {
+                    "label": "Sensei's Library - Beginner Exercises",
+                    "url": "https://senseis.xmp.net/?BeginnerExercises",
+                },
+            ]
+        return []
 
     def _open_link(self, url: str):
         """在浏览器打开资源链接"""
@@ -218,7 +258,11 @@ class TutorialDialog(BaseDialog):
     ):
         self.translator = translator or Translator()
         self.theme = theme or Theme(name="default")
-        self.teaching_system = teaching_system or TeachingSystem()
+        self.content_db = get_content_db()
+        self.teaching_system = teaching_system or TeachingSystem(
+            self.translator,
+            content_db=self.content_db,
+        )
         self._type_labels: Dict[LessonType, str] = {
             LessonType.RULES: self.translator.get("rules", "规则"),
             LessonType.BASICS: self.translator.get("tutorial", "教程") + "·基础",
@@ -228,20 +272,7 @@ class TutorialDialog(BaseDialog):
             LessonType.TESUJI: "手筋",
             LessonType.ENDGAME: "官子",
         }
-        self._resources = [
-            {
-                "label": "在线围棋入门（OGS）",
-                "url": "https://online-go.com/learn-to-play-go",
-            },
-            {
-                "label": "AGA Learn to Play Go",
-                "url": "https://www.usgo.org/learn-play-go",
-            },
-            {
-                "label": "Sensei's Library - Beginner Exercises",
-                "url": "https://senseis.xmp.net/?BeginnerExercises",
-            },
-        ]
+        self._resources = self._load_resources("tutorial")
         super().__init__(
             parent,
             title=self.translator.get("tutorial", "教程"),
@@ -353,6 +384,31 @@ class TutorialDialog(BaseDialog):
                 text=res["label"],
                 command=lambda url=res["url"]: self._open_link(url),
             ).pack(anchor="w", pady=2)
+
+    def _load_resources(self, category: str) -> List[Dict[str, str]]:
+        language = getattr(self.translator, "language", "zh")
+        try:
+            resources = self.content_db.list_resources(category, language)
+            if resources:
+                return resources
+        except Exception:
+            pass
+        if category == "tutorial":
+            return [
+                {
+                    "label": "在线围棋入门（OGS）",
+                    "url": "https://online-go.com/learn-to-play-go",
+                },
+                {
+                    "label": "AGA Learn to Play Go",
+                    "url": "https://www.usgo.org/learn-play-go",
+                },
+                {
+                    "label": "Sensei's Library - Beginner Exercises",
+                    "url": "https://senseis.xmp.net/?BeginnerExercises",
+                },
+            ]
+        return []
 
         self._populate_tree()
         self._update_stats()

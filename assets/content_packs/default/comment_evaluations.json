@@ -1,0 +1,10 @@
+{
+  "evaluations": [
+    {"key": "good", "symbol": "!", "language": "zh", "label": "好手"},
+    {"key": "excellent", "symbol": "!!", "language": "zh", "label": "妙手"},
+    {"key": "bad", "symbol": "?", "language": "zh", "label": "恶手"},
+    {"key": "very_bad", "symbol": "??", "language": "zh", "label": "大恶手"},
+    {"key": "interesting", "symbol": "!?", "language": "zh", "label": "有趣"},
+    {"key": "dubious", "symbol": "?!", "language": "zh", "label": "疑问"}
+  ]
+}

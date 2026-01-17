@@ -1,0 +1,29 @@
+{
+  "tutorials": [
+    {
+      "topic": "opening",
+      "language": "zh",
+      "text": "布局要点..."
+    },
+    {
+      "topic": "middle_game",
+      "language": "zh",
+      "text": "中盘战斗..."
+    },
+    {
+      "topic": "endgame",
+      "language": "zh",
+      "text": "收官技巧..."
+    },
+    {
+      "topic": "life_death",
+      "language": "zh",
+      "text": "死活要点..."
+    },
+    {
+      "topic": "ko",
+      "language": "zh",
+      "text": "劫的处理..."
+    }
+  ]
+}

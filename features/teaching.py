@@ -15,6 +15,8 @@ from tkinter import ttk, messagebox
 import sqlite3
 from pathlib import Path
 
+from utils.content_db import ContentDatabase, get_content_db
+
 # 导入核心模块
 from core import Board, Rules, MoveResult
 
@@ -1326,9 +1328,13 @@ class PuzzleDatabase:
 class TeachingSystem:
     """教学系统"""
     
-    def __init__(self, translator=None):
+    def __init__(self, translator=None, content_db: Optional[ContentDatabase] = None):
         # translator 目前仅作占位，便于未来本地化提示
         self.translator = translator
+        self.content_db = content_db or get_content_db()
+        self._content_language = (
+            getattr(translator, 'language', None) if translator else None
+        ) or 'zh'
         self._puzzle_texts: Dict[str, Dict[str, Dict[str, Any]]] = {}
         self.lessons: Dict[str, Lesson] = {}
         self.puzzles: Dict[str, Puzzle] = {}
@@ -1346,6 +1352,10 @@ class TeachingSystem:
     
     def _load_lessons(self):
         """加载课程"""
+        self.lessons = {}
+        if self._load_lessons_from_content():
+            return
+
         # 规则课程
         self.lessons['rules_basic'] = self._create_rules_lesson()
         
@@ -1356,6 +1366,58 @@ class TeachingSystem:
         # 战术课程
         self.lessons['tactics_ladder'] = self._create_ladder_lesson()
         self.lessons['tactics_net'] = self._create_net_lesson()
+
+    def _load_lessons_from_content(self) -> bool:
+        if not self.content_db:
+            return False
+        language = self._content_language
+        lesson_rows = self.content_db.list_lessons(language)
+        if not lesson_rows and language != 'zh':
+            language = 'zh'
+            lesson_rows = self.content_db.list_lessons(language)
+        if not lesson_rows:
+            return False
+
+        type_map = {item.value: item for item in LessonType}
+        difficulty_map = {item.value: item for item in DifficultyLevel}
+
+        for lesson_row in lesson_rows:
+            lesson_id = lesson_row.get('id')
+            if not lesson_id:
+                continue
+            steps_data = self.content_db.list_lesson_steps(lesson_id, language)
+            if not steps_data and language != 'zh':
+                steps_data = self.content_db.list_lesson_steps(lesson_id, 'zh')
+            content_items: List[LessonContent] = []
+            for step in steps_data:
+                content_items.append(
+                    LessonContent(
+                        step=int(step.get('step') or 0),
+                        type=str(step.get('type') or ''),
+                        title=str(step.get('title') or ''),
+                        content=step.get('content') or {},
+                    )
+                )
+
+            lesson_type = type_map.get(str(lesson_row.get('type') or '').strip())
+            difficulty_value = int(lesson_row.get('difficulty') or 1)
+            difficulty = difficulty_map.get(difficulty_value, DifficultyLevel.BEGINNER)
+            if not lesson_type:
+                lesson_type = LessonType.BASICS
+
+            self.lessons[lesson_id] = Lesson(
+                id=lesson_id,
+                title=str(lesson_row.get('title') or ''),
+                type=lesson_type,
+                difficulty=difficulty,
+                description=str(lesson_row.get('description') or ''),
+                content=content_items,
+                prerequisites=lesson_row.get('prerequisites') or [],
+                objectives=lesson_row.get('objectives') or [],
+                estimated_time=int(lesson_row.get('estimated_time') or 0),
+            )
+
+        return bool(self.lessons)
     
     def _create_rules_lesson(self) -> Lesson:
         """创建规则课程"""
@@ -2160,8 +2222,18 @@ class ProgressTracker:
 class RulesTutorial:
     """规则教程"""
     
-    def __init__(self):
-        self.rules_content = {
+    def __init__(self, content_db: Optional[ContentDatabase] = None, language: str = 'zh'):
+        self.content_db = content_db or get_content_db()
+        self.language = language or 'zh'
+        self.rules_content = self._load_rules()
+
+    def _load_rules(self) -> Dict[str, str]:
+        if self.content_db:
+            rules = self.content_db.list_rules(self.language)
+            if rules:
+                return {rule_id: data.get('text', '') for rule_id, data in rules.items()}
+
+        return {
             'chinese': self._get_chinese_rules(),
             'japanese': self._get_japanese_rules(),
             'aga': self._get_aga_rules()
@@ -2234,8 +2306,22 @@ class RulesTutorial:
 class BasicTutorial:
     """基础教程"""
     
-    def __init__(self):
-        self.tutorials = {
+    def __init__(self, content_db: Optional[ContentDatabase] = None, language: str = 'zh'):
+        self.content_db = content_db or get_content_db()
+        self.language = language or 'zh'
+        self.tutorials = self._load_tutorials()
+
+    def _load_tutorials(self) -> Dict[str, str]:
+        if self.content_db:
+            tutorials = {}
+            for topic in ('opening', 'middle_game', 'endgame', 'life_death', 'ko'):
+                text = self.content_db.get_tutorial_text(topic, self.language)
+                if text:
+                    tutorials[topic] = text
+            if tutorials:
+                return tutorials
+
+        return {
             'opening': "布局要点...",
             'middle_game': "中盘战斗...",
             'endgame': "收官技巧...",

@@ -1,0 +1,84 @@
+{
+  "steps": [
+    {
+      "lesson_id": "rules_basic",
+      "step": 1,
+      "language": "zh",
+      "type": "text",
+      "title": "围棋简介",
+      "content": {
+        "text": "围棋是一种两人对弈的策略棋盘游戏，起源于中国，已有4000多年历史。\n\n围棋的基本规则非常简单：\n1. 黑白双方轮流下子\n2. 棋子下在交叉点上\n3. 被围住的棋子会被吃掉\n4. 占地多的一方获胜\n\n但是，简单的规则蕴含着无穷的变化，这正是围棋的魅力所在。",
+        "image": null
+      }
+    },
+    {
+      "lesson_id": "rules_basic",
+      "step": 2,
+      "language": "zh",
+      "type": "demo",
+      "title": "如何落子",
+      "content": {
+        "text": "棋子下在交叉点上，不是格子里。点击交叉点即可落子。",
+        "demo_moves": [[9, 9, "black"], [9, 10, "white"]]
+      }
+    },
+    {
+      "lesson_id": "rules_basic",
+      "step": 3,
+      "language": "zh",
+      "type": "text",
+      "title": "气的概念",
+      "content": {
+        "text": "气是围棋中最重要的概念之一。\n\n一个棋子的\"气\"是指与它直接相邻的空交叉点。\n- 中央的棋子最多有4口气\n- 边上的棋子最多有3口气\n- 角上的棋子最多有2口气\n\n当一个棋子或一块棋的气全部被对方占据时，就会被提取。"
+      }
+    },
+    {
+      "lesson_id": "rules_basic",
+      "step": 4,
+      "language": "zh",
+      "type": "puzzle",
+      "title": "练习：提子",
+      "content": {
+        "puzzle_id": "capture_basic_1"
+      }
+    },
+    {
+      "lesson_id": "basics_capture",
+      "step": 1,
+      "language": "zh",
+      "type": "text",
+      "title": "吃子的基本方法",
+      "content": {
+        "text": "吃子是围棋的基本技术之一。常见的吃子方法包括：\n\n1. **直接吃**：当对方棋子只剩一口气时，直接占据最后一口气\n2. **征子**：利用连续叫吃，将对方棋子驱赶到边角吃掉\n3. **门吃**：堵住对方棋子的逃路，使其无法逃脱\n4. **双吃**：同时威胁两块棋，对方只能救一块"
+      }
+    },
+    {
+      "lesson_id": "basics_capture",
+      "step": 2,
+      "language": "zh",
+      "type": "demo",
+      "title": "征子演示",
+      "content": {
+        "text": "征子是一种连续叫吃的技术，观察黑棋如何追击白子。",
+        "demo_moves": [
+          [9, 9, "white"],
+          [10, 9, "black"],
+          [9, 10, "white"],
+          [10, 10, "black"],
+          [9, 11, "white"],
+          [10, 11, "black"]
+        ]
+      }
+    },
+    {
+      "lesson_id": "basics_capture",
+      "step": 3,
+      "language": "zh",
+      "type": "puzzle",
+      "title": "练习：征子",
+      "content": {
+        "puzzle_id": "ladder_basic_1"
+      }
+    }
+  ]
+}
