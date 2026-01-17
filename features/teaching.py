@@ -3,8 +3,10 @@
 提供规则教程、战术训练、互动课程等功能
 """
 
+import hashlib
 import json
 import time
+import uuid
 from typing import List, Dict, Optional, Tuple, Any, Callable, Set
 from dataclasses import dataclass, field
 from enum import Enum
@@ -99,14 +101,1238 @@ class Puzzle:
         return False, "这不是最佳着法，请再想想。"
 
 
+class PuzzleDatabase:
+    """棋题数据库"""
+
+    def __init__(self, db_path: Optional[str] = None):
+        self.db_path = str(db_path) if db_path else ":memory:"
+        self.connection = None
+        self._init_database()
+
+    def _init_database(self):
+        if self.db_path != ":memory:":
+            try:
+                Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
+            except Exception:
+                pass
+
+        self.connection = sqlite3.connect(self.db_path)
+        cursor = self.connection.cursor()
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS puzzles (
+                id TEXT PRIMARY KEY,
+                title TEXT NOT NULL,
+                difficulty INTEGER DEFAULT 1,
+                board_size INTEGER NOT NULL,
+                board_state TEXT NOT NULL,
+                player_color TEXT NOT NULL,
+                objective TEXT NOT NULL,
+                solution TEXT NOT NULL,
+                wrong_moves TEXT,
+                hint TEXT,
+                explanation TEXT,
+                tags TEXT,
+                source TEXT,
+                pack_version TEXT,
+                content_hash TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS puzzle_translations (
+                puzzle_id TEXT NOT NULL,
+                language TEXT NOT NULL,
+                title TEXT,
+                objective TEXT,
+                hint TEXT,
+                explanation TEXT,
+                wrong_moves TEXT,
+                PRIMARY KEY (puzzle_id, language)
+            )
+            """
+        )
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS puzzle_packs (
+                pack_id TEXT PRIMARY KEY,
+                name TEXT,
+                version TEXT,
+                languages TEXT,
+                description TEXT,
+                installed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        self.connection.commit()
+        self._migrate_schema()
+        self._backfill_content_hashes()
+
+    def _table_columns(self, table: str) -> List[str]:
+        cursor = self.connection.cursor()
+        cursor.execute(f"PRAGMA table_info({table})")
+        return [row[1] for row in cursor.fetchall()]
+
+    def _migrate_schema(self) -> None:
+        cursor = self.connection.cursor()
+        columns = set(self._table_columns("puzzles"))
+        if "source" not in columns:
+            cursor.execute("ALTER TABLE puzzles ADD COLUMN source TEXT")
+        if "tags" not in columns:
+            cursor.execute("ALTER TABLE puzzles ADD COLUMN tags TEXT")
+        if "pack_version" not in columns:
+            cursor.execute("ALTER TABLE puzzles ADD COLUMN pack_version TEXT")
+        if "content_hash" not in columns:
+            cursor.execute("ALTER TABLE puzzles ADD COLUMN content_hash TEXT")
+        self.connection.commit()
+
+    def _compute_content_hash(
+        self,
+        board_state: List[List[str]],
+        player_color: str,
+        solution: List[Tuple[int, int]],
+        board_size: int,
+    ) -> str:
+        payload = {
+            "board_size": int(board_size),
+            "board_state": board_state,
+            "player_color": player_color,
+            "solution": [[int(x), int(y)] for x, y in solution],
+        }
+        raw = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    def _backfill_content_hashes(self) -> None:
+        cursor = self.connection.cursor()
+        cursor.execute(
+            """
+            SELECT id, board_size, board_state, player_color, solution, content_hash
+            FROM puzzles
+            """
+        )
+        updates: List[Tuple[str, str]] = []
+        for puzzle_id, board_size, board_state_json, player_color, solution_json, content_hash in cursor.fetchall():
+            if content_hash:
+                continue
+            try:
+                board_state_raw = json.loads(board_state_json)
+            except Exception:
+                board_state_raw = []
+            size = int(board_size) if board_size else len(board_state_raw) or 19
+            if isinstance(board_state_raw, list):
+                board_state = self._normalize_board_state(board_state_raw, size)
+            else:
+                board_state = [['' for _ in range(size)] for _ in range(size)]
+            solution = self._deserialize_solution(solution_json)
+            color = self._normalize_color(player_color) or 'black'
+            digest = self._compute_content_hash(board_state, color, solution, size)
+            updates.append((digest, puzzle_id))
+        if updates:
+            cursor.executemany(
+                "UPDATE puzzles SET content_hash = ? WHERE id = ?",
+                updates,
+            )
+            self.connection.commit()
+
+    def _normalize_color(self, value: Any) -> str:
+        if value is None:
+            return ''
+        token = str(value).strip().lower()
+        if token in ('b', 'black', '1'):
+            return 'black'
+        if token in ('w', 'white', '2'):
+            return 'white'
+        return ''
+
+    def _build_board_from_stones(self, size: int, stones: List[Any]) -> List[List[str]]:
+        board = [['' for _ in range(size)] for _ in range(size)]
+        for stone in stones or []:
+            if isinstance(stone, dict):
+                x = stone.get('x')
+                y = stone.get('y')
+                color = stone.get('color') or stone.get('c')
+            elif isinstance(stone, (list, tuple)) and len(stone) >= 3:
+                x, y, color = stone[0], stone[1], stone[2]
+            else:
+                continue
+
+            try:
+                x = int(x)
+                y = int(y)
+            except Exception:
+                continue
+
+            color = self._normalize_color(color)
+            if not color:
+                continue
+
+            if 0 <= x < size and 0 <= y < size:
+                board[y][x] = color
+        return board
+
+    def _normalize_board_state(self, board_state: List[Any], size: int) -> List[List[str]]:
+        board = [['' for _ in range(size)] for _ in range(size)]
+        for y in range(min(size, len(board_state))):
+            row = board_state[y] or []
+            for x in range(min(size, len(row))):
+                color = self._normalize_color(row[x])
+                if color:
+                    board[y][x] = color
+        return board
+
+    def _parse_solution(self, data: Any) -> List[Tuple[int, int]]:
+        sequence: List[Tuple[int, int]] = []
+        if not data or not isinstance(data, (list, tuple)):
+            return sequence
+
+        for item in data:
+            if isinstance(item, dict):
+                x = item.get('x')
+                y = item.get('y')
+            elif isinstance(item, (list, tuple)) and len(item) >= 2:
+                x, y = item[0], item[1]
+            else:
+                continue
+
+            try:
+                x = int(x)
+                y = int(y)
+            except Exception:
+                continue
+
+            sequence.append((x, y))
+        return sequence
+
+    def _parse_wrong_moves(self, data: Any) -> Dict[Tuple[int, int], str]:
+        result: Dict[Tuple[int, int], str] = {}
+        if not data:
+            return result
+
+        if isinstance(data, dict):
+            for key, msg in data.items():
+                x = y = None
+                if isinstance(key, str) and ',' in key:
+                    parts = key.split(',', 1)
+                    try:
+                        x = int(parts[0].strip())
+                        y = int(parts[1].strip())
+                    except Exception:
+                        x = y = None
+                elif isinstance(key, (list, tuple)) and len(key) >= 2:
+                    try:
+                        x = int(key[0])
+                        y = int(key[1])
+                    except Exception:
+                        x = y = None
+                if x is None or y is None:
+                    continue
+                result[(x, y)] = str(msg) if msg is not None else ''
+            return result
+
+        if isinstance(data, list):
+            for item in data:
+                if not isinstance(item, dict):
+                    continue
+                x = item.get('x')
+                y = item.get('y')
+                msg = item.get('message') or item.get('hint') or item.get('comment') or ''
+                try:
+                    x = int(x)
+                    y = int(y)
+                except Exception:
+                    continue
+                result[(x, y)] = str(msg)
+        return result
+
+    def _serialize_wrong_moves(self, wrong_moves: Dict[Tuple[int, int], str]) -> str:
+        if not wrong_moves:
+            return ''
+        payload = {f"{x},{y}": msg for (x, y), msg in wrong_moves.items()}
+        return json.dumps(payload, ensure_ascii=False)
+
+    def _deserialize_wrong_moves(self, value: str) -> Dict[Tuple[int, int], str]:
+        if not value:
+            return {}
+        try:
+            data = json.loads(value)
+        except Exception:
+            return {}
+        return self._parse_wrong_moves(data)
+
+    def _deserialize_solution(self, value: str) -> List[Tuple[int, int]]:
+        if not value:
+            return []
+        try:
+            data = json.loads(value)
+        except Exception:
+            return []
+        return self._parse_solution(data)
+
+    def _puzzle_exists(self, puzzle_id: str) -> bool:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT 1 FROM puzzles WHERE id = ? LIMIT 1", (puzzle_id,))
+        return cursor.fetchone() is not None
+
+    def _ensure_unique_id(self, puzzle_id: str) -> str:
+        candidate = puzzle_id.strip() if puzzle_id else "imported"
+        if not self._puzzle_exists(candidate):
+            return candidate
+        return f"{candidate}_{uuid.uuid4().hex[:6]}"
+
+    def _get_puzzle_source(self, puzzle_id: str) -> str:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT source FROM puzzles WHERE id = ? LIMIT 1", (puzzle_id,))
+        row = cursor.fetchone()
+        return str(row[0]) if row and row[0] is not None else ''
+
+    def has_puzzle_source(self, source: str) -> bool:
+        if not source:
+            return False
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT 1 FROM puzzles WHERE source = ? LIMIT 1", (source,))
+        return cursor.fetchone() is not None
+
+    def _find_puzzle_by_hash(self, content_hash: str) -> Optional[Tuple[str, str]]:
+        if not content_hash:
+            return None
+        cursor = self.connection.cursor()
+        cursor.execute(
+            "SELECT id, source FROM puzzles WHERE content_hash = ? LIMIT 1",
+            (content_hash,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        return (str(row[0]), str(row[1]) if row[1] is not None else '')
+
+    def get_pack_info(self, pack_id: str) -> Optional[Dict[str, Any]]:
+        cursor = self.connection.cursor()
+        cursor.execute(
+            "SELECT pack_id, name, version, languages, description FROM puzzle_packs WHERE pack_id = ?",
+            (pack_id,),
+        )
+        row = cursor.fetchone()
+        if not row:
+            return None
+        languages = []
+        if row[3]:
+            try:
+                languages = json.loads(row[3])
+            except Exception:
+                languages = []
+        return {
+            "id": str(row[0]),
+            "name": str(row[1] or ''),
+            "version": str(row[2] or ''),
+            "languages": languages,
+            "description": str(row[4] or ''),
+        }
+
+    def set_pack_info(self, pack_meta: Dict[str, Any]) -> None:
+        if not pack_meta:
+            return
+        pack_id = str(pack_meta.get('id') or '').strip()
+        if not pack_id:
+            return
+        languages = pack_meta.get('languages') or []
+        cursor = self.connection.cursor()
+        cursor.execute(
+            """
+            INSERT OR REPLACE INTO puzzle_packs
+            (pack_id, name, version, languages, description)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                pack_id,
+                str(pack_meta.get('name') or ''),
+                str(pack_meta.get('version') or ''),
+                json.dumps(languages, ensure_ascii=False),
+                str(pack_meta.get('description') or ''),
+            ),
+        )
+        self.connection.commit()
+
+    def list_translations(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
+        cursor = self.connection.cursor()
+        cursor.execute(
+            """
+            SELECT puzzle_id, language, title, objective, hint, explanation, wrong_moves
+            FROM puzzle_translations
+            """
+        )
+        translations: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        for row in cursor.fetchall():
+            puzzle_id, language, title, objective, hint, explanation, wrong_moves_json = row
+            wrong_moves: Dict[str, str] = {}
+            if wrong_moves_json:
+                try:
+                    data = json.loads(wrong_moves_json)
+                    if isinstance(data, dict):
+                        wrong_moves = {str(k): str(v) for k, v in data.items()}
+                except Exception:
+                    wrong_moves = {}
+            translations.setdefault(str(puzzle_id), {})[str(language)] = {
+                "title": str(title or ''),
+                "objective": str(objective or ''),
+                "hint": str(hint or ''),
+                "explanation": str(explanation or ''),
+                "wrong_moves": wrong_moves,
+            }
+        return translations
+
+    def upsert_translations(
+        self,
+        puzzle_id: str,
+        translations: Dict[str, Dict[str, Any]],
+    ) -> None:
+        if not puzzle_id or not translations:
+            return
+        rows = []
+        for language, data in translations.items():
+            if not language:
+                continue
+            wrong_moves_json = json.dumps(
+                data.get('wrong_moves') or {},
+                ensure_ascii=False,
+            )
+            rows.append(
+                (
+                    puzzle_id,
+                    language,
+                    str(data.get('title') or ''),
+                    str(data.get('objective') or ''),
+                    str(data.get('hint') or ''),
+                    str(data.get('explanation') or ''),
+                    wrong_moves_json,
+                )
+            )
+        if not rows:
+            return
+        cursor = self.connection.cursor()
+        cursor.executemany(
+            """
+            INSERT OR REPLACE INTO puzzle_translations
+            (puzzle_id, language, title, objective, hint, explanation, wrong_moves)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            rows,
+        )
+        self.connection.commit()
+
+    def sync_pack_translations(
+        self,
+        pack_id: str,
+        translations_by_puzzle: Dict[str, Dict[str, Dict[str, Any]]],
+    ) -> int:
+        if not pack_id or not translations_by_puzzle:
+            return 0
+        pack_source = f"pack:{pack_id}"
+        updated = 0
+        for puzzle_id, lang_payload in translations_by_puzzle.items():
+            source = self._get_puzzle_source(puzzle_id)
+            if source not in (pack_source, "builtin", ""):
+                continue
+            self.upsert_translations(puzzle_id, lang_payload)
+            updated += 1
+        return updated
+
+    def add_puzzle(
+        self,
+        puzzle: Puzzle,
+        source: str = "",
+        tags: Optional[List[str]] = None,
+        pack_version: str = "",
+        content_hash: str = "",
+    ):
+        board_state_json = json.dumps(puzzle.board_state, ensure_ascii=False)
+        solution_json = json.dumps(
+            [[int(x), int(y)] for x, y in puzzle.solution],
+            ensure_ascii=False,
+        )
+        wrong_moves_json = self._serialize_wrong_moves(puzzle.wrong_moves)
+        tags_json = json.dumps(tags or [], ensure_ascii=False)
+        if not content_hash:
+            content_hash = self._compute_content_hash(
+                puzzle.board_state,
+                puzzle.player_color,
+                puzzle.solution,
+                len(puzzle.board_state),
+            )
+
+        cursor = self.connection.cursor()
+        cursor.execute(
+            """
+            INSERT OR REPLACE INTO puzzles (
+                id, title, difficulty, board_size, board_state, player_color,
+                objective, solution, wrong_moves, hint, explanation, tags, source,
+                pack_version, content_hash
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                puzzle.id,
+                puzzle.title,
+                int(puzzle.difficulty),
+                int(len(puzzle.board_state)),
+                board_state_json,
+                puzzle.player_color,
+                puzzle.objective,
+                solution_json,
+                wrong_moves_json,
+                puzzle.hint,
+                puzzle.explanation,
+                tags_json,
+                source or '',
+                pack_version or '',
+                content_hash or '',
+            ),
+        )
+        self.connection.commit()
+
+    def merge_puzzle(
+        self,
+        puzzle: Puzzle,
+        strategy: str = "copy",
+        source: str = "",
+        tags: Optional[List[str]] = None,
+        pack_version: str = "",
+    ) -> Tuple[str, bool]:
+        strategy = (strategy or "copy").strip().lower()
+        content_hash = self._compute_content_hash(
+            puzzle.board_state,
+            puzzle.player_color,
+            puzzle.solution,
+            len(puzzle.board_state),
+        )
+        existing_id = puzzle.id if self._puzzle_exists(puzzle.id) else ""
+        existing_hash = self._find_puzzle_by_hash(content_hash)
+
+        if strategy == "skip":
+            if existing_id:
+                return existing_id, False
+            if existing_hash:
+                return existing_hash[0], False
+
+        if strategy == "overwrite":
+            if existing_id:
+                puzzle.id = existing_id
+                self.add_puzzle(
+                    puzzle,
+                    source=source,
+                    tags=tags,
+                    pack_version=pack_version,
+                    content_hash=content_hash,
+                )
+                return puzzle.id, True
+            if existing_hash:
+                puzzle.id = existing_hash[0]
+                self.add_puzzle(
+                    puzzle,
+                    source=source,
+                    tags=tags,
+                    pack_version=pack_version,
+                    content_hash=content_hash,
+                )
+                return puzzle.id, True
+
+        if existing_id or existing_hash:
+            puzzle.id = self._ensure_unique_id(puzzle.id)
+
+        self.add_puzzle(
+            puzzle,
+            source=source,
+            tags=tags,
+            pack_version=pack_version,
+            content_hash=content_hash,
+        )
+        return puzzle.id, True
+
+    def list_puzzles(self) -> List[Puzzle]:
+        cursor = self.connection.cursor()
+        cursor.execute(
+            """
+            SELECT id, title, difficulty, board_size, board_state, player_color,
+                   objective, solution, wrong_moves, hint, explanation
+            FROM puzzles
+            ORDER BY id
+            """
+        )
+        puzzles: List[Puzzle] = []
+        for row in cursor.fetchall():
+            puzzle = self._row_to_puzzle(row)
+            if puzzle:
+                puzzles.append(puzzle)
+        return puzzles
+
+    def list_puzzle_ids(self) -> List[str]:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT id FROM puzzles")
+        return [row[0] for row in cursor.fetchall()]
+
+    def count_puzzles(self) -> int:
+        cursor = self.connection.cursor()
+        cursor.execute("SELECT COUNT(*) FROM puzzles")
+        row = cursor.fetchone()
+        return int(row[0]) if row else 0
+
+    def _row_to_puzzle(self, row: Tuple[Any, ...]) -> Optional[Puzzle]:
+        (
+            puzzle_id,
+            title,
+            difficulty,
+            board_size,
+            board_state_json,
+            player_color,
+            objective,
+            solution_json,
+            wrong_moves_json,
+            hint,
+            explanation,
+        ) = row
+
+        try:
+            board_state_raw = json.loads(board_state_json)
+        except Exception:
+            board_state_raw = []
+
+        size = int(board_size) if board_size else len(board_state_raw) or 19
+        if isinstance(board_state_raw, list):
+            board_state = self._normalize_board_state(board_state_raw, size)
+        else:
+            board_state = [['' for _ in range(size)] for _ in range(size)]
+
+        solution = self._deserialize_solution(solution_json)
+        wrong_moves = self._deserialize_wrong_moves(wrong_moves_json or '')
+        player_color = self._normalize_color(player_color) or 'black'
+
+        return Puzzle(
+            id=str(puzzle_id),
+            title=str(title),
+            difficulty=int(difficulty) if difficulty else 1,
+            board_state=board_state,
+            player_color=player_color,
+            objective=str(objective),
+            solution=solution,
+            wrong_moves=wrong_moves,
+            hint=str(hint or ''),
+            explanation=str(explanation or ''),
+        )
+
+    def import_from_json(self, file_path: str, strategy: str = "copy") -> int:
+        text = self._read_text(file_path)
+        if not text:
+            return 0
+        try:
+            data = json.loads(text)
+        except Exception:
+            return 0
+
+        if isinstance(data, list):
+            items = data
+        elif isinstance(data, dict):
+            items = data.get('puzzles') or data.get('items') or data.get('data') or []
+            if isinstance(items, dict):
+                items = list(items.values())
+        else:
+            return 0
+
+        count = 0
+        base_name = Path(file_path).stem
+        for index, item in enumerate(items, start=1):
+            fallback_title = f"{base_name} #{index}"
+            fallback_id = f"imported_{uuid.uuid4().hex[:8]}"
+            puzzle = self._puzzle_from_dict(item, fallback_title, fallback_id)
+            if puzzle:
+                tags = []
+                if isinstance(item, dict):
+                    tags = item.get('tags') or item.get('tag') or []
+                    if isinstance(tags, str):
+                        tags = [tags]
+                    if not isinstance(tags, list):
+                        tags = []
+                _, changed = self.merge_puzzle(
+                    puzzle,
+                    strategy=strategy,
+                    source=Path(file_path).name,
+                    tags=tags,
+                )
+                if changed:
+                    count += 1
+        return count
+
+    def import_from_sgf(self, file_path: str, strategy: str = "copy") -> int:
+        text = self._read_text(file_path)
+        if not text:
+            return 0
+
+        trees = self._split_sgf_trees(text)
+        count = 0
+        for index, tree in enumerate(trees, start=1):
+            puzzle = self._puzzle_from_sgf(tree, Path(file_path).name, index)
+            if puzzle:
+                _, changed = self.merge_puzzle(
+                    puzzle,
+                    strategy=strategy,
+                    source=Path(file_path).name,
+                )
+                if changed:
+                    count += 1
+        return count
+
+    def _read_pack_meta(self, pack_dir: Path) -> Optional[Dict[str, Any]]:
+        try:
+            meta_text = (pack_dir / "pack.json").read_text(encoding="utf-8")
+            meta = json.loads(meta_text)
+        except Exception:
+            return None
+        if not isinstance(meta, dict):
+            return None
+        return meta
+
+    def read_pack_meta(self, pack_dir: Path) -> Optional[Dict[str, Any]]:
+        return self._read_pack_meta(pack_dir)
+
+    def _read_pack_puzzles(self, pack_dir: Path) -> List[Dict[str, Any]]:
+        try:
+            puzzles_text = (pack_dir / "puzzles.json").read_text(encoding="utf-8")
+            data = json.loads(puzzles_text)
+        except Exception:
+            return []
+        if isinstance(data, list):
+            return data
+        return []
+
+    def _read_pack_translations(
+        self, pack_dir: Path, languages: List[str]
+    ) -> Dict[str, Dict[str, Dict[str, Any]]]:
+        translations: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        i18n_dir = pack_dir / "i18n"
+        for lang in languages or []:
+            path = i18n_dir / f"{lang}.json"
+            if not path.exists():
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+                data = json.loads(text)
+            except Exception:
+                continue
+            if isinstance(data, dict):
+                translations[lang] = data
+        return translations
+
+    def import_pack(
+        self,
+        pack_dir: str,
+        strategy: str = "overwrite",
+        protect_user: bool = True,
+    ) -> Tuple[int, List[str]]:
+        errors: List[str] = []
+        base_dir = Path(pack_dir)
+        meta = self._read_pack_meta(base_dir)
+        if not meta:
+            return 0, ["pack.json missing or invalid"]
+
+        pack_id = str(meta.get("id") or "default").strip() or "default"
+        pack_version = str(meta.get("version") or "")
+        languages = meta.get("languages") or []
+        if not isinstance(languages, list):
+            languages = []
+        translations = self._read_pack_translations(base_dir, languages)
+        base_language = "zh" if "zh" in translations else (languages[0] if languages else "")
+        pack_source = f"pack:{pack_id}"
+        translations_by_puzzle: Dict[str, Dict[str, Dict[str, Any]]] = {}
+        for lang, mapping in translations.items():
+            if not isinstance(mapping, dict):
+                continue
+            for puzzle_id, payload in mapping.items():
+                if isinstance(payload, dict):
+                    translations_by_puzzle.setdefault(str(puzzle_id), {})[lang] = payload
+
+        puzzles = self._read_pack_puzzles(base_dir)
+        count = 0
+        for data in puzzles:
+            if not isinstance(data, dict):
+                continue
+            puzzle_id = str(data.get("id") or "").strip()
+            if not puzzle_id:
+                errors.append("puzzles.json: missing puzzle id")
+                continue
+
+            text_data = translations.get(base_language, {}).get(puzzle_id, {}) if base_language else {}
+            puzzle = self._puzzle_from_pack_dict(data, text_data)
+            if not puzzle:
+                errors.append(f"{puzzle_id}: invalid puzzle definition")
+                continue
+
+            tags = data.get("tags") or []
+            if isinstance(tags, str):
+                tags = [tags]
+            if not isinstance(tags, list):
+                tags = []
+
+            local_strategy = strategy
+            if protect_user:
+                existing_source = self._get_puzzle_source(puzzle.id)
+                if existing_source and existing_source not in (pack_source, "builtin", ""):
+                    local_strategy = "copy"
+                content_hash = self._compute_content_hash(
+                    puzzle.board_state,
+                    puzzle.player_color,
+                    puzzle.solution,
+                    len(puzzle.board_state),
+                )
+                existing_hash = self._find_puzzle_by_hash(content_hash)
+                if (
+                    existing_hash
+                    and existing_hash[1]
+                    and existing_hash[1] not in (pack_source, "builtin", "")
+                ):
+                    local_strategy = "skip"
+
+            merged_id, changed = self.merge_puzzle(
+                puzzle,
+                strategy=local_strategy,
+                source=pack_source,
+                tags=tags,
+                pack_version=pack_version,
+            )
+            if translations_by_puzzle:
+                payload = translations_by_puzzle.get(puzzle_id)
+                if payload:
+                    self.upsert_translations(merged_id, payload)
+            if changed:
+                count += 1
+
+        self.set_pack_info(meta)
+        return count, errors
+
+    def remove_pack(self, pack_id: str) -> None:
+        if not pack_id:
+            return
+        pack_source = f"pack:{pack_id}"
+        cursor = self.connection.cursor()
+        cursor.execute("DELETE FROM puzzles WHERE source = ?", (pack_source,))
+        cursor.execute(
+            "DELETE FROM puzzle_translations WHERE puzzle_id NOT IN (SELECT id FROM puzzles)"
+        )
+        cursor.execute("DELETE FROM puzzle_packs WHERE pack_id = ?", (pack_id,))
+        self.connection.commit()
+
+    def _puzzle_from_dict(
+        self,
+        data: Any,
+        fallback_title: str,
+        fallback_id: str,
+    ) -> Optional[Puzzle]:
+        if not isinstance(data, dict):
+            return None
+
+        title = str(data.get('title') or data.get('name') or fallback_title).strip()
+        difficulty = data.get('difficulty') or data.get('level') or 1
+        try:
+            difficulty = int(difficulty)
+        except Exception:
+            difficulty = 1
+        difficulty = max(1, min(5, difficulty))
+
+        size = data.get('board_size') or data.get('size') or 19
+        try:
+            size = int(size)
+        except Exception:
+            size = 19
+
+        board_state = data.get('board_state')
+        if isinstance(board_state, list):
+            size = len(board_state) or size
+            board_state = self._normalize_board_state(board_state, size)
+        else:
+            stones = data.get('stones') or data.get('setup') or []
+            board_state = self._build_board_from_stones(size, stones)
+
+        player_color = self._normalize_color(
+            data.get('player_color') or data.get('player') or data.get('color') or 'black'
+        ) or 'black'
+
+        objective = str(data.get('objective') or data.get('goal') or '请走出最佳一手')
+        solution = self._parse_solution(data.get('solution') or data.get('moves') or [])
+        if not solution:
+            return None
+
+        wrong_moves = self._parse_wrong_moves(
+            data.get('wrong_moves') or data.get('wrong') or data.get('wrong_move') or {}
+        )
+        hint = str(data.get('hint') or '')
+        explanation = str(data.get('explanation') or data.get('comment') or '')
+
+        puzzle_id = str(data.get('id') or fallback_id).strip() or fallback_id
+
+        return Puzzle(
+            id=puzzle_id,
+            title=title,
+            difficulty=difficulty,
+            board_state=board_state,
+            player_color=player_color,
+            objective=objective,
+            solution=solution,
+            wrong_moves=wrong_moves,
+            hint=hint,
+            explanation=explanation,
+        )
+
+    def _puzzle_from_pack_dict(
+        self,
+        data: Any,
+        text_data: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Puzzle]:
+        if not isinstance(data, dict):
+            return None
+
+        puzzle_id = str(data.get('id') or '').strip()
+        if not puzzle_id:
+            return None
+
+        difficulty = data.get('difficulty') or data.get('level') or 1
+        try:
+            difficulty = int(difficulty)
+        except Exception:
+            difficulty = 1
+        difficulty = max(1, min(5, difficulty))
+
+        size = data.get('board_size') or data.get('size') or 19
+        try:
+            size = int(size)
+        except Exception:
+            size = 19
+
+        board_state = data.get('board_state')
+        if isinstance(board_state, list):
+            size = len(board_state) or size
+            board_state = self._normalize_board_state(board_state, size)
+        else:
+            stones = data.get('stones') or data.get('setup') or []
+            board_state = self._build_board_from_stones(size, stones)
+
+        player_color = self._normalize_color(
+            data.get('player_color') or data.get('player') or data.get('color') or 'black'
+        ) or 'black'
+
+        solution = self._parse_solution(data.get('solution') or data.get('moves') or [])
+        if not solution:
+            return None
+
+        text_data = text_data or {}
+        title = str(text_data.get('title') or data.get('title') or puzzle_id).strip()
+        objective = str(text_data.get('objective') or data.get('objective') or '请走出最佳一手')
+        hint = str(text_data.get('hint') or data.get('hint') or '')
+        explanation = str(text_data.get('explanation') or data.get('explanation') or '')
+        wrong_moves = self._parse_wrong_moves(
+            text_data.get('wrong_moves') or data.get('wrong_moves') or {}
+        )
+
+        return Puzzle(
+            id=puzzle_id,
+            title=title,
+            difficulty=difficulty,
+            board_state=board_state,
+            player_color=player_color,
+            objective=objective,
+            solution=solution,
+            wrong_moves=wrong_moves,
+            hint=hint,
+            explanation=explanation,
+        )
+
+    def _read_text(self, file_path: str) -> str:
+        encodings = ('utf-8', 'utf-8-sig', 'gbk', 'latin-1')
+        for encoding in encodings:
+            try:
+                return Path(file_path).read_text(encoding=encoding)
+            except Exception:
+                continue
+        return ''
+
+    def _scan_sgf_value(self, text: str, index: int) -> Tuple[str, int]:
+        if index >= len(text) or text[index] != '[':
+            return '', index
+        index += 1
+        value_chars: List[str] = []
+        while index < len(text):
+            ch = text[index]
+            if ch == '\\':
+                index += 1
+                if index >= len(text):
+                    break
+                if text[index] in '\r\n':
+                    index += 1
+                    continue
+                value_chars.append(text[index])
+                index += 1
+                continue
+            if ch == ']':
+                index += 1
+                break
+            value_chars.append(ch)
+            index += 1
+        return ''.join(value_chars), index
+
+    def _split_sgf_trees(self, text: str) -> List[str]:
+        trees: List[str] = []
+        depth = 0
+        start = None
+        index = 0
+        while index < len(text):
+            ch = text[index]
+            if ch == '[':
+                _, index = self._scan_sgf_value(text, index)
+                continue
+            if ch == '(':
+                if depth == 0:
+                    start = index
+                depth += 1
+                index += 1
+                continue
+            if ch == ')':
+                depth -= 1
+                index += 1
+                if depth == 0 and start is not None:
+                    trees.append(text[start:index])
+                    start = None
+                continue
+            index += 1
+
+        if not trees and text.strip():
+            trees = [text.strip()]
+        return trees
+
+    def _parse_sgf_main_line_nodes(self, text: str) -> List[Dict[str, List[str]]]:
+        content = text.strip()
+        if not content:
+            return []
+
+        nodes: List[Dict[str, List[str]]] = []
+        index = 0
+
+        def skip_whitespace() -> None:
+            nonlocal index
+            while index < len(content) and content[index].isspace():
+                index += 1
+
+        def parse_identifier() -> str:
+            nonlocal index
+            start = index
+            while index < len(content) and content[index].isupper():
+                index += 1
+            return content[start:index]
+
+        def parse_node() -> Optional[Dict[str, List[str]]]:
+            nonlocal index
+            if index >= len(content) or content[index] != ';':
+                return None
+            index += 1
+            props: Dict[str, List[str]] = {}
+            while index < len(content):
+                skip_whitespace()
+                if index >= len(content) or content[index] in ';()':
+                    break
+                if not content[index].isupper():
+                    index += 1
+                    continue
+                prop = parse_identifier()
+                values: List[str] = []
+                while index < len(content) and content[index] == '[':
+                    value, index = self._scan_sgf_value(content, index)
+                    values.append(value)
+                if prop:
+                    props[prop] = values
+            return props
+
+        def skip_variation() -> None:
+            nonlocal index
+            if index >= len(content) or content[index] != '(':
+                return
+            depth = 0
+            while index < len(content):
+                ch = content[index]
+                if ch == '[':
+                    _, index = self._scan_sgf_value(content, index)
+                    continue
+                if ch == '(':
+                    depth += 1
+                    index += 1
+                    continue
+                if ch == ')':
+                    depth -= 1
+                    index += 1
+                    if depth == 0:
+                        break
+                    continue
+                index += 1
+
+        def parse_variation_main_line() -> List[Dict[str, List[str]]]:
+            nonlocal index
+            if index >= len(content) or content[index] != '(':
+                return []
+            index += 1
+            line: List[Dict[str, List[str]]] = []
+            while index < len(content):
+                skip_whitespace()
+                if index >= len(content):
+                    break
+                ch = content[index]
+                if ch == ';':
+                    node = parse_node()
+                    if node:
+                        line.append(node)
+                    continue
+                if ch == '(':
+                    child_nodes = parse_variation_main_line()
+                    line.extend(child_nodes)
+                    while True:
+                        skip_whitespace()
+                        if index < len(content) and content[index] == '(':
+                            skip_variation()
+                            continue
+                        break
+                    continue
+                if ch == ')':
+                    index += 1
+                    break
+                index += 1
+            return line
+
+        while index < len(content) and content[index] != '(':
+            index += 1
+        if index < len(content) and content[index] == '(':
+            nodes = parse_variation_main_line()
+
+        return nodes
+
+    def _sgf_to_point(self, coord: str) -> Tuple[int, int]:
+        if not coord or len(coord) < 2:
+            return (-1, -1)
+        x = ord(coord[0]) - ord('a')
+        y = ord(coord[1]) - ord('a')
+        return (x, y)
+
+    def _expand_sgf_points(self, value: str) -> List[Tuple[int, int]]:
+        if not value:
+            return []
+        if ':' in value and len(value) >= 5:
+            start, end = value.split(':', 1)
+            x1, y1 = self._sgf_to_point(start)
+            x2, y2 = self._sgf_to_point(end)
+            if x1 < 0 or y1 < 0 or x2 < 0 or y2 < 0:
+                return []
+            points = []
+            for x in range(min(x1, x2), max(x1, x2) + 1):
+                for y in range(min(y1, y2), max(y1, y2) + 1):
+                    points.append((x, y))
+            return points
+        x, y = self._sgf_to_point(value)
+        if x < 0 or y < 0:
+            return []
+        return [(x, y)]
+
+    def _parse_sgf_difficulty(self, root: Dict[str, List[str]]) -> int:
+        for key in ('DI', 'DL', 'LV'):
+            value = root.get(key)
+            if not value:
+                continue
+            try:
+                return max(1, min(5, int(float(value[0]))))
+            except Exception:
+                continue
+        return 3
+
+    def _puzzle_from_sgf(
+        self,
+        sgf_text: str,
+        label: str,
+        index: int,
+    ) -> Optional[Puzzle]:
+        nodes = self._parse_sgf_main_line_nodes(sgf_text)
+        if not nodes:
+            return None
+
+        root = nodes[0]
+        size_value = (root.get('SZ') or ['19'])[0]
+        try:
+            size = int(size_value)
+        except Exception:
+            size = 19
+
+        stones: List[Tuple[int, int, str]] = []
+        for prop, color in (('AB', 'black'), ('AW', 'white')):
+            for raw in root.get(prop, []) or []:
+                for x, y in self._expand_sgf_points(raw):
+                    stones.append((x, y, color))
+
+        board_state = self._build_board_from_stones(size, stones)
+
+        solution: List[Tuple[int, int]] = []
+        player_color = ''
+        for node in nodes[1:]:
+            if 'B' in node:
+                color = 'black'
+                coord = node['B'][0] if node['B'] else ''
+            elif 'W' in node:
+                color = 'white'
+                coord = node['W'][0] if node['W'] else ''
+            else:
+                continue
+
+            if not coord:
+                continue
+
+            x, y = self._sgf_to_point(coord)
+            if x < 0 or y < 0:
+                continue
+
+            solution.append((x, y))
+            if not player_color:
+                player_color = color
+
+        if not solution:
+            return None
+
+        if not player_color:
+            pl = (root.get('PL') or [''])[0].strip().lower()
+            if pl in ('w', 'white'):
+                player_color = 'white'
+            else:
+                player_color = 'black'
+
+        title = (root.get('GN') or root.get('N') or [f"{label} #{index}"])[0]
+        title = title.strip() or f"{label} #{index}"
+        comment = (root.get('C') or [''])[0].strip()
+        objective = comment.splitlines()[0].strip() if comment else "请走出最佳一手"
+        difficulty = self._parse_sgf_difficulty(root)
+        puzzle_id = self._ensure_unique_id(f"sgf_{uuid.uuid4().hex[:8]}")
+
+        return Puzzle(
+            id=puzzle_id,
+            title=title,
+            difficulty=difficulty,
+            board_state=board_state,
+            player_color=player_color,
+            objective=objective,
+            solution=solution,
+            wrong_moves={},
+            hint='',
+            explanation=comment,
+        )
+
 class TeachingSystem:
     """教学系统"""
     
     def __init__(self, translator=None):
         # translator 目前仅作占位，便于未来本地化提示
         self.translator = translator
+        self._puzzle_texts: Dict[str, Dict[str, Dict[str, Any]]] = {}
         self.lessons: Dict[str, Lesson] = {}
         self.puzzles: Dict[str, Puzzle] = {}
+        self.puzzle_db: Optional[PuzzleDatabase] = None
         self.user_progress: Dict[str, Any] = {
             'completed_lessons': [],
             'completed_puzzles': [],
@@ -301,58 +1527,131 @@ class TeachingSystem:
         )
     
     def _load_puzzles(self):
-        """加载棋题"""
-        # 基础提子题
-        self.puzzles['capture_basic_1'] = Puzzle(
-            id='capture_basic_1',
-            title='提子练习1',
-            difficulty=1,
-            board_state=self._create_puzzle_board_1(),
-            player_color='black',
-            objective='吃掉白子',
-            solution=[(10, 9)],
-            wrong_moves={
-                (8, 10): '这里不能直接吃掉白子',
-                (10, 10): '这里也不对，想想白子的气在哪里'
-            },
-            hint='白子只有一口气了',
-            explanation='白子只剩最后一口气，黑子落子即可提取白子。'
+        """加载棋题（数据库 + 默认题库包）"""
+        self.puzzle_db = PuzzleDatabase(self._default_puzzle_db_path())
+        self._sync_default_pack()
+        self.reload_puzzles()
+
+    def _default_puzzle_db_path(self) -> str:
+        base_dir = Path(__file__).resolve().parents[1]
+        return str(base_dir / 'saves' / 'puzzles.db')
+
+    def _default_pack_dir(self) -> Path:
+        base_dir = Path(__file__).resolve().parents[1]
+        return base_dir / 'assets' / 'puzzle_packs' / 'default'
+
+    def _version_tuple(self, version: str) -> Tuple[int, ...]:
+        parts = []
+        for raw in str(version or '').split('.'):
+            digits = ''.join(ch for ch in raw if ch.isdigit())
+            parts.append(int(digits) if digits else 0)
+        return tuple(parts or [0])
+
+    def _is_version_newer(self, new_version: str, old_version: str) -> bool:
+        return self._version_tuple(new_version) > self._version_tuple(old_version)
+
+    def reload_puzzles(self) -> None:
+        """刷新内存中的题目列表。"""
+        if not self.puzzle_db:
+            return
+        self.puzzles = {puzzle.id: puzzle for puzzle in self.puzzle_db.list_puzzles()}
+        self._puzzle_texts = self.puzzle_db.list_translations()
+
+    def _sync_default_pack(self) -> None:
+        if not self.puzzle_db:
+            return
+        pack_dir = self._default_pack_dir()
+        if not pack_dir.exists():
+            return
+        meta = self.puzzle_db.read_pack_meta(pack_dir)
+        if not meta:
+            return
+        pack_id = str(meta.get('id') or 'default').strip() or 'default'
+        installed = self.puzzle_db.get_pack_info(pack_id)
+        has_puzzles = self.puzzle_db.count_puzzles() > 0
+        has_builtin = self.puzzle_db.has_puzzle_source("builtin") or self.puzzle_db.has_puzzle_source(
+            f"pack:{pack_id}"
         )
-        
-        # 征子题
-        self.puzzles['ladder_basic_1'] = Puzzle(
-            id='ladder_basic_1',
-            title='征子练习1',
-            difficulty=2,
-            board_state=self._create_ladder_board_1(),
-            player_color='black',
-            objective='用征子追击白子',
-            solution=[(2, 2), (1, 3), (2, 3)],
-            wrong_moves={
-                (1, 3): '这是白棋的应对点',
-                (2, 1): '方向不对'
-            },
-            hint='从正确的方向追击',
-            explanation='征子需要沿着边线持续追击，迫使白子没有活路。'
+        should_install = False
+        if installed is None:
+            should_install = (not has_puzzles) or has_builtin
+        if installed and meta.get('version'):
+            if self._is_version_newer(
+                str(meta.get('version')), str(installed.get('version') or '')
+            ):
+                should_install = True
+        if should_install:
+            self.puzzle_db.import_pack(str(pack_dir), strategy="overwrite", protect_user=True)
+        translations = self.puzzle_db._read_pack_translations(
+            pack_dir, meta.get('languages') or []
         )
-    
-    def _create_puzzle_board_1(self) -> List[List[str]]:
-        """创建棋题棋盘1"""
-        board = [[''] * 19 for _ in range(19)]
-        # 设置棋子
-        board[9][9] = 'white'
-        board[9][8] = 'black'
-        board[8][9] = 'black'
-        board[9][10] = 'black'
-        return board
-    
-    def _create_ladder_board_1(self) -> List[List[str]]:
-        """创建征子棋盘1"""
-        board = [[''] * 19 for _ in range(19)]
-        # 设置征子局面（靠近边线，便于形成征子）
-        board[2][1] = 'white'
-        board[2][0] = 'black'
-        board[1][1] = 'black'
+        if translations:
+            translations_by_puzzle: Dict[str, Dict[str, Dict[str, Any]]] = {}
+            for lang, mapping in translations.items():
+                if not isinstance(mapping, dict):
+                    continue
+                for puzzle_id, payload in mapping.items():
+                    if isinstance(payload, dict):
+                        translations_by_puzzle.setdefault(str(puzzle_id), {})[lang] = payload
+            if translations_by_puzzle:
+                self.puzzle_db.sync_pack_translations(pack_id, translations_by_puzzle)
+
+    def rebuild_default_pack(self) -> Tuple[int, List[str]]:
+        if not self.puzzle_db:
+            return 0, ["puzzle database not initialized"]
+        pack_dir = self._default_pack_dir()
+        if not pack_dir.exists():
+            return 0, ["default pack missing"]
+        meta = self.puzzle_db.read_pack_meta(pack_dir) or {}
+        pack_id = str(meta.get('id') or 'default').strip() or 'default'
+        self.puzzle_db.remove_pack(pack_id)
+        count, errors = self.puzzle_db.import_pack(
+            str(pack_dir), strategy="overwrite", protect_user=True
+        )
+        if count > 0:
+            self.reload_puzzles()
+        return count, errors
+
+    def import_puzzles(
+        self,
+        file_paths: List[str],
+        strategy: str = "copy",
+    ) -> Tuple[int, List[str]]:
+        """从文件导入题库，返回(新增数量, 错误信息列表)。"""
+        if not self.puzzle_db:
+            return 0, ["puzzle database not initialized"]
+
+        total_added = 0
+        errors: List[str] = []
+        for path in file_paths or []:
+            if not path:
+                continue
+            suffix = Path(path).suffix.lower()
+            try:
+                if suffix == '.json':
+                    added = self.puzzle_db.import_from_json(path, strategy=strategy)
+                elif suffix == '.sgf':
+                    added = self.puzzle_db.import_from_sgf(path, strategy=strategy)
+                else:
+                    errors.append(f"{Path(path).name}: unsupported format")
+                    continue
+                if added == 0:
+                    errors.append(f"{Path(path).name}: no valid puzzles")
+                total_added += added
+            except Exception as exc:
+                errors.append(f"{Path(path).name}: {exc}")
+
+        if total_added > 0:
+            self.reload_puzzles()
+        return total_added, errors
+
+    def _build_puzzle_board(self, size: int, stones: List[Tuple[int, int, str]]) -> List[List[str]]:
+        board = [['' for _ in range(size)] for _ in range(size)]
+        for x, y, color in stones:
+            if color not in ('black', 'white'):
+                continue
+            if 0 <= x < size and 0 <= y < size:
+                board[y][x] = color
         return board
     
     def get_lesson(self, lesson_id: str) -> Optional[Lesson]:
@@ -362,6 +1661,58 @@ class TeachingSystem:
     def get_puzzle(self, puzzle_id: str) -> Optional[Puzzle]:
         """获取棋题"""
         return self.puzzles.get(puzzle_id)
+
+    def _current_language(self) -> str:
+        translator = self.translator
+        if translator and getattr(translator, "language", None):
+            return translator.language
+        return "zh"
+
+    def get_puzzle_text(self, puzzle: Optional[Puzzle], field: str) -> str:
+        """获取棋题文本（支持多语言）。"""
+        if not puzzle:
+            return ""
+        text_bundle = self._puzzle_texts.get(puzzle.id)
+        if text_bundle:
+            lang = self._current_language()
+            lang_data = (
+                text_bundle.get(lang)
+                or text_bundle.get("zh")
+                or text_bundle.get("en")
+                or {}
+            )
+            value = lang_data.get(field)
+            if value:
+                return str(value)
+        return str(getattr(puzzle, field, "") or "")
+
+    def get_puzzle_wrong_move_message(
+        self, puzzle: Optional[Puzzle], x: int, y: int
+    ) -> str:
+        """获取指定落子错误提示（支持多语言）。"""
+        if not puzzle:
+            return ""
+        text_bundle = self._puzzle_texts.get(puzzle.id)
+        if text_bundle:
+            lang = self._current_language()
+            lang_data = (
+                text_bundle.get(lang)
+                or text_bundle.get("zh")
+                or text_bundle.get("en")
+                or {}
+            )
+            wrong_moves = lang_data.get("wrong_moves") or {}
+            key = f"{x},{y}"
+            if key in wrong_moves:
+                return str(wrong_moves[key])
+
+        if puzzle.wrong_moves:
+            if (x, y) in puzzle.wrong_moves:
+                return str(puzzle.wrong_moves[(x, y)])
+            key = f"{x},{y}"
+            if key in puzzle.wrong_moves:
+                return str(puzzle.wrong_moves[key])
+        return ""
     
     def start_lesson(self, lesson_id: str) -> bool:
         """开始课程"""
@@ -402,8 +1753,13 @@ class TeachingSystem:
         puzzle = self.get_puzzle(puzzle_id)
         if not puzzle:
             return False, "棋题不存在"
-        
-        return puzzle.check_move(x, y)
+
+        correct, feedback = puzzle.check_move(x, y)
+        if not correct:
+            localized = self.get_puzzle_wrong_move_message(puzzle, x, y)
+            if localized:
+                feedback = localized
+        return correct, feedback
     
     def get_user_statistics(self) -> Dict[str, Any]:
         """获取用户统计"""
@@ -522,9 +1878,15 @@ class InteractiveLesson(tk.Frame):
             puzzle_id = content.content.get('puzzle_id')
             puzzle = self.teaching_system.get_puzzle(puzzle_id)
             if puzzle:
-                self.content_text.insert('end', f"目标：{puzzle.objective}\n")
-                if puzzle.hint:
-                    self.content_text.insert('end', f"\n提示：{puzzle.hint}")
+                translator = self.teaching_system.translator
+                objective_label = translator.get('problem_objective') if translator else "目标"
+                hint_label = translator.get('hint') if translator else "提示"
+                objective = self.teaching_system.get_puzzle_text(puzzle, "objective")
+                hint = self.teaching_system.get_puzzle_text(puzzle, "hint")
+                if objective:
+                    self.content_text.insert('end', f"{objective_label}: {objective}\n")
+                if hint:
+                    self.content_text.insert('end', f"\n{hint_label}: {hint}")
             self.check_button.pack(side='left', padx=5)
             
         elif content.type == 'quiz':
@@ -633,23 +1995,37 @@ class TacticalPuzzles(tk.Frame):
         """更新显示"""
         if not self.current_puzzle:
             return
-        
-        self.puzzle_title.config(text=self.current_puzzle.title)
-        self.objective_label.config(text=f"目标: {self.current_puzzle.objective}")
+
+        translator = self.teaching_system.translator
+        objective_label = translator.get('problem_objective') if translator else "目标"
+        title = self.teaching_system.get_puzzle_text(self.current_puzzle, "title")
+        objective = self.teaching_system.get_puzzle_text(self.current_puzzle, "objective")
+        self.puzzle_title.config(text=title or self.current_puzzle.title)
+        self.objective_label.config(text=f"{objective_label}: {objective}")
         self.hint_label.config(text="")
     
     def show_hint(self):
         """显示提示"""
-        if self.current_puzzle and self.current_puzzle.hint:
-            self.hint_label.config(text=f"提示: {self.current_puzzle.hint}")
+        if self.current_puzzle:
+            hint = self.teaching_system.get_puzzle_text(self.current_puzzle, "hint")
+            if hint:
+                translator = self.teaching_system.translator
+                hint_label = translator.get('hint') if translator else "提示"
+                self.hint_label.config(text=f"{hint_label}: {hint}")
     
     def show_solution(self):
         """显示答案"""
         if self.current_puzzle:
-            solution_text = "答案: " + " → ".join(
+            translator = self.teaching_system.translator
+            label = translator.get('problem_solution') if translator else "答案"
+            explanation = self.teaching_system.get_puzzle_text(
+                self.current_puzzle, "explanation"
+            )
+            solution_text = f"{label}: " + " → ".join(
                 f"({x},{y})" for x, y in self.current_puzzle.solution
             )
-            messagebox.showinfo("答案", solution_text + "\n\n" + self.current_puzzle.explanation)
+            message = solution_text + (f"\n\n{explanation}" if explanation else "")
+            messagebox.showinfo(label, message)
     
     def check_move(self, x: int, y: int) -> Tuple[bool, str]:
         """检查着法"""
@@ -657,6 +2033,12 @@ class TacticalPuzzles(tk.Frame):
             return False, "请先选择题目"
         
         correct, feedback = self.current_puzzle.check_move(x, y)
+        if not correct:
+            localized = self.teaching_system.get_puzzle_wrong_move_message(
+                self.current_puzzle, x, y
+            )
+            if localized:
+                feedback = localized
         
         # 更新统计
         # TODO: 实现统计更新

@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import tkinter as tk
 from dataclasses import dataclass
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from typing import List, Optional
 from urllib.parse import quote_plus
 import webbrowser
@@ -146,6 +146,47 @@ class ProblemLibraryWindow(tk.Toplevel):
         self.difficulty_combo.pack(side="left", padx=6)
         self.difficulty_combo.bind("<<ComboboxSelected>>", lambda _e: self._on_search())
 
+        actions_frame = ttk.Frame(filter_frame)
+        actions_frame.pack(side="right")
+
+        ttk.Label(
+            actions_frame, text=self.translator.get("problem_import_hint")
+        ).pack(side="left", padx=(0, 6))
+
+        ttk.Label(
+            actions_frame, text=self.translator.get("problem_import_strategy")
+        ).pack(side="left", padx=(0, 4))
+
+        self.import_strategy_var = tk.StringVar(
+            value=self.translator.get("problem_import_strategy_copy")
+        )
+        self.import_strategy_combo = ttk.Combobox(
+            actions_frame,
+            textvariable=self.import_strategy_var,
+            values=list(self._import_strategy_labels().keys()),
+            state="readonly",
+            width=10,
+        )
+        self.import_strategy_combo.pack(side="left", padx=(0, 6))
+
+        ttk.Button(
+            actions_frame,
+            text=self.translator.get("problem_import_guide"),
+            command=self._show_import_guide,
+        ).pack(side="left", padx=(0, 6))
+
+        ttk.Button(
+            actions_frame,
+            text=self.translator.get("import"),
+            command=self._on_import,
+        ).pack(side="left")
+
+        ttk.Button(
+            actions_frame,
+            text=self.translator.get("problem_rebuild"),
+            command=self._on_rebuild_default_pack,
+        ).pack(side="left", padx=(6, 0))
+
         paned = ttk.PanedWindow(container, orient=tk.HORIZONTAL)
         paned.pack(fill="both", expand=True)
 
@@ -239,6 +280,10 @@ class ProblemLibraryWindow(tk.Toplevel):
 
         self._resource_inner.bind("<Configure>", self._on_resource_inner_configure)
         self._resource_canvas.bind("<Configure>", self._on_resource_canvas_configure)
+        self._resource_canvas.bind("<Enter>", self._bind_resource_mousewheel)
+        self._resource_canvas.bind("<Leave>", self._unbind_resource_mousewheel)
+        self._resource_inner.bind("<Enter>", self._bind_resource_mousewheel)
+        self._resource_inner.bind("<Leave>", self._unbind_resource_mousewheel)
 
         self._resource_buttons = []
         for resource in self._resources:
@@ -257,6 +302,15 @@ class ProblemLibraryWindow(tk.Toplevel):
         widget.insert("1.0", text)
         widget.configure(state="disabled")
 
+    def _puzzle_text(self, puzzle: Puzzle, field: str) -> str:
+        if not puzzle:
+            return ""
+        if hasattr(self.teaching_system, "get_puzzle_text"):
+            text = self.teaching_system.get_puzzle_text(puzzle, field)
+            if text:
+                return text
+        return getattr(puzzle, field, "") or ""
+
     def _on_resource_inner_configure(self, _event=None) -> None:
         if not self._resource_canvas:
             return
@@ -267,6 +321,23 @@ class ProblemLibraryWindow(tk.Toplevel):
             return
         self._resource_canvas.itemconfigure(self._resource_window, width=event.width)
         self._layout_resources()
+
+    def _on_resource_mousewheel(self, event) -> None:
+        if not self._resource_canvas:
+            return
+        try:
+            delta = int(-1 * (event.delta / 120))
+        except Exception:
+            delta = -1 if getattr(event, "delta", 0) > 0 else 1
+        self._resource_canvas.yview_scroll(delta, "units")
+
+    def _bind_resource_mousewheel(self, _event=None) -> None:
+        if self._resource_canvas:
+            self._resource_canvas.bind_all("<MouseWheel>", self._on_resource_mousewheel)
+
+    def _unbind_resource_mousewheel(self, _event=None) -> None:
+        if self._resource_canvas:
+            self._resource_canvas.unbind_all("<MouseWheel>")
 
     def _layout_resources(self) -> None:
         if not self._resource_buttons or not self._resource_canvas or not self._resource_inner:
@@ -296,15 +367,24 @@ class ProblemLibraryWindow(tk.Toplevel):
             self.translator.get("pattern_category_tesuji"): "tesuji",
         }
 
+    def _import_strategy_labels(self) -> dict:
+        return {
+            self.translator.get("problem_import_strategy_overwrite"): "overwrite",
+            self.translator.get("problem_import_strategy_skip"): "skip",
+            self.translator.get("problem_import_strategy_copy"): "copy",
+        }
+
     def _build_catalog(self) -> List[ProblemEntry]:
         entries: List[ProblemEntry] = []
         for puzzle in self.teaching_system.puzzles.values():
             category = self._infer_category(puzzle)
+            title = self._puzzle_text(puzzle, "title")
+            objective = self._puzzle_text(puzzle, "objective")
             search_text = " ".join(
                 [
                     puzzle.id,
-                    puzzle.title,
-                    puzzle.objective,
+                    title,
+                    objective,
                 ]
             ).lower()
             entries.append(
@@ -318,7 +398,9 @@ class ProblemLibraryWindow(tk.Toplevel):
 
     def _infer_category(self, puzzle: Puzzle) -> str:
         pid = puzzle.id.lower()
-        if pid.startswith(("capture", "ladder", "net", "atari", "tesuji")):
+        if pid.startswith("tesuji"):
+            return "tesuji"
+        if pid.startswith(("capture", "ladder", "net", "atari")):
             return "tactical"
         return "life_death"
 
@@ -338,6 +420,66 @@ class ProblemLibraryWindow(tk.Toplevel):
         self._set_text(self.info_text, self.translator.get("no_results"))
         self.board_canvas.clear_board()
         self.status_var.set(self.translator.get("problem_status_ready"))
+
+    def _show_import_guide(self) -> None:
+        messagebox.showinfo(
+            self.translator.get("problem_import_guide_title"),
+            self.translator.get("problem_import_guide_body"),
+            parent=self,
+        )
+
+    def _on_import(self) -> None:
+        filetypes = [
+            (self.translator.get("sgf_files"), "*.sgf"),
+            ("JSON", "*.json"),
+            (self.translator.get("all_files"), "*.*"),
+        ]
+        paths = filedialog.askopenfilenames(
+            parent=self,
+            title=self.translator.get("problem_import_guide_title"),
+            filetypes=filetypes,
+        )
+        if not paths:
+            return
+
+        strategy_labels = self._import_strategy_labels()
+        strategy = strategy_labels.get(self.import_strategy_var.get(), "copy")
+        added, errors = self.teaching_system.import_puzzles(list(paths), strategy=strategy)
+        if added:
+            self._entries = self._build_catalog()
+            self._load_list()
+            message = self.translator.get("problem_import_success", count=added)
+            preview = errors[:6]
+            if preview:
+                message = message + "\n" + "\n".join(preview)
+            messagebox.showinfo(self.translator.get("info"), message, parent=self)
+            return
+
+        message = self.translator.get("problem_import_failed")
+        preview = errors[:6]
+        if preview:
+            message = message + "\n" + "\n".join(preview)
+        messagebox.showwarning(self.translator.get("warning"), message, parent=self)
+
+    def _on_rebuild_default_pack(self) -> None:
+        if not messagebox.askyesno(
+            self.translator.get("problem_rebuild_title"),
+            self.translator.get("problem_rebuild_confirm"),
+            parent=self,
+        ):
+            return
+        added, errors = self.teaching_system.rebuild_default_pack()
+        if added >= 0:
+            self._entries = self._build_catalog()
+            self._load_list()
+        message = self.translator.get("problem_rebuild_done", count=added)
+        preview = errors[:6]
+        if preview:
+            message = message + "\n" + "\n".join(preview)
+        if errors:
+            messagebox.showwarning(self.translator.get("warning"), message, parent=self)
+        else:
+            messagebox.showinfo(self.translator.get("info"), message, parent=self)
 
     def _filter_entries(self, keyword: str) -> List[ProblemEntry]:
         keyword = keyword.lower().strip()
@@ -373,7 +515,8 @@ class ProblemLibraryWindow(tk.Toplevel):
         items = entries or self._entries
         for entry in items:
             difficulty_marks = "*" * max(1, int(entry.puzzle.difficulty))
-            display = f"{entry.puzzle.title} ({difficulty_marks})"
+            title = self._puzzle_text(entry.puzzle, "title")
+            display = f"{title} ({difficulty_marks})"
             self.problem_listbox.insert("end", display)
             self._list_items.append(entry)
 
@@ -404,16 +547,19 @@ class ProblemLibraryWindow(tk.Toplevel):
         category_label = self._category_label(entry.category)
         difficulty_marks = "*" * max(1, int(puzzle.difficulty))
         player_label = self.translator.get(puzzle.player_color, puzzle.player_color)
+        title = self._puzzle_text(puzzle, "title")
+        objective = self._puzzle_text(puzzle, "objective")
+        hint = self._puzzle_text(puzzle, "hint")
 
         info_lines = [
-            f"{self.translator.get('name')}: {puzzle.title}",
+            f"{self.translator.get('name')}: {title}",
             f"{self.translator.get('pattern_category')}: {category_label}",
             f"{self.translator.get('difficulty')}: {difficulty_marks}",
-            f"{self.translator.get('problem_objective')}: {puzzle.objective}",
+            f"{self.translator.get('problem_objective')}: {objective}",
             f"{self.translator.get('player')}: {player_label}",
         ]
-        if puzzle.hint:
-            info_lines.append(f"{self.translator.get('hint')}: {puzzle.hint}")
+        if hint:
+            info_lines.append(f"{self.translator.get('hint')}: {hint}")
         self._set_text(self.info_text, "\n".join(info_lines))
 
         self._reset_board(puzzle)
@@ -567,7 +713,15 @@ class ProblemLibraryWindow(tk.Toplevel):
 
         expected_move = sequence[self._solution_index]
         if (full_x, full_y) != expected_move:
-            feedback = puzzle.wrong_moves.get((full_x, full_y))
+            feedback = ""
+            if hasattr(self.teaching_system, "get_puzzle_wrong_move_message"):
+                feedback = self.teaching_system.get_puzzle_wrong_move_message(
+                    puzzle, full_x, full_y
+                )
+            if not feedback and puzzle.wrong_moves:
+                feedback = puzzle.wrong_moves.get((full_x, full_y)) or puzzle.wrong_moves.get(
+                    f"{full_x},{full_y}"
+                )
             self.status_var.set(
                 feedback or self.translator.get("problem_status_incorrect")
             )
@@ -587,7 +741,7 @@ class ProblemLibraryWindow(tk.Toplevel):
     def _on_show_hint(self) -> None:
         if not self._active_entry:
             return
-        hint = self._active_entry.puzzle.hint
+        hint = self._puzzle_text(self._active_entry.puzzle, "hint")
         if not hint:
             return
         messagebox.showinfo(self.translator.get("hint"), hint, parent=self)
@@ -651,7 +805,7 @@ class ProblemLibraryWindow(tk.Toplevel):
             self._solution_window = window
 
         if self._solution_title is not None:
-            self._solution_title.config(text=puzzle.title)
+            self._solution_title.config(text=self._puzzle_text(puzzle, "title"))
         self._update_solution_board(puzzle)
         window.lift()
         window.focus_force()

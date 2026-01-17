@@ -101,6 +101,37 @@ class Translator:
             'problem_status_incorrect': 'Try again.',
             'problem_status_continue': 'Correct, continue.',
             'problem_status_completed': 'Correct, problem solved.',
+            'problem_import_hint': 'Supported: SGF / JSON',
+            'problem_import_strategy': 'Merge',
+            'problem_import_strategy_overwrite': 'Overwrite',
+            'problem_import_strategy_skip': 'Skip',
+            'problem_import_strategy_copy': 'New Copy',
+            'problem_import_guide': 'Formats',
+            'problem_import_guide_title': 'Problem Import Formats',
+            'problem_import_guide_body': 'Supported formats:\n'
+                                         '1) SGF (.sgf): uses AB/AW for setup and the main line as the solution.\n'
+                                         '2) JSON (.json): a list or {"puzzles": [...]}.\n'
+                                         'JSON supports board_state (2D list) or stones list.\n'
+                                         'Example:\n'
+                                         '{\n'
+                                         '  "puzzles": [\n'
+                                         '    {\n'
+                                         '      "title": "Sample Puzzle",\n'
+                                         '      "difficulty": 2,\n'
+                                         '      "board_size": 9,\n'
+                                         '      "stones": [{"x": 4, "y": 4, "color": "white"}],\n'
+                                         '      "player_color": "black",\n'
+                                         '      "objective": "Capture the white stone",\n'
+                                         '      "solution": [[4, 5]]\n'
+                                         '    }\n'
+                                         '  ]\n'
+                                         '}\n',
+            'problem_import_success': 'Imported {count} problems.',
+            'problem_import_failed': 'No valid problems found.',
+            'problem_rebuild': 'Rebuild',
+            'problem_rebuild_title': 'Rebuild Puzzle Library',
+            'problem_rebuild_confirm': 'Rebuild the default puzzle pack now? Imported puzzles will be kept.',
+            'problem_rebuild_done': 'Rebuilt {count} puzzles from the default pack.',
             'search': 'Search',
             'keyword': 'Keyword',
             'search_web': 'Search Web',
@@ -550,6 +581,37 @@ class Translator:
             'problem_status_incorrect': '再试试。',
             'problem_status_continue': '正确，继续下一手。',
             'problem_status_completed': '正确，题目完成。',
+            'problem_import_hint': '支持格式：SGF / JSON',
+            'problem_import_strategy': '合并',
+            'problem_import_strategy_overwrite': '覆盖',
+            'problem_import_strategy_skip': '跳过',
+            'problem_import_strategy_copy': '新副本',
+            'problem_import_guide': '导入格式',
+            'problem_import_guide_title': '题库导入格式',
+            'problem_import_guide_body': '支持格式：\n'
+                                         '1) SGF (.sgf)：使用 AB/AW 作为初始摆子，主线作为答案。\n'
+                                         '2) JSON (.json)：列表或 {"puzzles": [...]}。\n'
+                                         'JSON 可用 board_state（二维列表）或 stones 列表描述初始局面。\n'
+                                         '示例：\n'
+                                         '{\n'
+                                         '  "puzzles": [\n'
+                                         '    {\n'
+                                         '      "title": "示例题",\n'
+                                         '      "difficulty": 2,\n'
+                                         '      "board_size": 9,\n'
+                                         '      "stones": [{"x": 4, "y": 4, "color": "white"}],\n'
+                                         '      "player_color": "black",\n'
+                                         '      "objective": "吃掉白子",\n'
+                                         '      "solution": [[4, 5]]\n'
+                                         '    }\n'
+                                         '  ]\n'
+                                         '}\n',
+            'problem_import_success': '已导入 {count} 道题目。',
+            'problem_import_failed': '未找到可导入的题目。',
+            'problem_rebuild': '重建题库',
+            'problem_rebuild_title': '重建题库',
+            'problem_rebuild_confirm': '现在重建默认题库吗？已导入的题目会保留。',
+            'problem_rebuild_done': '已从默认题库重建 {count} 道题目。',
             'search': '搜索',
             'keyword': '关键词',
             'search_web': '搜索网页',
@@ -1000,6 +1062,37 @@ class Translator:
             'problem_status_incorrect': 'もう一度。',
             'problem_status_continue': '正解、続けてください。',
             'problem_status_completed': '正解、完了。',
+            'problem_import_hint': '対応形式: SGF / JSON',
+            'problem_import_strategy': '統合',
+            'problem_import_strategy_overwrite': '上書き',
+            'problem_import_strategy_skip': 'スキップ',
+            'problem_import_strategy_copy': '新しいコピー',
+            'problem_import_guide': '形式',
+            'problem_import_guide_title': '問題集のインポート形式',
+            'problem_import_guide_body': '対応形式：\n'
+                                         '1) SGF (.sgf)：AB/AW を初期配置、主線を解答として読み込みます。\n'
+                                         '2) JSON (.json)：リストまたは {"puzzles": [...]}。\n'
+                                         'JSON は board_state（2次元配列）または stones を使用できます。\n'
+                                         '例：\n'
+                                         '{\n'
+                                         '  "puzzles": [\n'
+                                         '    {\n'
+                                         '      "title": "サンプル",\n'
+                                         '      "difficulty": 2,\n'
+                                         '      "board_size": 9,\n'
+                                         '      "stones": [{"x": 4, "y": 4, "color": "white"}],\n'
+                                         '      "player_color": "black",\n'
+                                         '      "objective": "白石を取る",\n'
+                                         '      "solution": [[4, 5]]\n'
+                                         '    }\n'
+                                         '  ]\n'
+                                         '}\n',
+            'problem_import_success': '{count} 問をインポートしました。',
+            'problem_import_failed': 'インポートできる問題がありません。',
+            'problem_rebuild': '再構築',
+            'problem_rebuild_title': '問題集の再構築',
+            'problem_rebuild_confirm': '標準問題集を再構築しますか？インポート済みの問題は保持されます。',
+            'problem_rebuild_done': '標準問題集から {count} 問を再構築しました。',
             'search': '検索',
             'keyword': 'キーワード',
             'search_web': 'Web検索',

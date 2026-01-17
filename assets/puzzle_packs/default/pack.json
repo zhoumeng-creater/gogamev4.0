@@ -1,0 +1,11 @@
+{
+  "id": "default",
+  "name": "Default Puzzle Pack",
+  "version": "1.0.0",
+  "languages": [
+    "en",
+    "ja",
+    "zh"
+  ],
+  "description": "Built-in Go puzzles bundled with the app."
+}

@@ -1,0 +1,239 @@
+{
+  "capture_basic_1": {
+    "title": "提子练习1",
+    "objective": "吃掉白子",
+    "hint": "白子只有一口气了",
+    "explanation": "白子只剩最后一口气，黑子落子即可提取白子。",
+    "wrong_moves": {
+      "8,10": "这里不能直接吃掉白子",
+      "10,10": "这里也不对，想想白子的气在哪里"
+    }
+  },
+  "ladder_basic_1": {
+    "title": "征子练习1",
+    "objective": "用征子追击白子",
+    "hint": "从正确的方向追击",
+    "explanation": "征子需要沿着边线持续追击，迫使白子没有活路。",
+    "wrong_moves": {
+      "1,3": "这是白棋的应对点",
+      "2,1": "方向不对"
+    }
+  },
+  "capture_basic_2": {
+    "title": "提子练习2",
+    "objective": "吃掉中腹白子",
+    "hint": "白子只剩一口气",
+    "explanation": "补在(4,5)即可提子。",
+    "wrong_moves": {
+      "5,5": "没有占到最后一口气",
+      "3,5": "还差一步才能提子"
+    }
+  },
+  "capture_basic_3": {
+    "title": "提子练习3",
+    "objective": "边上提子",
+    "hint": "边上白子只剩下(7,2)",
+    "explanation": "占据(7,2)即可提子。",
+    "wrong_moves": {
+      "6,2": "没有封住最后一口气"
+    }
+  },
+  "atari_corner_1": {
+    "title": "角上打吃",
+    "objective": "角上打吃白子",
+    "hint": "角上白子只有两口气",
+    "explanation": "先在(1,2)打吃，白子更难逃出。",
+    "wrong_moves": {
+      "2,1": "这一手也能打吃，但更紧的点在(1,2)"
+    }
+  },
+  "atari_side_1": {
+    "title": "边上打吃",
+    "objective": "打吃边上的两子",
+    "hint": "白子还有两口气",
+    "explanation": "在(5,5)打吃，白子只剩一口气。",
+    "wrong_moves": {
+      "4,3": "太慢，先打吃更紧"
+    }
+  },
+  "ladder_corner_2": {
+    "title": "征子练习2",
+    "objective": "沿边追击白子",
+    "hint": "沿着边线持续叫吃",
+    "explanation": "征子需要连续追击，迫使白子没有活路。"
+  },
+  "net_basic_1": {
+    "title": "网罩练习1",
+    "objective": "用网罩限制白子",
+    "hint": "封住白子的逃路",
+    "explanation": "在(3,5)形成网罩，白子活动空间受限。"
+  },
+  "net_basic_2": {
+    "title": "网罩练习2",
+    "objective": "封住白子的退路",
+    "hint": "堵住上方出口",
+    "explanation": "在(1,7)形成网罩，白子难以逃出。"
+  },
+  "tesuji_cut_1": {
+    "title": "断点手筋",
+    "objective": "断开白子的联络",
+    "hint": "找断点下手",
+    "explanation": "在(4,5)断开白子联络，便于分断攻击。"
+  },
+  "tesuji_snapback_1": {
+    "title": "倒扑手筋",
+    "objective": "利用倒扑求得先手",
+    "hint": "考虑倒扑一手",
+    "explanation": "白先在(2,2)倒扑，后续反击空间更大。"
+  },
+  "life_death_1": {
+    "title": "死活练习1",
+    "objective": "黑棋求活",
+    "hint": "补一眼求活",
+    "explanation": "在(0,2)做眼，黑棋更容易成活。"
+  },
+  "life_death_2": {
+    "title": "死活练习2",
+    "objective": "白棋杀黑",
+    "hint": "封住黑棋最后的眼",
+    "explanation": "在(5,2)补气，黑棋难以成活。"
+  },
+  "life_death_3": {
+    "title": "死活练习3",
+    "objective": "白棋做活",
+    "hint": "做出第二只眼",
+    "explanation": "在(7,7)做眼，白棋即可安定。"
+  },
+  "tesuji_eye_1": {
+    "title": "补眼手筋",
+    "objective": "补眼求活",
+    "hint": "补好眼位",
+    "explanation": "在(3,3)补眼，黑棋更容易成活。"
+  },
+  "capture_basic_4": {
+    "title": "提子练习4",
+    "objective": "边线提子",
+    "hint": "占据边线最后一口气",
+    "explanation": "在(2,8)落子即可提子。"
+  },
+  "capture_basic_5": {
+    "title": "提子练习5",
+    "objective": "角上提子",
+    "hint": "白子只剩下(0,2)",
+    "explanation": "在(0,2)落子即可提子。"
+  },
+  "capture_basic_6": {
+    "title": "提子练习6",
+    "objective": "中腹提子",
+    "hint": "最后一口气在(5,7)",
+    "explanation": "在(5,7)落子即可提子。"
+  },
+  "capture_basic_7": {
+    "title": "提子练习7",
+    "objective": "提掉两子",
+    "hint": "最后一口气在(3,5)",
+    "explanation": "占据(3,5)即可提掉两子。"
+  },
+  "atari_corner_2": {
+    "title": "角上打吃2",
+    "objective": "角上打吃",
+    "hint": "先收紧角部",
+    "explanation": "在(1,1)打吃，白棋只剩一口气。"
+  },
+  "atari_side_2": {
+    "title": "边上打吃2",
+    "objective": "边上打吃",
+    "hint": "从外侧打吃",
+    "explanation": "在(5,4)打吃，白子只剩一口气。"
+  },
+  "ladder_basic_2": {
+    "title": "征子练习3",
+    "objective": "用征子追击",
+    "hint": "沿边持续打吃",
+    "explanation": "在(7,2)打吃后，继续追击形成征子。"
+  },
+  "ladder_basic_3": {
+    "title": "征子练习4",
+    "objective": "继续征子",
+    "hint": "保持叫吃方向",
+    "explanation": "在(3,6)打吃，继续沿边追击。"
+  },
+  "net_basic_3": {
+    "title": "网罩练习3",
+    "objective": "网罩封锁",
+    "hint": "封住白子的逃路",
+    "explanation": "在(5,5)落子形成网罩。"
+  },
+  "net_basic_4": {
+    "title": "网罩练习4",
+    "objective": "完成网罩",
+    "hint": "堵住对方出口",
+    "explanation": "在(2,3)落子完成网罩。"
+  },
+  "tesuji_double_atari_1": {
+    "title": "双打手筋",
+    "objective": "双打两块白棋",
+    "hint": "找同时打吃的点",
+    "explanation": "在(5,4)落子可同时打吃两块白子。"
+  },
+  "tesuji_throw_in_1": {
+    "title": "打入手筋",
+    "objective": "打入破眼",
+    "hint": "考虑在眼位打入",
+    "explanation": "在(2,2)打入，削减白棋眼位。"
+  },
+  "tesuji_connect_1": {
+    "title": "连络手筋",
+    "objective": "连接黑棋两块",
+    "hint": "找中间连接点",
+    "explanation": "在(4,3)一手连接，黑棋更安全。"
+  },
+  "tesuji_cut_2": {
+    "title": "分断手筋2",
+    "objective": "切断白棋",
+    "hint": "断点在中间",
+    "explanation": "在(4,5)断开白棋联络。"
+  },
+  "tesuji_eye_2": {
+    "title": "做眼手筋2",
+    "objective": "做出一只眼",
+    "hint": "眼位在(4,4)",
+    "explanation": "在(4,4)补眼，黑棋更容易成活。"
+  },
+  "tesuji_peep_1": {
+    "title": "尖冲手筋",
+    "objective": "尖冲试探",
+    "hint": "在连接点尖冲",
+    "explanation": "在(4,4)尖冲，迫使白棋应对。"
+  },
+  "tesuji_bamboo_joint_1": {
+    "title": "竹节手筋",
+    "objective": "做成竹节连接",
+    "hint": "补在(3,4)",
+    "explanation": "在(3,4)补成竹节，连接更稳。"
+  },
+  "tesuji_hane_1": {
+    "title": "扳手筋",
+    "objective": "扳击攻击",
+    "hint": "在(4,5)扳",
+    "explanation": "在(4,5)扳击，压制白棋。"
+  },
+  "life_death_4": {
+    "title": "死活练习4",
+    "objective": "黑棋求活",
+    "hint": "角上做眼",
+    "explanation": "在(0,0)补眼，黑棋即可成活。"
+  },
+  "life_death_5": {
+    "title": "死活练习5",
+    "objective": "白棋杀黑",
+    "hint": "封住最后眼位",
+    "explanation": "在(1,1)补杀，黑棋无法成活。"
+  },
+  "life_death_6": {
+    "title": "死活练习6",
+    "objective": "白棋求活",
+    "hint": "关键点在(4,4)",
+    "explanation": "在(4,4)做眼，白棋即可成活。"
+  }
+}

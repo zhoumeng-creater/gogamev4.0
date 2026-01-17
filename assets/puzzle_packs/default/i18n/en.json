@@ -1,0 +1,239 @@
+{
+  "capture_basic_1": {
+    "title": "Capture Practice 1",
+    "objective": "Capture the white stone",
+    "hint": "The white stone has only one liberty.",
+    "explanation": "The white stone has one liberty left; occupy it to capture.",
+    "wrong_moves": {
+      "8,10": "This move doesn't capture the white stone.",
+      "10,10": "Still wrong. Look for the last liberty."
+    }
+  },
+  "ladder_basic_1": {
+    "title": "Ladder Practice 1",
+    "objective": "Chase the white stone with a ladder",
+    "hint": "Chase in the correct direction.",
+    "explanation": "Keep atari along the edge to drive the stone into the ladder.",
+    "wrong_moves": {
+      "1,3": "That point is White's reply.",
+      "2,1": "Wrong direction."
+    }
+  },
+  "capture_basic_2": {
+    "title": "Capture Practice 2",
+    "objective": "Capture the central white stone",
+    "hint": "The white stone has one liberty.",
+    "explanation": "Play at (4,5) to capture.",
+    "wrong_moves": {
+      "5,5": "You didn't take the last liberty.",
+      "3,5": "Still one move short of capture."
+    }
+  },
+  "capture_basic_3": {
+    "title": "Capture Practice 3",
+    "objective": "Capture on the side",
+    "hint": "The last liberty is (7,2).",
+    "explanation": "Play at (7,2) to capture.",
+    "wrong_moves": {
+      "6,2": "You didn't close the final liberty."
+    }
+  },
+  "atari_corner_1": {
+    "title": "Corner Atari",
+    "objective": "Atari the corner stone",
+    "hint": "The corner stone has two liberties.",
+    "explanation": "Atari at (1,2) to tighten the net.",
+    "wrong_moves": {
+      "2,1": "Also an atari, but (1,2) is tighter."
+    }
+  },
+  "atari_side_1": {
+    "title": "Side Atari",
+    "objective": "Atari the two stones on the side",
+    "hint": "White still has two liberties.",
+    "explanation": "Play at (5,5) to atari and reduce to one liberty.",
+    "wrong_moves": {
+      "4,3": "Too slow. Atari first."
+    }
+  },
+  "ladder_corner_2": {
+    "title": "Ladder Practice 2",
+    "objective": "Chase along the edge",
+    "hint": "Keep atari along the edge.",
+    "explanation": "Continue the ladder to cut off escape."
+  },
+  "net_basic_1": {
+    "title": "Net Practice 1",
+    "objective": "Net the white stone",
+    "hint": "Block the escape route.",
+    "explanation": "Play at (3,5) to form a net."
+  },
+  "net_basic_2": {
+    "title": "Net Practice 2",
+    "objective": "Seal the escape route",
+    "hint": "Block the upper exit.",
+    "explanation": "Play at (1,7) to complete the net."
+  },
+  "tesuji_cut_1": {
+    "title": "Cut Tesuji",
+    "objective": "Cut White's connection",
+    "hint": "Play at the cutting point.",
+    "explanation": "Cut at (4,5) to split the white stones."
+  },
+  "tesuji_snapback_1": {
+    "title": "Snapback Tesuji",
+    "objective": "Use a snapback to gain initiative",
+    "hint": "Look for a snapback throw-in.",
+    "explanation": "White throws in at (2,2) to set up a snapback."
+  },
+  "life_death_1": {
+    "title": "Life & Death 1",
+    "objective": "Black to live",
+    "hint": "Make an eye.",
+    "explanation": "Play at (0,2) to secure life."
+  },
+  "life_death_2": {
+    "title": "Life & Death 2",
+    "objective": "White to kill",
+    "hint": "Close Black's last eye.",
+    "explanation": "Play at (5,2) to deny life."
+  },
+  "life_death_3": {
+    "title": "Life & Death 3",
+    "objective": "White to live",
+    "hint": "Create a second eye.",
+    "explanation": "Play at (7,7) to secure life."
+  },
+  "tesuji_eye_1": {
+    "title": "Eye-Making Tesuji",
+    "objective": "Make an eye to live",
+    "hint": "Play at the vital point.",
+    "explanation": "Play at (3,3) to form an eye."
+  },
+  "capture_basic_4": {
+    "title": "Capture Practice 4",
+    "objective": "Capture on the edge",
+    "hint": "Take the last edge liberty.",
+    "explanation": "Play at (2,8) to capture."
+  },
+  "capture_basic_5": {
+    "title": "Capture Practice 5",
+    "objective": "Capture in the corner",
+    "hint": "The last liberty is (0,2).",
+    "explanation": "Play at (0,2) to capture."
+  },
+  "capture_basic_6": {
+    "title": "Capture Practice 6",
+    "objective": "Capture in the center",
+    "hint": "The last liberty is (5,7).",
+    "explanation": "Play at (5,7) to capture."
+  },
+  "capture_basic_7": {
+    "title": "Capture Practice 7",
+    "objective": "Capture the two stones",
+    "hint": "The last liberty is (3,5).",
+    "explanation": "Play at (3,5) to capture both stones."
+  },
+  "atari_corner_2": {
+    "title": "Corner Atari 2",
+    "objective": "Atari in the corner",
+    "hint": "Tighten the corner first.",
+    "explanation": "Atari at (1,1) to leave White with one liberty."
+  },
+  "atari_side_2": {
+    "title": "Side Atari 2",
+    "objective": "Atari on the side",
+    "hint": "Atari from the outside.",
+    "explanation": "Play at (5,4) to reduce White to one liberty."
+  },
+  "ladder_basic_2": {
+    "title": "Ladder Practice 3",
+    "objective": "Chase with a ladder",
+    "hint": "Keep atari along the edge.",
+    "explanation": "Atari at (7,2) and keep chasing into a ladder."
+  },
+  "ladder_basic_3": {
+    "title": "Ladder Practice 4",
+    "objective": "Continue the ladder",
+    "hint": "Keep the atari direction.",
+    "explanation": "Atari at (3,6) and keep chasing along the side."
+  },
+  "net_basic_3": {
+    "title": "Net Practice 3",
+    "objective": "Seal with a net",
+    "hint": "Block the escape route.",
+    "explanation": "Play at (5,5) to complete the net."
+  },
+  "net_basic_4": {
+    "title": "Net Practice 4",
+    "objective": "Complete the net",
+    "hint": "Close the escape hatch.",
+    "explanation": "Play at (2,3) to finish the net."
+  },
+  "tesuji_double_atari_1": {
+    "title": "Double Atari Tesuji",
+    "objective": "Atari both groups",
+    "hint": "Look for a point that hits both stones.",
+    "explanation": "Play at (5,4) to atari both white stones."
+  },
+  "tesuji_throw_in_1": {
+    "title": "Throw-in Tesuji",
+    "objective": "Throw in to reduce the eye",
+    "hint": "Throw in at the eye point.",
+    "explanation": "Throw in at (2,2) to reduce White's eye space."
+  },
+  "tesuji_connect_1": {
+    "title": "Connection Tesuji",
+    "objective": "Connect the two black groups",
+    "hint": "Find the connecting point.",
+    "explanation": "Play at (4,3) to connect the groups."
+  },
+  "tesuji_cut_2": {
+    "title": "Cut Tesuji 2",
+    "objective": "Cut White's connection",
+    "hint": "The cut is in the middle.",
+    "explanation": "Cut at (4,5) to split White."
+  },
+  "tesuji_eye_2": {
+    "title": "Eye-Making Tesuji 2",
+    "objective": "Make an eye",
+    "hint": "The eye point is (4,4).",
+    "explanation": "Play at (4,4) to secure an eye."
+  },
+  "tesuji_peep_1": {
+    "title": "Peep Tesuji",
+    "objective": "Peep to probe",
+    "hint": "Peep at the connection point.",
+    "explanation": "Play at (4,4) to force a response."
+  },
+  "tesuji_bamboo_joint_1": {
+    "title": "Bamboo Joint Tesuji",
+    "objective": "Form a bamboo joint connection",
+    "hint": "Play at (3,4).",
+    "explanation": "Play at (3,4) to make a bamboo joint."
+  },
+  "tesuji_hane_1": {
+    "title": "Hane Tesuji",
+    "objective": "Hane to attack",
+    "hint": "Hane at (4,5).",
+    "explanation": "Play at (4,5) to hane and attack."
+  },
+  "life_death_4": {
+    "title": "Life & Death 4",
+    "objective": "Black to live",
+    "hint": "Make an eye in the corner.",
+    "explanation": "Play at (0,0) to secure life."
+  },
+  "life_death_5": {
+    "title": "Life & Death 5",
+    "objective": "White to kill",
+    "hint": "Close the last eye.",
+    "explanation": "Play at (1,1) to kill Black."
+  },
+  "life_death_6": {
+    "title": "Life & Death 6",
+    "objective": "White to live",
+    "hint": "The vital point is (4,4).",
+    "explanation": "Play at (4,4) to make an eye and live."
+  }
+}

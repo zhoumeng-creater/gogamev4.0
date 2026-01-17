@@ -1,0 +1,1651 @@
+[
+  {
+    "id": "atari_corner_1",
+    "difficulty": 2,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 1,
+        "y": 1,
+        "color": "white"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "color": "black"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 1,
+        "y": 2
+      }
+    ],
+    "wrong_moves": {
+      "2,1": "这一手也能打吃，但更紧的点在(1,2)"
+    },
+    "tags": [
+      "tactical",
+      "atari"
+    ]
+  },
+  {
+    "id": "atari_corner_2",
+    "difficulty": 2,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 0,
+        "y": 1,
+        "color": "white"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "color": "white"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "color": "black"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 1,
+        "y": 1
+      }
+    ],
+    "tags": [
+      "tactical",
+      "atari"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "atari_side_1",
+    "difficulty": 2,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 4,
+        "y": 4,
+        "color": "white"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "color": "white"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "color": "black"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 6,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 5,
+        "y": 5
+      }
+    ],
+    "wrong_moves": {
+      "4,3": "太慢，先打吃更紧"
+    },
+    "tags": [
+      "tactical",
+      "atari"
+    ]
+  },
+  {
+    "id": "atari_side_2",
+    "difficulty": 2,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 4,
+        "y": 3,
+        "color": "white"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "color": "white"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "color": "black"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 5,
+        "y": 4
+      }
+    ],
+    "tags": [
+      "tactical",
+      "atari"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "capture_basic_1",
+    "difficulty": 1,
+    "board_size": 19,
+    "stones": [
+      {
+        "x": 9,
+        "y": 9,
+        "color": "white"
+      },
+      {
+        "x": 8,
+        "y": 9,
+        "color": "black"
+      },
+      {
+        "x": 9,
+        "y": 8,
+        "color": "black"
+      },
+      {
+        "x": 10,
+        "y": 9,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 9,
+        "y": 10
+      }
+    ],
+    "wrong_moves": {
+      "8,10": "这里不能直接吃掉白子",
+      "10,10": "这里也不对，想想白子的气在哪里"
+    },
+    "tags": [
+      "tactical",
+      "capture"
+    ]
+  },
+  {
+    "id": "capture_basic_2",
+    "difficulty": 1,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 4,
+        "y": 4,
+        "color": "white"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "color": "black"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 4,
+        "y": 5
+      }
+    ],
+    "wrong_moves": {
+      "5,5": "没有占到最后一口气",
+      "3,5": "还差一步才能提子"
+    },
+    "tags": [
+      "tactical",
+      "capture"
+    ]
+  },
+  {
+    "id": "capture_basic_3",
+    "difficulty": 1,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 7,
+        "y": 1,
+        "color": "white"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "color": "black"
+      },
+      {
+        "x": 8,
+        "y": 1,
+        "color": "black"
+      },
+      {
+        "x": 7,
+        "y": 0,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 7,
+        "y": 2
+      }
+    ],
+    "wrong_moves": {
+      "6,2": "没有封住最后一口气"
+    },
+    "tags": [
+      "tactical",
+      "capture"
+    ]
+  },
+  {
+    "id": "capture_basic_4",
+    "difficulty": 1,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 2,
+        "y": 7,
+        "color": "white"
+      },
+      {
+        "x": 1,
+        "y": 7,
+        "color": "black"
+      },
+      {
+        "x": 2,
+        "y": 6,
+        "color": "black"
+      },
+      {
+        "x": 3,
+        "y": 7,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 2,
+        "y": 8
+      }
+    ],
+    "tags": [
+      "tactical",
+      "capture"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "capture_basic_5",
+    "difficulty": 1,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 0,
+        "y": 1,
+        "color": "white"
+      },
+      {
+        "x": 0,
+        "y": 0,
+        "color": "black"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 0,
+        "y": 2
+      }
+    ],
+    "tags": [
+      "tactical",
+      "capture"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "capture_basic_6",
+    "difficulty": 1,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 5,
+        "y": 6,
+        "color": "white"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 6,
+        "color": "black"
+      },
+      {
+        "x": 6,
+        "y": 6,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 5,
+        "y": 7
+      }
+    ],
+    "tags": [
+      "tactical",
+      "capture"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "capture_basic_7",
+    "difficulty": 2,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 2,
+        "y": 4,
+        "color": "white"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "color": "white"
+      },
+      {
+        "x": 1,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 1,
+        "y": 5,
+        "color": "black"
+      },
+      {
+        "x": 2,
+        "y": 3,
+        "color": "black"
+      },
+      {
+        "x": 2,
+        "y": 6,
+        "color": "black"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 3,
+        "y": 5
+      }
+    ],
+    "tags": [
+      "tactical",
+      "capture"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "ladder_basic_1",
+    "difficulty": 2,
+    "board_size": 19,
+    "stones": [
+      {
+        "x": 1,
+        "y": 2,
+        "color": "white"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "color": "black"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 2,
+        "y": 2
+      },
+      {
+        "x": 1,
+        "y": 3
+      },
+      {
+        "x": 2,
+        "y": 3
+      }
+    ],
+    "wrong_moves": {
+      "1,3": "这是白棋的应对点",
+      "2,1": "方向不对"
+    },
+    "tags": [
+      "tactical",
+      "ladder"
+    ]
+  },
+  {
+    "id": "ladder_basic_2",
+    "difficulty": 3,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 6,
+        "y": 2,
+        "color": "white"
+      },
+      {
+        "x": 5,
+        "y": 2,
+        "color": "black"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 7,
+        "y": 2
+      },
+      {
+        "x": 6,
+        "y": 3
+      },
+      {
+        "x": 7,
+        "y": 3
+      }
+    ],
+    "tags": [
+      "tactical",
+      "ladder"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "ladder_basic_3",
+    "difficulty": 3,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 2,
+        "y": 6,
+        "color": "white"
+      },
+      {
+        "x": 1,
+        "y": 6,
+        "color": "black"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 3,
+        "y": 6
+      },
+      {
+        "x": 2,
+        "y": 7
+      },
+      {
+        "x": 3,
+        "y": 7
+      }
+    ],
+    "tags": [
+      "tactical",
+      "ladder"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "ladder_corner_2",
+    "difficulty": 3,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 2,
+        "y": 2,
+        "color": "white"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "color": "black"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 3,
+        "y": 2
+      },
+      {
+        "x": 2,
+        "y": 3
+      },
+      {
+        "x": 3,
+        "y": 3
+      }
+    ],
+    "tags": [
+      "tactical",
+      "ladder"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "life_death_1",
+    "difficulty": 2,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 1,
+        "y": 1,
+        "color": "black"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "color": "black"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "color": "white"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "color": "white"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "color": "white"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 0,
+        "y": 2
+      }
+    ],
+    "tags": [
+      "life_death"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "life_death_2",
+    "difficulty": 3,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 4,
+        "y": 1,
+        "color": "black"
+      },
+      {
+        "x": 5,
+        "y": 1,
+        "color": "black"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "color": "white"
+      },
+      {
+        "x": 4,
+        "y": 0,
+        "color": "white"
+      },
+      {
+        "x": 5,
+        "y": 0,
+        "color": "white"
+      },
+      {
+        "x": 6,
+        "y": 1,
+        "color": "white"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "color": "white"
+      }
+    ],
+    "player_color": "white",
+    "solution": [
+      {
+        "x": 5,
+        "y": 2
+      }
+    ],
+    "tags": [
+      "life_death"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "life_death_3",
+    "difficulty": 4,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 6,
+        "y": 6,
+        "color": "white"
+      },
+      {
+        "x": 6,
+        "y": 7,
+        "color": "white"
+      },
+      {
+        "x": 5,
+        "y": 6,
+        "color": "black"
+      },
+      {
+        "x": 5,
+        "y": 7,
+        "color": "black"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "color": "black"
+      },
+      {
+        "x": 7,
+        "y": 6,
+        "color": "black"
+      }
+    ],
+    "player_color": "white",
+    "solution": [
+      {
+        "x": 7,
+        "y": 7
+      }
+    ],
+    "tags": [
+      "life_death"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "life_death_4",
+    "difficulty": 3,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 0,
+        "y": 1,
+        "color": "black"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "color": "black"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "color": "black"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "color": "white"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "color": "white"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "color": "white"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "color": "white"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 0,
+        "y": 0
+      }
+    ],
+    "tags": [
+      "life_death"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "life_death_5",
+    "difficulty": 4,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 0,
+        "y": 0,
+        "color": "black"
+      },
+      {
+        "x": 1,
+        "y": 0,
+        "color": "black"
+      },
+      {
+        "x": 0,
+        "y": 1,
+        "color": "black"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "color": "white"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "color": "white"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "color": "white"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "color": "white"
+      }
+    ],
+    "player_color": "white",
+    "solution": [
+      {
+        "x": 1,
+        "y": 1
+      }
+    ],
+    "tags": [
+      "life_death"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "life_death_6",
+    "difficulty": 4,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 3,
+        "y": 3,
+        "color": "white"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "color": "white"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "color": "white"
+      },
+      {
+        "x": 2,
+        "y": 3,
+        "color": "black"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "color": "black"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "color": "black"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "color": "black"
+      }
+    ],
+    "player_color": "white",
+    "solution": [
+      {
+        "x": 4,
+        "y": 4
+      }
+    ],
+    "tags": [
+      "life_death"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "net_basic_1",
+    "difficulty": 3,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 4,
+        "y": 4,
+        "color": "white"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "color": "black"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 3,
+        "y": 5
+      }
+    ],
+    "tags": [
+      "tactical",
+      "net"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "net_basic_2",
+    "difficulty": 3,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 2,
+        "y": 6,
+        "color": "white"
+      },
+      {
+        "x": 1,
+        "y": 6,
+        "color": "black"
+      },
+      {
+        "x": 3,
+        "y": 6,
+        "color": "black"
+      },
+      {
+        "x": 2,
+        "y": 5,
+        "color": "black"
+      },
+      {
+        "x": 3,
+        "y": 7,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 1,
+        "y": 7
+      }
+    ],
+    "tags": [
+      "tactical",
+      "net"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "net_basic_3",
+    "difficulty": 3,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 6,
+        "y": 4,
+        "color": "white"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "color": "black"
+      },
+      {
+        "x": 7,
+        "y": 5,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 5,
+        "y": 5
+      }
+    ],
+    "tags": [
+      "tactical",
+      "net"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "net_basic_4",
+    "difficulty": 3,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 3,
+        "y": 2,
+        "color": "white"
+      },
+      {
+        "x": 2,
+        "y": 2,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "color": "black"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 2,
+        "y": 3
+      }
+    ],
+    "tags": [
+      "tactical",
+      "net"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "tesuji_bamboo_joint_1",
+    "difficulty": 2,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 3,
+        "y": 3,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "color": "white"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "color": "white"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 3,
+        "y": 4
+      }
+    ],
+    "tags": [
+      "tesuji"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "tesuji_connect_1",
+    "difficulty": 3,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 3,
+        "y": 3,
+        "color": "black"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "color": "white"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "color": "white"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 4,
+        "y": 3
+      }
+    ],
+    "tags": [
+      "tesuji"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "tesuji_cut_1",
+    "difficulty": 3,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 4,
+        "y": 4,
+        "color": "white"
+      },
+      {
+        "x": 4,
+        "y": 6,
+        "color": "white"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "color": "black"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 4,
+        "y": 5
+      }
+    ],
+    "tags": [
+      "tesuji"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "tesuji_cut_2",
+    "difficulty": 3,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 4,
+        "y": 4,
+        "color": "white"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "color": "white"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "color": "black"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "color": "black"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 4,
+        "y": 5
+      }
+    ],
+    "tags": [
+      "tesuji"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "tesuji_double_atari_1",
+    "difficulty": 4,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 4,
+        "y": 4,
+        "color": "white"
+      },
+      {
+        "x": 6,
+        "y": 4,
+        "color": "white"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "color": "black"
+      },
+      {
+        "x": 7,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 6,
+        "y": 3,
+        "color": "black"
+      },
+      {
+        "x": 6,
+        "y": 5,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 5,
+        "y": 4
+      }
+    ],
+    "tags": [
+      "tesuji"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "tesuji_eye_1",
+    "difficulty": 2,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 2,
+        "y": 2,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "color": "black"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "color": "white"
+      },
+      {
+        "x": 2,
+        "y": 3,
+        "color": "white"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 3,
+        "y": 3
+      }
+    ],
+    "tags": [
+      "tesuji"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "tesuji_eye_2",
+    "difficulty": 3,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 3,
+        "y": 3,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "color": "black"
+      },
+      {
+        "x": 5,
+        "y": 3,
+        "color": "black"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 3,
+        "y": 5,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "color": "black"
+      },
+      {
+        "x": 5,
+        "y": 5,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 4,
+        "y": 4
+      }
+    ],
+    "tags": [
+      "tesuji"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "tesuji_hane_1",
+    "difficulty": 2,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 4,
+        "y": 4,
+        "color": "white"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 3,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 4,
+        "y": 5
+      }
+    ],
+    "tags": [
+      "tesuji"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "tesuji_peep_1",
+    "difficulty": 3,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 4,
+        "y": 3,
+        "color": "white"
+      },
+      {
+        "x": 4,
+        "y": 5,
+        "color": "white"
+      },
+      {
+        "x": 3,
+        "y": 4,
+        "color": "black"
+      },
+      {
+        "x": 5,
+        "y": 4,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 4,
+        "y": 4
+      }
+    ],
+    "tags": [
+      "tesuji"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "tesuji_snapback_1",
+    "difficulty": 4,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 2,
+        "y": 1,
+        "color": "black"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "color": "black"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "color": "black"
+      },
+      {
+        "x": 1,
+        "y": 1,
+        "color": "white"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "color": "white"
+      }
+    ],
+    "player_color": "white",
+    "solution": [
+      {
+        "x": 2,
+        "y": 2
+      }
+    ],
+    "tags": [
+      "tesuji"
+    ],
+    "wrong_moves": {}
+  },
+  {
+    "id": "tesuji_throw_in_1",
+    "difficulty": 4,
+    "board_size": 9,
+    "stones": [
+      {
+        "x": 1,
+        "y": 1,
+        "color": "white"
+      },
+      {
+        "x": 1,
+        "y": 2,
+        "color": "white"
+      },
+      {
+        "x": 1,
+        "y": 3,
+        "color": "white"
+      },
+      {
+        "x": 2,
+        "y": 1,
+        "color": "white"
+      },
+      {
+        "x": 2,
+        "y": 3,
+        "color": "white"
+      },
+      {
+        "x": 3,
+        "y": 1,
+        "color": "white"
+      },
+      {
+        "x": 3,
+        "y": 2,
+        "color": "white"
+      },
+      {
+        "x": 3,
+        "y": 3,
+        "color": "white"
+      },
+      {
+        "x": 0,
+        "y": 2,
+        "color": "black"
+      },
+      {
+        "x": 4,
+        "y": 2,
+        "color": "black"
+      },
+      {
+        "x": 2,
+        "y": 0,
+        "color": "black"
+      },
+      {
+        "x": 2,
+        "y": 4,
+        "color": "black"
+      }
+    ],
+    "player_color": "black",
+    "solution": [
+      {
+        "x": 2,
+        "y": 2
+      }
+    ],
+    "tags": [
+      "tesuji"
+    ],
+    "wrong_moves": {}
+  }
+]

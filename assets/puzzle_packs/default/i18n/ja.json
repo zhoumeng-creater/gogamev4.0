@@ -1,0 +1,239 @@
+{
+  "capture_basic_1": {
+    "title": "取りの練習1",
+    "objective": "白石を取る",
+    "hint": "白石は一口気。",
+    "explanation": "白石は最後の一口気だけ。そこに打てば取れます。",
+    "wrong_moves": {
+      "8,10": "この手では白石は取れません。",
+      "10,10": "まだ違います。一口気を考えてください。"
+    }
+  },
+  "ladder_basic_1": {
+    "title": "シチョウ練習1",
+    "objective": "シチョウで白石を追う",
+    "hint": "正しい方向に追う",
+    "explanation": "辺に沿って追い込み、逃げ道をなくします。",
+    "wrong_moves": {
+      "1,3": "そこは白の応手です。",
+      "2,1": "方向が違います。"
+    }
+  },
+  "capture_basic_2": {
+    "title": "取りの練習2",
+    "objective": "中央の白石を取る",
+    "hint": "白石は一口気。",
+    "explanation": "(4,5)に打てば取れます。",
+    "wrong_moves": {
+      "5,5": "最後の一口気を取れていません。",
+      "3,5": "あと一手必要です。"
+    }
+  },
+  "capture_basic_3": {
+    "title": "取りの練習3",
+    "objective": "辺で取る",
+    "hint": "最後の一口気は(7,2)。",
+    "explanation": "(7,2)に打てば取れます。",
+    "wrong_moves": {
+      "6,2": "最後の一口気を塞いでいません。"
+    }
+  },
+  "atari_corner_1": {
+    "title": "隅のアタリ",
+    "objective": "隅の白石にアタリ",
+    "hint": "隅の白石は二口気。",
+    "explanation": "(1,2)でアタリし、より厳しく締めます。",
+    "wrong_moves": {
+      "2,1": "そこもアタリですが、(1,2)の方が厳しいです。"
+    }
+  },
+  "atari_side_1": {
+    "title": "辺のアタリ",
+    "objective": "辺の二子にアタリ",
+    "hint": "白石はまだ二口気。",
+    "explanation": "(5,5)でアタリして一口気にします。",
+    "wrong_moves": {
+      "4,3": "遅すぎます。まずアタリをかけましょう。"
+    }
+  },
+  "ladder_corner_2": {
+    "title": "シチョウ練習2",
+    "objective": "辺に沿って追う",
+    "hint": "辺に沿ってアタリを続ける",
+    "explanation": "連続して追い込み、逃げ道をなくします。"
+  },
+  "net_basic_1": {
+    "title": "ゲタ練習1",
+    "objective": "白石をゲタにする",
+    "hint": "逃げ道を塞ぐ",
+    "explanation": "(3,5)でゲタを作ります。"
+  },
+  "net_basic_2": {
+    "title": "ゲタ練習2",
+    "objective": "逃げ道を塞ぐ",
+    "hint": "上側の出口を塞ぐ",
+    "explanation": "(1,7)でゲタを完成させます。"
+  },
+  "tesuji_cut_1": {
+    "title": "切断手筋",
+    "objective": "白の連絡を切る",
+    "hint": "切りの急所を探す",
+    "explanation": "(4,5)で連絡を切り、分断します。"
+  },
+  "tesuji_snapback_1": {
+    "title": "ウッテガエシ手筋",
+    "objective": "倒れ返しで先手を取る",
+    "hint": "倒れ返しを狙う",
+    "explanation": "白は(2,2)に打って倒れ返しを狙います。"
+  },
+  "life_death_1": {
+    "title": "死活練習1",
+    "objective": "黒を生かす",
+    "hint": "目を作る",
+    "explanation": "(0,2)に打って生きを確保します。"
+  },
+  "life_death_2": {
+    "title": "死活練習2",
+    "objective": "白が殺す",
+    "hint": "黒の最後の目を塞ぐ",
+    "explanation": "(5,2)で黒の生きを断ちます。"
+  },
+  "life_death_3": {
+    "title": "死活練習3",
+    "objective": "白を生かす",
+    "hint": "二つ目の目を作る",
+    "explanation": "(7,7)に打って生きを確保します。"
+  },
+  "tesuji_eye_1": {
+    "title": "眼づくり手筋",
+    "objective": "目を作って生きる",
+    "hint": "急所に打つ",
+    "explanation": "(3,3)で目を作ります。"
+  },
+  "capture_basic_4": {
+    "title": "取りの練習4",
+    "objective": "辺で取る",
+    "hint": "辺の最後の一口気を取る",
+    "explanation": "(2,8)に打てば取れます。"
+  },
+  "capture_basic_5": {
+    "title": "取りの練習5",
+    "objective": "隅で取る",
+    "hint": "最後の一口気は(0,2)。",
+    "explanation": "(0,2)に打てば取れます。"
+  },
+  "capture_basic_6": {
+    "title": "取りの練習6",
+    "objective": "中央で取る",
+    "hint": "最後の一口気は(5,7)。",
+    "explanation": "(5,7)に打てば取れます。"
+  },
+  "capture_basic_7": {
+    "title": "取りの練習7",
+    "objective": "二子を取る",
+    "hint": "最後の一口気は(3,5)。",
+    "explanation": "(3,5)に打てば二子を取れます。"
+  },
+  "atari_corner_2": {
+    "title": "隅のアタリ2",
+    "objective": "隅でアタリ",
+    "hint": "隅を締める",
+    "explanation": "(1,1)でアタリして一口気にします。"
+  },
+  "atari_side_2": {
+    "title": "辺のアタリ2",
+    "objective": "辺でアタリ",
+    "hint": "外側からアタリ",
+    "explanation": "(5,4)でアタリして一口気にします。"
+  },
+  "ladder_basic_2": {
+    "title": "シチョウ練習3",
+    "objective": "シチョウで追う",
+    "hint": "辺に沿ってアタリを続ける",
+    "explanation": "(7,2)からアタリしてシチョウに持ち込みます。"
+  },
+  "ladder_basic_3": {
+    "title": "シチョウ練習4",
+    "objective": "シチョウを続ける",
+    "hint": "アタリの方向を維持",
+    "explanation": "(3,6)でアタリして追撃します。"
+  },
+  "net_basic_3": {
+    "title": "ゲタ練習3",
+    "objective": "ゲタで封じる",
+    "hint": "逃げ道を塞ぐ",
+    "explanation": "(5,5)でゲタを完成させます。"
+  },
+  "net_basic_4": {
+    "title": "ゲタ練習4",
+    "objective": "ゲタを完成",
+    "hint": "出口を塞ぐ",
+    "explanation": "(2,3)でゲタを完成させます。"
+  },
+  "tesuji_double_atari_1": {
+    "title": "両アタリ手筋",
+    "objective": "二つの白石にアタリ",
+    "hint": "同時にアタリする急所",
+    "explanation": "(5,4)で両アタリになります。"
+  },
+  "tesuji_throw_in_1": {
+    "title": "打ち込み手筋",
+    "objective": "目を減らす打ち込み",
+    "hint": "目の急所に打ち込む",
+    "explanation": "(2,2)に打ち込み目を減らします。"
+  },
+  "tesuji_connect_1": {
+    "title": "連絡手筋",
+    "objective": "黒をつなぐ",
+    "hint": "連絡点を探す",
+    "explanation": "(4,3)で連絡して安全にします。"
+  },
+  "tesuji_cut_2": {
+    "title": "切断手筋2",
+    "objective": "白の連絡を切る",
+    "hint": "切りの急所は中央",
+    "explanation": "(4,5)で連絡を切ります。"
+  },
+  "tesuji_eye_2": {
+    "title": "眼づくり手筋2",
+    "objective": "目を作る",
+    "hint": "眼の急所は(4,4)",
+    "explanation": "(4,4)に打って目を作ります。"
+  },
+  "tesuji_peep_1": {
+    "title": "ノゾキ手筋",
+    "objective": "ノゾキで揺さぶる",
+    "hint": "連絡点をノゾく",
+    "explanation": "(4,4)でノゾキを打って応手を迫ります。"
+  },
+  "tesuji_bamboo_joint_1": {
+    "title": "竹節手筋",
+    "objective": "竹節で連絡",
+    "hint": "(3,4)に補う",
+    "explanation": "(3,4)に打って竹節を作ります。"
+  },
+  "tesuji_hane_1": {
+    "title": "ハネ手筋",
+    "objective": "ハネで攻める",
+    "hint": "(4,5)にハネ",
+    "explanation": "(4,5)にハネて攻めます。"
+  },
+  "life_death_4": {
+    "title": "死活練習4",
+    "objective": "黒を生かす",
+    "hint": "隅で目を作る",
+    "explanation": "(0,0)に打って生きを確保します。"
+  },
+  "life_death_5": {
+    "title": "死活練習5",
+    "objective": "白が殺す",
+    "hint": "最後の目を塞ぐ",
+    "explanation": "(1,1)で黒を殺します。"
+  },
+  "life_death_6": {
+    "title": "死活練習6",
+    "objective": "白を生かす",
+    "hint": "急所は(4,4)",
+    "explanation": "(4,4)で目を作り生きを確保します。"
+  }
+}
