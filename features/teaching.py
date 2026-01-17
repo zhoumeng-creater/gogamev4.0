@@ -16,6 +16,7 @@ import sqlite3
 from pathlib import Path
 
 from utils.content_db import ContentDatabase, get_content_db
+from utils.user_db import get_user_db
 
 # 导入核心模块
 from core import Board, Rules, MoveResult
@@ -1328,10 +1329,18 @@ class PuzzleDatabase:
 class TeachingSystem:
     """教学系统"""
     
-    def __init__(self, translator=None, content_db: Optional[ContentDatabase] = None):
+    def __init__(
+        self,
+        translator=None,
+        content_db: Optional[ContentDatabase] = None,
+        user_db=None,
+        user_id: str = "default",
+    ):
         # translator 目前仅作占位，便于未来本地化提示
         self.translator = translator
         self.content_db = content_db or get_content_db()
+        self.user_db = user_db or get_user_db()
+        self.user_id = user_id or "default"
         self._content_language = (
             getattr(translator, 'language', None) if translator else None
         ) or 'zh'
@@ -1349,6 +1358,7 @@ class TeachingSystem:
         
         self._load_lessons()
         self._load_puzzles()
+        self._load_user_progress()
     
     def _load_lessons(self):
         """加载课程"""
@@ -1366,6 +1376,25 @@ class TeachingSystem:
         # 战术课程
         self.lessons['tactics_ladder'] = self._create_ladder_lesson()
         self.lessons['tactics_net'] = self._create_net_lesson()
+
+    def _load_user_progress(self) -> None:
+        if not self.user_db:
+            return
+        try:
+            summary = self.user_db.get_user_summary(self.user_id)
+            completed_lessons = self.user_db.list_completed_lessons(self.user_id)
+            completed_puzzles = self.user_db.list_completed_puzzles(self.user_id)
+        except Exception:
+            return
+
+        self.user_progress['completed_lessons'] = completed_lessons
+        self.user_progress['completed_puzzles'] = completed_puzzles
+        self.user_progress['current_lesson'] = summary.get('current_lesson')
+        self.user_progress['total_score'] = int(summary.get('total_score') or 0)
+
+        for lesson_id in completed_lessons:
+            steps = self.user_db.list_lesson_steps(self.user_id, lesson_id)
+            self.user_progress[lesson_id] = {'completed_steps': set(steps)}
 
     def _load_lessons_from_content(self) -> bool:
         if not self.content_db:
@@ -1788,6 +1817,15 @@ class TeachingSystem:
                 return False
         
         self.user_progress['current_lesson'] = lesson_id
+        if self.user_db:
+            try:
+                self.user_db.set_user_summary(
+                    self.user_id,
+                    self.user_progress.get('total_score', 0),
+                    lesson_id,
+                )
+            except Exception:
+                pass
         return True
     
     def complete_lesson_step(self, lesson_id: str, step: int):
@@ -1796,6 +1834,11 @@ class TeachingSystem:
             self.user_progress[lesson_id] = {'completed_steps': set()}
         
         self.user_progress[lesson_id]['completed_steps'].add(step)
+        if self.user_db:
+            try:
+                self.user_db.record_lesson_step(self.user_id, lesson_id, step)
+            except Exception:
+                pass
         
         # 检查是否完成整个课程
         lesson = self.get_lesson(lesson_id)
@@ -1809,6 +1852,16 @@ class TeachingSystem:
         if lesson_id not in self.user_progress['completed_lessons']:
             self.user_progress['completed_lessons'].append(lesson_id)
             self.user_progress['total_score'] += 100
+            if self.user_db:
+                try:
+                    self.user_db.record_lesson_completed(self.user_id, lesson_id, score=100)
+                    self.user_db.set_user_summary(
+                        self.user_id,
+                        self.user_progress['total_score'],
+                        self.user_progress.get('current_lesson'),
+                    )
+                except Exception:
+                    pass
     
     def check_puzzle_solution(self, puzzle_id: str, x: int, y: int) -> Tuple[bool, str]:
         """检查棋题答案"""
@@ -1817,14 +1870,47 @@ class TeachingSystem:
             return False, "棋题不存在"
 
         correct, feedback = puzzle.check_move(x, y)
+        if self.user_db:
+            try:
+                self.user_db.record_puzzle_attempt(
+                    self.user_id,
+                    puzzle_id,
+                    success=correct,
+                    time_spent=0,
+                    hints_used=0,
+                )
+            except Exception:
+                pass
         if not correct:
             localized = self.get_puzzle_wrong_move_message(puzzle, x, y)
             if localized:
                 feedback = localized
+        else:
+            if puzzle_id not in self.user_progress['completed_puzzles']:
+                self.user_progress['completed_puzzles'].append(puzzle_id)
+            if self.user_db:
+                try:
+                    self.user_db.mark_puzzle_completed(self.user_id, puzzle_id)
+                except Exception:
+                    pass
         return correct, feedback
     
     def get_user_statistics(self) -> Dict[str, Any]:
         """获取用户统计"""
+        if self.user_db:
+            try:
+                summary = self.user_db.get_user_summary(self.user_id)
+                self.user_progress['total_score'] = int(summary.get('total_score') or 0)
+                self.user_progress['current_lesson'] = summary.get('current_lesson')
+                self.user_progress['completed_lessons'] = self.user_db.list_completed_lessons(
+                    self.user_id
+                )
+                self.user_progress['completed_puzzles'] = self.user_db.list_completed_puzzles(
+                    self.user_id
+                )
+            except Exception:
+                pass
+
         total_lessons = len(self.lessons)
         completed_lessons = len(self.user_progress['completed_lessons'])
         
@@ -2095,6 +2181,22 @@ class TacticalPuzzles(tk.Frame):
             return False, "请先选择题目"
         
         correct, feedback = self.current_puzzle.check_move(x, y)
+        if getattr(self.teaching_system, "user_db", None):
+            try:
+                self.teaching_system.user_db.record_puzzle_attempt(
+                    self.teaching_system.user_id,
+                    self.current_puzzle.id,
+                    success=correct,
+                    time_spent=0,
+                    hints_used=0,
+                )
+                if correct:
+                    self.teaching_system.user_db.mark_puzzle_completed(
+                        self.teaching_system.user_id,
+                        self.current_puzzle.id,
+                    )
+            except Exception:
+                pass
         if not correct:
             localized = self.teaching_system.get_puzzle_wrong_move_message(
                 self.current_puzzle, x, y

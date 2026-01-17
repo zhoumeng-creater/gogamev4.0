@@ -9,6 +9,7 @@ from .sgf import SGFParser, SGFGame
 from .timer import Timer, TimeControl, TimeSystem, TimeSettings
 from .translator import Translator, get_translator, set_global_language, t
 from .content_db import ContentDatabase, get_content_db
+from .user_db import UserDatabase, get_user_db
 from .storage import StorageManager, GameSave, CloudStorage
 from .statistics import Statistics, GameStats, PlayerStats
 
@@ -49,6 +50,7 @@ __all__ = [
     # 翻译系统
     'Translator', 'get_translator', 'set_global_language', 't',
     'ContentDatabase', 'get_content_db',
+    'UserDatabase', 'get_user_db',
     
     # 存储管理
     'StorageManager', 'GameSave', 'CloudStorage',

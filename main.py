@@ -47,7 +47,7 @@ from utils import (
     ConfigManager, SoundManager, SGFParser, Timer,
     Statistics, StorageManager, TimeControl,
     resource_path, GameConfig, TimeSettings, GameStats,
-    get_content_db
+    get_content_db, get_user_db
 )
 
 
@@ -114,6 +114,9 @@ class GoMasterApp:
 
         # 内容数据库
         self.content_db = get_content_db()
+
+        # 用户数据库
+        self.user_db = get_user_db()
         
         # 翻译系统
         self.translator = Translator(config.language)
@@ -122,7 +125,7 @@ class GoMasterApp:
         self.sound_manager = SoundManager(self.config_manager)
         
         # 统计系统
-        self.statistics = Statistics()
+        self.statistics = Statistics(user_db=self.user_db)
         
         # 存储管理
         self.storage_manager = StorageManager(self.config_manager)
@@ -1959,6 +1962,7 @@ class GoMasterApp:
             self.teaching_system = TeachingSystem(
                 self.translator,
                 content_db=self.content_db,
+                user_db=self.user_db,
             )
 
         theme = self.theme_manager.get_current_theme()
@@ -2001,6 +2005,7 @@ class GoMasterApp:
             self.teaching_system = TeachingSystem(
                 self.translator,
                 content_db=self.content_db,
+                user_db=self.user_db,
             )
         
         TutorialDialog(

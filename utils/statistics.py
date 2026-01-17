@@ -11,6 +11,7 @@ from dataclasses import dataclass, asdict, field
 from collections import defaultdict
 import statistics as stats
 from .content_db import get_content_db
+from .user_db import get_user_db
 
 
 @dataclass
@@ -172,7 +173,7 @@ class Statistics:
         'dedication': '勤奋玩家',
     }
     
-    def __init__(self, data_file: str = "statistics.json"):
+    def __init__(self, data_file: str = "statistics.json", user_db=None):
         """
         初始化统计管理器
         
@@ -181,6 +182,7 @@ class Statistics:
         """
         from . import resource_path
         self.data_file = resource_path(os.path.join("assets", "data", data_file))
+        self.user_db = user_db or get_user_db()
         
         # 统计数据
         self.game_history: List[GameStats] = []
@@ -236,6 +238,9 @@ class Statistics:
     
     def load_statistics(self) -> bool:
         """加载统计数据"""
+        if self._load_from_user_db():
+            return True
+
         if not os.path.exists(self.data_file):
             return False
         
@@ -257,6 +262,8 @@ class Statistics:
                 # 修复 defaultdict 丢失问题（避免 record_game 出现 KeyError）
                 self._normalize_global_stats()
                 
+            # 迁移到用户库
+            self._persist_to_user_db()
             return True
             
         except Exception as e:
@@ -266,22 +273,8 @@ class Statistics:
     def save_statistics(self) -> bool:
         """保存统计数据"""
         try:
-            # 准备数据
-            data = {
-                'game_history': [asdict(game) for game in self.game_history[-1000:]],  # 只保留最近1000局
-                'player_stats': {name: asdict(stats) for name, stats in self.player_stats.items()},
-                'global_stats': self.global_stats
-            }
-            
-            # 创建目录
-            os.makedirs(os.path.dirname(self.data_file) or '.', exist_ok=True)
-            
-            # 保存文件
-            with open(self.data_file, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)
-            
+            self._persist_to_user_db()
             return True
-            
         except Exception as e:
             print(f"保存统计数据失败: {e}")
             return False
@@ -320,6 +313,40 @@ class Statistics:
         
         # 保存数据
         self.save_statistics()
+
+    def _load_from_user_db(self) -> bool:
+        if not self.user_db:
+            return False
+        try:
+            if not self.user_db.has_statistics():
+                return False
+            allowed = GameStats.__dataclass_fields__.keys()
+            self.game_history = []
+            for row in self.user_db.list_game_stats():
+                payload = {k: v for k, v in row.items() if k in allowed}
+                self.game_history.append(GameStats(**payload))
+            self.player_stats = {}
+            for name, payload in self.user_db.list_player_stats().items():
+                self.player_stats[name] = PlayerStats(**payload)
+            global_stats = self.user_db.get_global_stats()
+            if global_stats:
+                self.global_stats.update(global_stats)
+            self._normalize_global_stats()
+            return True
+        except Exception:
+            return False
+
+    def _persist_to_user_db(self) -> None:
+        if not self.user_db:
+            return
+        # game history
+        for game in self.game_history[-1000:]:
+            self.user_db.upsert_game_stats(asdict(game))
+        # player stats
+        for name, stats in self.player_stats.items():
+            self.user_db.upsert_player_stats(name, asdict(stats))
+        # global stats
+        self.user_db.upsert_global_stats(self.global_stats)
 
     def record_game_start(self, settings: Dict[str, Any]) -> None:
         """

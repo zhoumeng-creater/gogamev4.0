@@ -742,6 +742,17 @@ class ProblemLibraryWindow(tk.Toplevel):
             self.status_var.set(
                 feedback or self.translator.get("problem_status_incorrect")
             )
+            if getattr(self.teaching_system, "user_db", None):
+                try:
+                    self.teaching_system.user_db.record_puzzle_attempt(
+                        self.teaching_system.user_id,
+                        puzzle.id,
+                        success=False,
+                        time_spent=0,
+                        hints_used=0,
+                    )
+                except Exception:
+                    pass
             return
 
         self.board_canvas.place_stone(x, y, puzzle.player_color, animate=False)
@@ -752,6 +763,21 @@ class ProblemLibraryWindow(tk.Toplevel):
         if self._solution_index >= len(sequence):
             self.status_var.set(self.translator.get("problem_status_completed"))
             self._puzzle_solved = True
+            if getattr(self.teaching_system, "user_db", None):
+                try:
+                    self.teaching_system.user_db.record_puzzle_attempt(
+                        self.teaching_system.user_id,
+                        puzzle.id,
+                        success=True,
+                        time_spent=0,
+                        hints_used=0,
+                    )
+                    self.teaching_system.user_db.mark_puzzle_completed(
+                        self.teaching_system.user_id,
+                        puzzle.id,
+                    )
+                except Exception:
+                    pass
         else:
             self.status_var.set(self.translator.get("problem_status_continue"))
 

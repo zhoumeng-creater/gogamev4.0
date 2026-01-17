@@ -5,6 +5,7 @@
 
 import json
 import time
+import hashlib
 from typing import List, Dict, Optional, Tuple, Any, Set
 from dataclasses import dataclass, field
 from enum import Enum
@@ -16,6 +17,7 @@ import numpy as np
 from core import Board, Game, GamePhase, Move, MoveSequence
 from ai import AIFactory
 from utils.content_db import get_content_db
+from utils.user_db import get_user_db
 
 
 class NodeType(Enum):
@@ -307,10 +309,12 @@ class MoveTree:
 class ReplayManager:
     """复盘管理器"""
     
-    def __init__(self, game: Optional[Game] = None):
+    def __init__(self, game: Optional[Game] = None, user_db=None, session_id: Optional[str] = None):
         self.game = game
         self.move_tree = MoveTree(game.board.size if game else 19)
         self.current_board = Board(self.move_tree.board_size)
+        self.user_db = user_db or get_user_db()
+        self.session_id = session_id or self._compute_session_id(game)
         
         # 分析引擎
         self.analysis_engine = None
@@ -319,6 +323,7 @@ class ReplayManager:
         # 如果有游戏，导入棋谱
         if game:
             self._import_from_game(game)
+        self._load_persisted_comments()
     
     def _import_from_game(self, game: Game):
         """从游戏导入棋谱"""
@@ -336,6 +341,107 @@ class ReplayManager:
         
         # 回到开始
         self.move_tree.current_node = self.move_tree.root
+
+    def _compute_session_id(self, game: Optional[Game]) -> str:
+        if not game:
+            return f"replay_{int(time.time())}"
+        payload = {
+            "board_size": game.board.size,
+            "black": game.game_info.black_player,
+            "white": game.game_info.white_player,
+            "moves": [(m.x, m.y, m.color) for m in game.move_history],
+        }
+        raw = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+        digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
+        return f"game_{digest}"
+
+    def _build_node_path(self, node: MoveNode) -> str:
+        tokens: List[str] = []
+        current = node
+        while current and current.parent:
+            parent = current.parent
+            token = None
+            if parent.children:
+                for idx, child in enumerate(parent.children):
+                    if child is current:
+                        token = f"c{idx}"
+                        break
+            if token is None and parent.variations:
+                for idx, variation in enumerate(parent.variations):
+                    if variation.moves and current.move and variation.moves[0] == current.move:
+                        token = f"v{idx}"
+                        break
+            if token is None:
+                break
+            tokens.append(token)
+            current = parent
+        return "/".join(reversed(tokens))
+
+    def _find_node_by_path(self, path: str) -> Optional[MoveNode]:
+        if not path:
+            return self.move_tree.root
+        current = self.move_tree.root
+        for token in path.split("/"):
+            if not token:
+                continue
+            if token.startswith("c"):
+                try:
+                    idx = int(token[1:])
+                except Exception:
+                    return None
+                if idx < 0 or idx >= len(current.children):
+                    return None
+                current = current.children[idx]
+                continue
+            if token.startswith("v"):
+                try:
+                    idx = int(token[1:])
+                except Exception:
+                    return None
+                if idx < 0 or idx >= len(current.variations):
+                    return None
+                variation = current.variations[idx]
+                if not variation.moves:
+                    return None
+                current = MoveNode(variation.moves[0], current)
+                current.node_type = NodeType.VARIATION
+                for move in variation.moves[1:]:
+                    current = current.add_child(move)
+                continue
+        return current
+
+    def _find_node_by_move_number(self, move_number: int) -> Optional[MoveNode]:
+        current = self.move_tree.root
+        if move_number <= 0:
+            return current
+        while current.children:
+            current = current.children[0]
+            if current.get_move_number() == move_number:
+                return current
+        return None
+
+    def _load_persisted_comments(self) -> None:
+        if not self.user_db or not self.session_id:
+            return
+        try:
+            items = self.user_db.list_replay_comments(self.session_id)
+        except Exception:
+            return
+        for item in items:
+            path = str(item.get("node_path") or "")
+            move_number = int(item.get("move_number") or 0)
+            node = self._find_node_by_path(path)
+            if not node and move_number:
+                node = self._find_node_by_move_number(move_number)
+            if not node:
+                continue
+            node.comments.append(
+                Comment(
+                    text=str(item.get("text") or ""),
+                    author=str(item.get("author") or ""),
+                    move_evaluation=item.get("evaluation"),
+                )
+            )
     
     def initialize_ai_analyzer(self, ai_level: str = 'expert'):
         """初始化AI分析器"""
@@ -407,6 +513,19 @@ class ReplayManager:
         )
         
         self.move_tree.current_node.add_comment(comment)
+        if self.user_db and self.session_id:
+            try:
+                node_path = self._build_node_path(self.move_tree.current_node)
+                self.user_db.add_replay_comment(
+                    session_id=self.session_id,
+                    node_path=node_path,
+                    move_number=self.move_tree.current_node.get_move_number(),
+                    text=text,
+                    author=author,
+                    evaluation=evaluation,
+                )
+            except Exception:
+                pass
         return comment
     
     def analyze_current_position(self) -> Dict[str, Any]:
