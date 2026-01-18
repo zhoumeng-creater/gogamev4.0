@@ -3,7 +3,9 @@
 处理游戏音效的加载和播放
 """
 
+import json
 import os
+import sys
 import pygame
 import threading
 from typing import Dict, Optional, List
@@ -14,22 +16,6 @@ import time
 
 class SoundManager:
     """音效管理器"""
-    
-    # 音效文件映射
-    SOUND_FILES = {
-        'place_stone': 'place_stone.wav',
-        'capture': 'capture.wav',
-        'illegal': 'illegal.wav',
-        'game_start': 'game_start.wav',
-        'game_end': 'game_end.wav',
-        'clock_tick': 'clock_tick.wav',
-        'time_warning': 'time_warning.wav',
-        'button_click': 'button_click.wav',
-        'pass': 'pass.wav',
-        'resign': 'resign.wav',
-        'hint': 'hint.wav',
-        'achievement': 'achievement.wav'
-    }
     
     def __init__(self, config_manager=None):
         """
@@ -43,6 +29,7 @@ class SoundManager:
         self.enabled = True
         self.volume = 0.7
         self.initialized = False
+        self.sound_files: Dict[str, str] = {}
         
         # 音效队列（避免同时播放过多音效）
         self.sound_queue = Queue()
@@ -58,6 +45,7 @@ class SoundManager:
             self.volume = config_manager.get('sound.volume', 0.7)
         
         # 加载音效文件
+        self.sound_files = self._load_sound_mapping()
         self.load_sounds()
         
         # 启动播放线程
@@ -78,6 +66,36 @@ class SoundManager:
             print(f"初始化音频系统失败: {e}")
             self.initialized = False
             return False
+
+    def _resource_path(self, relative_path: str) -> Path:
+        try:
+            base = Path(sys._MEIPASS)
+        except Exception:
+            base = Path(__file__).resolve().parents[1]
+        return base / relative_path
+
+    def _default_user_config_dir(self) -> Path:
+        return Path.home() / ".go_master"
+
+    def _read_mapping(self, path: Path) -> Dict[str, str]:
+        if not path.exists():
+            return {}
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+        if not isinstance(data, dict):
+            return {}
+        return {str(k): str(v) for k, v in data.items() if v is not None}
+
+    def _load_sound_mapping(self) -> Dict[str, str]:
+        mapping: Dict[str, str] = {}
+        default_path = self._resource_path("assets/config/sounds.json")
+        mapping.update(self._read_mapping(default_path))
+
+        user_path = self._default_user_config_dir() / "sounds.json"
+        mapping.update(self._read_mapping(user_path))
+        return mapping
     
     def load_sounds(self) -> None:
         """加载所有音效文件"""
@@ -88,7 +106,7 @@ class SoundManager:
         from . import resource_path
         sound_dir = resource_path(os.path.join("assets", "sounds"))
         
-        for name, filename in self.SOUND_FILES.items():
+        for name, filename in self.sound_files.items():
             file_path = os.path.join(sound_dir, filename)
             
             if os.path.exists(file_path):

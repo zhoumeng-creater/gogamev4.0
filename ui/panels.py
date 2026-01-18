@@ -206,7 +206,10 @@ class InfoPanel(BasePanel):
         self.phase_label.pack(padx=5, pady=2)
         
         # 设置默认值
-        self.update_player_info('Black', 'White')
+        self.update_player_info(
+            self.translator.get('black_player'),
+            self.translator.get('white_player'),
+        )
         self.update_game_info('black', 0)
     
     def _update_texts(self):
@@ -221,14 +224,22 @@ class InfoPanel(BasePanel):
         )
     
     def update_player_info(self, black_name: str, white_name: str,
-                          black_time: str = "∞", white_time: str = "∞",
+                          black_time: Optional[str] = None, white_time: Optional[str] = None,
                           black_captured: int = 0, white_captured: int = 0):
         """更新玩家信息"""
+        if black_time is None:
+            black_time = self.translator.get('infinite_time_symbol')
+        if white_time is None:
+            white_time = self.translator.get('infinite_time_symbol')
         self.black_name_label.configure(text=black_name)
         self.white_name_label.configure(text=white_name)
-        
-        self.black_time_label.configure(text=f"⏱ {black_time}")
-        self.white_time_label.configure(text=f"⏱ {white_time}")
+
+        self.black_time_label.configure(
+            text=self.translator.get('time_left_format', time=black_time)
+        )
+        self.white_time_label.configure(
+            text=self.translator.get('time_left_format', time=white_time)
+        )
         
         self.black_captured_label.configure(
             text=f"{self.translator.get('captured')}: {black_captured}"
@@ -278,11 +289,19 @@ class InfoPanel(BasePanel):
         兼容旧接口：根据 game_info 字典刷新信息面板。
         期望字段：player_black/player_white/current_player/move_number/captured_black/captured_white/ko_point/phase 等。
         """
-        black_name = game_info.get('player_black') or game_info.get('black_player') or 'Black'
-        white_name = game_info.get('player_white') or game_info.get('white_player') or 'White'
+        black_name = (
+            game_info.get('player_black')
+            or game_info.get('black_player')
+            or self.translator.get('black_player')
+        )
+        white_name = (
+            game_info.get('player_white')
+            or game_info.get('white_player')
+            or self.translator.get('white_player')
+        )
 
-        black_time = game_info.get('black_time', "∞")
-        white_time = game_info.get('white_time', "∞")
+        black_time = game_info.get('black_time', self.translator.get('infinite_time_symbol'))
+        white_time = game_info.get('white_time', self.translator.get('infinite_time_symbol'))
 
         black_captured = int(game_info.get('captured_black', 0) or 0)
         white_captured = int(game_info.get('captured_white', 0) or 0)
@@ -800,13 +819,13 @@ class AnalysisPanel(BasePanel):
                             nodes: int = 0, depth: int = 0):
         """更新分析信息"""
         self.thinking_time_label.configure(
-            text=f"{self.translator.get('thinking_time')}: {thinking_time:.1f}s"
+            text=self.translator.get('analysis_thinking_time_format', value=thinking_time)
         )
         self.nodes_label.configure(
-            text=f"{self.translator.get('nodes_analyzed')}: {nodes:,}"
+            text=self.translator.get('analysis_nodes_format', value=nodes)
         )
         self.depth_label.configure(
-            text=f"{self.translator.get('search_depth')}: {depth}"
+            text=self.translator.get('analysis_depth_format', value=depth)
         )
 
     # --- 兼容 main.py 的方法（旧版 UI 调用） ---

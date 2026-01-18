@@ -5,15 +5,53 @@
 
 import json
 import random
-import time
-from typing import List, Tuple, Optional, Dict, Any, Set
+import sys
+from typing import List, Tuple, Optional, Dict, Any
 from dataclasses import dataclass
-import numpy as np
+from pathlib import Path
 
 from .base import AIPlayer, Move, AILevel
 from .search_ai import MonteCarloAI
 from core import Board, Rules, MoveResult
 from utils.content_db import get_content_db
+
+
+def _resource_path(relative_path: str) -> Path:
+    try:
+        base = Path(sys._MEIPASS)
+    except Exception:
+        base = Path(__file__).resolve().parents[1]
+    return base / relative_path
+
+
+def _user_config_dir() -> Path:
+    return Path.home() / ".go_master"
+
+
+def _read_joseki_mapping(path: Path) -> Dict[str, List[Tuple[int, int]]]:
+    if not path.exists():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    mapping: Dict[str, List[Tuple[int, int]]] = {}
+    for key, value in data.items():
+        moves: List[Tuple[int, int]] = []
+        if isinstance(value, list):
+            for item in value:
+                if not isinstance(item, (list, tuple)) or len(item) < 2:
+                    continue
+                try:
+                    x = int(item[0])
+                    y = int(item[1])
+                except Exception:
+                    continue
+                moves.append((x, y))
+        mapping[str(key)] = moves
+    return mapping
 
 
 @dataclass
@@ -96,100 +134,8 @@ class PatternLibrary:
         self._load_patterns()
     
     def _load_patterns(self):
-        """加载内置模式"""
-        if not self._load_patterns_from_content():
-            # 角部定式
-            self.patterns['joseki'].extend([
-                # 三三定式
-                Pattern(
-                    name="san_san_invasion",
-                    stones=[(3, 3, 'O')],  # 对方占三三
-                    empty_points=[(3, 4), (4, 3)],
-                    next_moves=[(3, 4, 0.6), (4, 3, 0.4)],
-                    context="三三入侵应对"
-                ),
-                # 星位定式
-                Pattern(
-                    name="star_point_approach",
-                    stones=[(3, 3, 'X')],  # 己方占星位
-                    empty_points=[(5, 3), (3, 5)],
-                    next_moves=[(5, 3, 0.5), (3, 5, 0.5)],
-                    context="星位小飞挂"
-                ),
-                # 小目定式
-                Pattern(
-                    name="komoku_approach",
-                    stones=[(3, 4, 'X')],  # 己方占小目
-                    empty_points=[(5, 3), (5, 4)],
-                    next_moves=[(5, 3, 0.6), (5, 4, 0.4)],
-                    context="小目一间高挂"
-                )
-            ])
-            
-            # 战术模式
-            self.patterns['tactical'].extend([
-                # 断点
-                Pattern(
-                    name="cut_point",
-                    stones=[(0, 1, 'O'), (1, 0, 'O')],
-                    empty_points=[(0, 0), (1, 1)],
-                    next_moves=[(1, 1, 0.8)],
-                    context="切断对方连接"
-                ),
-                # 双叫吃
-                Pattern(
-                    name="double_atari",
-                    stones=[
-                        (-1, 0, 'O'), (1, 0, 'O'),
-                        (0, -1, 'X'), (0, 1, 'X')
-                    ],
-                    empty_points=[(0, 0)],
-                    next_moves=[(0, 0, 1.0)],
-                    context="双叫吃"
-                ),
-                # 扳
-                Pattern(
-                    name="hane",
-                    stones=[(0, 1, 'O'), (1, 1, 'X')],
-                    empty_points=[(1, 0)],
-                    next_moves=[(1, 0, 0.7)],
-                    context="扳头"
-                ),
-                # 虎口
-                Pattern(
-                    name="tiger_mouth",
-                    stones=[(0, 1, 'X'), (1, 0, 'X')],
-                    empty_points=[(1, 1)],
-                    next_moves=[(1, 1, 0.6)],
-                    context="虎口补强"
-                )
-            ])
-            
-            # 死活模式
-            self.patterns['life_death'].extend([
-                # 直三做眼
-                Pattern(
-                    name="straight_three_eyes",
-                    stones=[
-                        (-1, 0, 'X'), (0, 0, '.'), (1, 0, 'X'),
-                        (0, 1, 'X'), (0, -1, 'X')
-                    ],
-                    empty_points=[(0, 0)],
-                    next_moves=[(0, 0, 1.0)],
-                    context="直三做眼"
-                ),
-                # 曲三做眼
-                Pattern(
-                    name="bent_three_eyes",
-                    stones=[
-                        (0, 0, '.'), (1, 0, 'X'), (2, 0, 'X'),
-                        (0, 1, 'X'), (0, -1, 'X')
-                    ],
-                    empty_points=[(0, 0)],
-                    next_moves=[(0, 0, 1.0)],
-                    context="曲三做眼"
-                )
-            ])
+        """加载模式"""
+        self._load_patterns_from_content()
 
         # 为每个模式生成旋转和镜像变体
         for category in self.patterns:
@@ -270,28 +216,16 @@ class JosekiAI(AIPlayer):
     
     def _load_joseki_database(self) -> Dict[str, List[Tuple[int, int]]]:
         """加载定式数据库"""
-        # 这里使用简化的定式库，实际应用中应从文件加载
-        return {
-            # 星位定式
-            'star_point': [
-                (3, 3), (15, 15), (3, 15), (15, 3)  # 占角
-            ],
-            'star_approach': [
-                (5, 3), (3, 5), (13, 3), (15, 5),  # 小飞挂
-                (6, 3), (3, 6), (12, 3), (15, 6)   # 大飞挂
-            ],
-            # 小目定式
-            'komoku': [
-                (3, 4), (4, 3), (15, 14), (14, 15)  # 小目
-            ],
-            'komoku_approach': [
-                (5, 3), (3, 5), (13, 15), (15, 13)  # 小目挂角
-            ],
-            # 三三定式
-            'san_san': [
-                (2, 2), (16, 16), (2, 16), (16, 2)  # 三三
-            ]
-        }
+        mapping: Dict[str, List[Tuple[int, int]]] = {}
+        default_path = _resource_path("assets/config/joseki_ai.json")
+        mapping.update(_read_joseki_mapping(default_path))
+
+        user_path = _user_config_dir() / "joseki_ai.json"
+        mapping.update(_read_joseki_mapping(user_path))
+
+        for key in ("star_point", "star_approach", "komoku", "komoku_approach", "san_san"):
+            mapping.setdefault(key, [])
+        return mapping
     
     def get_move(self, board: Board, game_info: Dict[str, Any]) -> Optional[Tuple[int, int]]:
         """
@@ -342,7 +276,7 @@ class JosekiAI(AIPlayer):
             
             if not has_stone:
                 # 空角，考虑占角
-                for x, y in self.joseki_database['star_point']:
+                for x, y in self.joseki_database.get('star_point', []):
                     if (x, y) in legal_moves:
                         corner_moves.append((x, y))
             else:

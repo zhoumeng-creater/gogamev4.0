@@ -120,20 +120,43 @@ class JosekiDictionaryWindow(tk.Toplevel):
         control_frame = ttk.Frame(right)
         control_frame.pack(fill="x")
 
-        ttk.Button(control_frame, text="<<", command=self._first_move, width=3).pack(
+        ttk.Button(
+            control_frame,
+            text=self.translator.get("nav_first"),
+            command=self._first_move,
+            width=3,
+        ).pack(
             side="left", padx=2
         )
-        ttk.Button(control_frame, text="<", command=self._prev_move, width=3).pack(
+        ttk.Button(
+            control_frame,
+            text=self.translator.get("nav_prev"),
+            command=self._prev_move,
+            width=3,
+        ).pack(
             side="left", padx=2
         )
-        ttk.Button(control_frame, text=">", command=self._next_move, width=3).pack(
+        ttk.Button(
+            control_frame,
+            text=self.translator.get("nav_next"),
+            command=self._next_move,
+            width=3,
+        ).pack(
             side="left", padx=2
         )
-        ttk.Button(control_frame, text=">>", command=self._last_move, width=3).pack(
+        ttk.Button(
+            control_frame,
+            text=self.translator.get("nav_last"),
+            command=self._last_move,
+            width=3,
+        ).pack(
             side="left", padx=2
         )
 
-        self.move_label = ttk.Label(control_frame, text="0 / 0")
+        self.move_label = ttk.Label(
+            control_frame,
+            text=self._format_move_progress(0, 0),
+        )
         self.move_label.pack(side="left", padx=10)
 
         comment_frame = ttk.LabelFrame(right, text=self.translator.get("comment"))
@@ -149,6 +172,9 @@ class JosekiDictionaryWindow(tk.Toplevel):
         widget.insert("1.0", text)
         widget.configure(state="disabled")
 
+    def _format_move_progress(self, current: int, total: int) -> str:
+        return self.translator.get("move_progress", current=current, total=total)
+
     def _load_list(self, joseki_list: Optional[List[JosekiSequence]] = None) -> None:
         self.joseki_listbox.delete(0, "end")
         self._list_items = []
@@ -161,7 +187,7 @@ class JosekiDictionaryWindow(tk.Toplevel):
             self.board_canvas.set_board_size(self.full_board_size)
         self.board_canvas.set_coordinate_mapping(0, 0, self.full_board_size, refresh=False)
         self.board_canvas.clear_board()
-        self.move_label.config(text="0 / 0")
+        self.move_label.config(text=self._format_move_progress(0, 0))
 
         items = joseki_list or self.database.search_joseki()
         for joseki in items:
@@ -200,7 +226,7 @@ class JosekiDictionaryWindow(tk.Toplevel):
             self.board_canvas.set_board_size(self.full_board_size)
         self.board_canvas.set_coordinate_mapping(0, 0, self.full_board_size, refresh=False)
         self.board_canvas.clear_board()
-        self.move_label.config(text="0 / 0")
+        self.move_label.config(text=self._format_move_progress(0, 0))
 
     def _on_select(self, _event=None) -> None:
         selection = self.joseki_listbox.curselection()
@@ -240,13 +266,16 @@ class JosekiDictionaryWindow(tk.Toplevel):
 
         main_line = self.current_joseki.get_main_line()
         if not main_line:
-            self.move_label.config(text="0 / 0")
+            self.move_label.config(text=self._format_move_progress(0, 0))
             self.board_canvas.clear_board()
             return
 
         self.current_move_index = max(0, min(self.current_move_index, len(main_line) - 1))
         self.move_label.config(
-            text=f"{self.current_move_index + 1} / {len(main_line)}"
+            text=self._format_move_progress(
+                self.current_move_index + 1,
+                len(main_line),
+            )
         )
 
         current_move = main_line[self.current_move_index]

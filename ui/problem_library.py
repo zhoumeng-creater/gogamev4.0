@@ -290,34 +290,9 @@ class ProblemLibraryWindow(tk.Toplevel):
         language = getattr(self.translator, "language", "zh")
         try:
             resources = self.content_db.list_resources(category, language)
-            if resources:
-                return resources
         except Exception:
-            pass
-        if category == "problem_library":
-            return [
-                {
-                    "label": "Online-Go.com Puzzles",
-                    "url": "https://online-go.com/puzzles",
-                },
-                {
-                    "label": "GoProblems.com",
-                    "url": "https://www.goproblems.com/",
-                },
-                {
-                    "label": "Tsumego Hero",
-                    "url": "https://tsumego-hero.com/",
-                },
-                {
-                    "label": "101weiqi Tsumego",
-                    "url": "https://www.101weiqi.com/",
-                },
-                {
-                    "label": "Sensei's Library Tsumego",
-                    "url": "https://senseis.xmp.net/?Tsumego",
-                },
-            ]
-        return []
+            resources = []
+        return resources or []
 
     def _puzzle_text(self, puzzle: Puzzle, field: str) -> str:
         if not puzzle:
@@ -448,7 +423,7 @@ class ProblemLibraryWindow(tk.Toplevel):
     def _on_import(self) -> None:
         filetypes = [
             (self.translator.get("sgf_files"), "*.sgf"),
-            ("JSON", "*.json"),
+            (self.translator.get("json_files"), "*.json"),
             (self.translator.get("all_files"), "*.*"),
         ]
         paths = filedialog.askopenfilenames(
@@ -977,7 +952,7 @@ class ProblemLibraryWindow(tk.Toplevel):
         except Exception as exc:
             messagebox.showerror(
                 self.translator.get("error"),
-                f"Unable to open link: {exc}",
+                self.translator.get("open_link_failed", error=exc),
                 parent=self,
             )
 

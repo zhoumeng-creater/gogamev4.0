@@ -31,7 +31,7 @@ from ui import (
     RulesHelpDialog, TutorialDialog,
     JosekiDictionaryWindow, PatternSearchWindow, ProblemLibraryWindow
 )
-from ui.translator import Translator
+from ui.translator import Translator, set_global_language
 
 # 导入AI模块
 from ai import AIFactory, AIPlayer, AILevel
@@ -49,13 +49,14 @@ from utils import (
     resource_path, GameConfig, TimeSettings, GameStats,
     get_content_db, get_user_db
 )
+from utils.hotkeys import load_hotkeys, hotkey_to_tk_sequences, hotkey_to_display
 
 
 class GoMasterApp:
     """围棋大师主应用程序"""
     
     VERSION = "4.3"
-    APP_NAME = "围棋大师 Go Master"
+    APP_NAME_KEY = "app_name"
     
     def __init__(self, root: tk.Tk):
         """
@@ -120,6 +121,10 @@ class GoMasterApp:
         
         # 翻译系统
         self.translator = Translator(config.language)
+        set_global_language(self.translator.language)
+
+        # 快捷键配置
+        self.hotkeys = load_hotkeys()
         
         # 音效管理
         self.sound_manager = SoundManager(self.config_manager)
@@ -130,12 +135,11 @@ class GoMasterApp:
         # 存储管理
         self.storage_manager = StorageManager(self.config_manager)
         
-        # 主题管理 - 修正初始化方式
-        themes_dir = os.path.join(os.path.dirname(__file__), 'themes')  # 可选的主题目录
-        self.theme_manager = ThemeManager(themes_dir=themes_dir if os.path.exists(themes_dir) else None)
+        # 主题管理
+        self.theme_manager = ThemeManager()
         
         # 设置当前主题
-        theme_name = config.display.theme if hasattr(config.display, 'theme') else 'classic'
+        theme_name = config.display.theme if hasattr(config.display, 'theme') else 'wood'
         self.theme_manager.set_current_theme(theme_name)
         
         # 注意：删除了这里的 AnimationManager 创建代码
@@ -152,7 +156,7 @@ class GoMasterApp:
     def _setup_window(self):
         """设置主窗口"""
         # 设置标题和图标
-        self.root.title(self.APP_NAME)
+        self.root.title(self.translator.get(self.APP_NAME_KEY))
         
         try:
             icon_path = resource_path(os.path.join("assets", "icons", "app.ico"))
@@ -311,33 +315,33 @@ class GoMasterApp:
         file_menu.add_command(
             label=self.translator.get('new_game'),
             command=self.new_game,
-            accelerator="Ctrl+N"
+            accelerator=self._get_hotkey_display("new_game")
         )
         file_menu.add_separator()
         
         file_menu.add_command(
             label=self.translator.get('open'),
             command=self.open_game,
-            accelerator="Ctrl+O"
+            accelerator=self._get_hotkey_display("open_game")
         )
         file_menu.add_command(
             label=self.translator.get('save'),
             command=self.save_game,
-            accelerator="Ctrl+S"
+            accelerator=self._get_hotkey_display("save_game")
         )
         file_menu.add_command(
             label=self.translator.get('save_as'),
             command=self.save_game_as,
-            accelerator="Ctrl+Shift+S"
+            accelerator=self._get_hotkey_display("save_game_as")
         )
         file_menu.add_separator()
         
         file_menu.add_command(
-            label=self.translator.get('import') + " SGF",
+            label=self.translator.get('import_sgf'),
             command=self.import_sgf
         )
         file_menu.add_command(
-            label=self.translator.get('export') + " SGF",
+            label=self.translator.get('export_sgf'),
             command=self.export_sgf
         )
         file_menu.add_separator()
@@ -351,7 +355,7 @@ class GoMasterApp:
         file_menu.add_command(
             label=self.translator.get('quit'),
             command=self.on_closing,
-            accelerator="Ctrl+Q"
+            accelerator=self._get_hotkey_display("quit")
         )
         
         # 编辑菜单
@@ -361,24 +365,24 @@ class GoMasterApp:
         edit_menu.add_command(
             label=self.translator.get('undo'),
             command=self.on_undo,
-            accelerator="Ctrl+Z"
+            accelerator=self._get_hotkey_display("undo")
         )
         edit_menu.add_command(
             label=self.translator.get('redo'),
             command=self.on_redo,
-            accelerator="Ctrl+Y"
+            accelerator=self._get_hotkey_display("redo")
         )
         edit_menu.add_separator()
         
         edit_menu.add_command(
-            label=self.translator.get('copy') + " SGF",
+            label=self.translator.get('copy_sgf'),
             command=self.copy_sgf,
-            accelerator="Ctrl+C"
+            accelerator=self._get_hotkey_display("copy_sgf")
         )
         edit_menu.add_command(
-            label=self.translator.get('paste') + " SGF",
+            label=self.translator.get('paste_sgf'),
             command=self.paste_sgf,
-            accelerator="Ctrl+V"
+            accelerator=self._get_hotkey_display("paste_sgf")
         )
         edit_menu.add_separator()
         
@@ -389,7 +393,7 @@ class GoMasterApp:
         edit_menu.add_command(
             label=self.translator.get('teaching_mode'),
             command=self.toggle_teaching_mode,
-            accelerator="Ctrl+M"
+            accelerator=self._get_hotkey_display("teaching_mode")
         )
         
         # 游戏菜单
@@ -399,41 +403,41 @@ class GoMasterApp:
         game_menu.add_command(
             label=self.translator.get('pass'),
             command=self.on_pass,
-            accelerator="P"
+            accelerator=self._get_hotkey_display("pass")
         )
         game_menu.add_command(
             label=self.translator.get('resign'),
             command=self.on_resign,
-            accelerator="R"
+            accelerator=self._get_hotkey_display("resign")
         )
         game_menu.add_separator()
         
         game_menu.add_command(
             label=self.translator.get('hint'),
             command=self.on_hint,
-            accelerator="H"
+            accelerator=self._get_hotkey_display("hint")
         )
         game_menu.add_command(
             label=self.translator.get('analyze'),
             command=self.on_analyze,
-            accelerator="A"
+            accelerator=self._get_hotkey_display("analyze")
         )
         game_menu.add_command(
             label=self.translator.get('score'),
             command=self.on_score,
-            accelerator="S"
+            accelerator=self._get_hotkey_display("score")
         )
         game_menu.add_command(
             label=self.translator.get('end_game'),
             command=self.on_end_game,
-            accelerator="E"
+            accelerator=self._get_hotkey_display("end_game")
         )
         game_menu.add_separator()
         
         game_menu.add_command(
             label=self.translator.get('pause'),
             command=self.on_pause,
-            accelerator="Space"
+            accelerator=self._get_hotkey_display("pause")
         )
         
         # 视图菜单
@@ -473,22 +477,22 @@ class GoMasterApp:
         view_menu.add_command(
             label=self.translator.get('fullscreen'),
             command=self.toggle_fullscreen,
-            accelerator="F11"
+            accelerator=self._get_hotkey_display("fullscreen")
         )
         view_menu.add_command(
             label=self.translator.get('zoom_in'),
             command=self.zoom_in,
-            accelerator="Ctrl++"
+            accelerator=self._get_hotkey_display("zoom_in")
         )
         view_menu.add_command(
             label=self.translator.get('zoom_out'),
             command=self.zoom_out,
-            accelerator="Ctrl+-"
+            accelerator=self._get_hotkey_display("zoom_out")
         )
         view_menu.add_command(
             label=self.translator.get('reset_view'),
             command=self.reset_view,
-            accelerator="Ctrl+0"
+            accelerator=self._get_hotkey_display("reset_view")
         )
         
         # 工具菜单
@@ -529,10 +533,9 @@ class GoMasterApp:
         language_menu = tk.Menu(tools_menu, tearoff=0)
         tools_menu.add_cascade(label=self.translator.get('language'), menu=language_menu)
         self.language_var = tk.StringVar(value=getattr(self.translator, 'language', 'zh'))
-        language_labels = {'zh': '中文', 'en': 'English', 'ja': '日本語'}
         for code in self.translator.get_available_languages():
             language_menu.add_radiobutton(
-                label=language_labels.get(code, code),
+                label=self.translator.get(f"language_name_{code}", code),
                 variable=self.language_var,
                 value=code,
                 command=lambda c=code: self._apply_language(c),
@@ -543,7 +546,7 @@ class GoMasterApp:
         tools_menu.add_command(
             label=self.translator.get('settings'),
             command=self.show_settings,
-            accelerator="Ctrl+,"
+            accelerator=self._get_hotkey_display("settings")
         )
         
         # 帮助菜单
@@ -563,7 +566,7 @@ class GoMasterApp:
         help_menu.add_command(
             label=self.translator.get('shortcuts'),
             command=self.show_shortcuts,
-            accelerator="F1"
+            accelerator=self._get_hotkey_display("show_shortcuts")
         )
         help_menu.add_separator()
         
@@ -571,37 +574,48 @@ class GoMasterApp:
             label=self.translator.get('about'),
             command=self.show_about
         )
+
+    def _get_hotkey_display(self, action: str) -> str:
+        if not getattr(self, "hotkeys", None):
+            return ""
+        return hotkey_to_display(self.hotkeys.get(action))
+
+    def _get_hotkey_sequences(self, action: str) -> List[str]:
+        if not getattr(self, "hotkeys", None):
+            return []
+        return hotkey_to_tk_sequences(self.hotkeys.get(action))
     
     def _bind_shortcuts(self):
         """绑定快捷键"""
-        shortcuts = {
-            '<Control-n>': lambda e: self.new_game(),
-            '<Control-o>': lambda e: self.open_game(),
-            '<Control-s>': lambda e: self.save_game(),
-            '<Control-S>': lambda e: self.save_game_as(),
-            '<Control-q>': lambda e: self.on_closing(),
-            '<Control-z>': lambda e: self.on_undo(),
-            '<Control-y>': lambda e: self.on_redo(),
-            '<Control-c>': lambda e: self.copy_sgf(),
-            '<Control-v>': lambda e: self.paste_sgf(),
-            '<Control-plus>': lambda e: self.zoom_in(),
-            '<Control-minus>': lambda e: self.zoom_out(),
-            '<Control-0>': lambda e: self.reset_view(),
-            '<Control-comma>': lambda e: self.show_settings(),
-            '<F1>': lambda e: self.show_shortcuts(),
-            '<F11>': lambda e: self.toggle_fullscreen(),
-            '<space>': lambda e: self.on_pause(),
-            'p': lambda e: self.on_pass(),
-            'r': lambda e: self.on_resign(),
-            'h': lambda e: self.on_hint(),
-            'a': lambda e: self.on_analyze(),
-            's': lambda e: self.on_score(),
-            'e': lambda e: self.on_end_game(),
-            'm': lambda e: self.toggle_teaching_mode(),
+        actions = {
+            "new_game": self.new_game,
+            "open_game": self.open_game,
+            "save_game": self.save_game,
+            "save_game_as": self.save_game_as,
+            "quit": self.on_closing,
+            "undo": self.on_undo,
+            "redo": self.on_redo,
+            "copy_sgf": self.copy_sgf,
+            "paste_sgf": self.paste_sgf,
+            "zoom_in": self.zoom_in,
+            "zoom_out": self.zoom_out,
+            "reset_view": self.reset_view,
+            "settings": self.show_settings,
+            "show_shortcuts": self.show_shortcuts,
+            "fullscreen": self.toggle_fullscreen,
+            "pause": self.on_pause,
+            "pass": self.on_pass,
+            "resign": self.on_resign,
+            "hint": self.on_hint,
+            "analyze": self.on_analyze,
+            "score": self.on_score,
+            "end_game": self.on_end_game,
+            "teaching_mode": self.toggle_teaching_mode,
         }
-        
-        for key, handler in shortcuts.items():
-            self.root.bind(key, handler)
+
+        for action, handler in actions.items():
+            for sequence in self._get_hotkey_sequences(action):
+                self.root.bind(sequence, lambda _e, h=handler: h())
     
     def _setup_auto_save(self):
         """设置自动保存"""
@@ -671,10 +685,9 @@ class GoMasterApp:
         )
         
         # 设置游戏信息
-        self.game.set_player_info(
-            black_name=settings.get('black_player', 'Black'),
-            white_name=settings.get('white_player', 'White')
-        )
+        black_name = settings.get('black_player') or self.translator.get('black_player')
+        white_name = settings.get('white_player') or self.translator.get('white_player')
+        self.game.set_player_info(black_name=black_name, white_name=white_name)
         
         # 设置计时器
         if settings.get('time_control') != 'none':
@@ -1093,10 +1106,12 @@ class GoMasterApp:
         if winner not in ('black', 'white') or margin_value == 0:
             return self.translator.get('jigo')
 
-        points = self.translator.get('points')
-        if getattr(self.translator, 'language', 'en') == 'zh':
-            return f"{self.translator.get(winner)}+{margin_value:.1f}{points}"
-        return f"{self.translator.get(winner)}+{margin_value:.1f} {points}"
+        return self.translator.get(
+            'score_lead_format',
+            winner=self.translator.get(winner),
+            margin=margin_value,
+            points=self.translator.get('points'),
+        )
 
     def _format_final_result_brief(self, result: Dict[str, Any]) -> str:
         """格式化对局结束结果（用于阶段栏）。"""
@@ -1110,11 +1125,13 @@ class GoMasterApp:
         if not winner or diff_value == 0:
             return self.translator.get('jigo')
 
-        points = self.translator.get('points')
-        wins = self.translator.get('wins')
-        if getattr(self.translator, 'language', 'en') == 'zh':
-            return f"{self.translator.get(winner)}{wins}（{diff_value:.1f}{points}）"
-        return f"{self.translator.get(winner)} {wins} ({diff_value:.1f} {points})"
+        return self.translator.get(
+            'score_result_format',
+            winner=self.translator.get(winner),
+            wins=self.translator.get('wins'),
+            margin=diff_value,
+            points=self.translator.get('points'),
+        )
 
     def _update_phase_display(self):
         """在特定阶段（数子/结束）覆盖 InfoPanel 的阶段显示，提供更直观的信息。"""
@@ -1134,7 +1151,12 @@ class GoMasterApp:
                 score = self.game.calculate_score()
                 brief = self._format_scoring_brief(score)
                 self.info_panel.set_phase_text(
-                    f"{self.translator.get('phase')}: {self.translator.get('scoring')}（{brief}）"
+                    self.translator.get(
+                        'phase_detail_format',
+                        phase=self.translator.get('phase'),
+                        status=self.translator.get('scoring'),
+                        detail=brief,
+                    )
                 )
             except Exception:
                 return
@@ -1143,7 +1165,12 @@ class GoMasterApp:
                 result = self.game.get_result()
                 brief = self._format_final_result_brief(result)
                 self.info_panel.set_phase_text(
-                    f"{self.translator.get('phase')}: {self.translator.get('ended')}（{brief}）"
+                    self.translator.get(
+                        'phase_detail_format',
+                        phase=self.translator.get('phase'),
+                        status=self.translator.get('ended'),
+                        detail=brief,
+                    )
                 )
             except Exception:
                 return
@@ -1353,9 +1380,10 @@ class GoMasterApp:
         
         if auto:
             # 自动保存
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
             save_id = self.storage_manager.save_game(
                 game_data,
-                name=f"Auto Save {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                name=self.translator.get('auto_save_name_format', timestamp=timestamp),
                 tags=['auto_save']
             )
         else:
@@ -1441,7 +1469,10 @@ class GoMasterApp:
             # 自动导出
             sgf_dir = self.config_manager.get('storage.sgf_path')
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            file_path = os.path.join(sgf_dir, f"game_{timestamp}.sgf")
+            filename = self.translator.get('sgf_default_name_format', timestamp=timestamp)
+            if not filename.lower().endswith('.sgf'):
+                filename = f"{filename}.sgf"
+            file_path = os.path.join(sgf_dir, filename)
         else:
             # 手动导出
             file_path = filedialog.asksaveasfilename(
@@ -1598,8 +1629,8 @@ class GoMasterApp:
 
         btn_frame = ttk.Frame(top)
         btn_frame.pack(fill='x', pady=8)
-        ttk.Button(btn_frame, text=self.translator.get('ok', 'OK'), command=on_ok).pack(side='left', expand=True, padx=8)
-        ttk.Button(btn_frame, text=self.translator.get('cancel', 'Cancel'), command=on_cancel).pack(side='right', expand=True, padx=8)
+        ttk.Button(btn_frame, text=self.translator.get('ok'), command=on_ok).pack(side='left', expand=True, padx=8)
+        ttk.Button(btn_frame, text=self.translator.get('cancel'), command=on_cancel).pack(side='right', expand=True, padx=8)
 
         top.update_idletasks()
         top.geometry(f"+{self.root.winfo_rootx()+80}+{self.root.winfo_rooty()+80}")
@@ -1711,44 +1742,47 @@ class GoMasterApp:
         """重置视图"""
         self.board_canvas.reset_zoom()
 
-    def _get_settings_dialog_config(self) -> Dict[str, Any]:
-        """为 SettingsDialog 生成扁平化配置字典（兼容 ui/dialogs.py 的接口）。"""
-        theme_name = self.config_manager.get('display.theme', 'classic')
+    def _build_settings_dialog_config(self, config: GameConfig) -> Dict[str, Any]:
+        """将 GameConfig 转为 SettingsDialog 需要的扁平字典。"""
+        theme_name = getattr(config.display, "theme", "wood")
         if theme_name not in getattr(self.theme_manager, 'themes', {}):
-            theme_name = 'classic'
+            theme_name = self.theme_manager.get_current_theme().name
 
         return {
-            'language': self.config_manager.get('language', 'zh'),
+            'language': getattr(config, "language", "zh"),
             'theme': theme_name,
-            'default_board_size': self.config_manager.get('rules.default_board_size', 19),
-            'default_rules': self.config_manager.get('rules.default_rules', 'chinese'),
-            'default_komi': self.config_manager.get('rules.default_komi', 7.5),
-            'auto_save': self.config_manager.get('storage.auto_save', True),
-            'confirm_exit': self.config_manager.get('confirm_exit', True),
-            'show_coordinates': self.config_manager.get('display.show_coordinates', True),
-            'show_move_numbers': self.config_manager.get('display.show_move_numbers', False),
-            'highlight_last_move': self.config_manager.get('display.show_last_move', True),
-            'show_territory': self.config_manager.get('display.show_territory', False),
-            'show_influence': self.config_manager.get('display.show_influence', False),
-            'enable_animations': self.config_manager.get('display.animation_enabled', True),
-            'animation_speed': self.config_manager.get('display.animation_speed', 1.0),
-            'default_ai_level': self.config_manager.get('ai.default_level', 'medium'),
-            'ai_thinking_time': self.config_manager.get('ai.thinking_time', 1.0),
-            'show_ai_analysis': self.config_manager.get('ai.show_analysis', False),
-            'show_winrate': self.config_manager.get('ai.show_win_rate', False),
-            'show_best_moves': self.config_manager.get('ai.show_best_moves', False),
-            'auto_analyze': self.config_manager.get('ai.auto_analyze', False),
-            'sound_enabled': self.config_manager.get('sound.enabled', True),
-            'sound_volume': self.config_manager.get('sound.volume', 0.7),
-            'stone_sound': self.config_manager.get('sound.stone_sound', True),
-            'capture_sound': self.config_manager.get('sound.capture_sound', True),
-            'time_warning_sound': self.config_manager.get('sound.warning_sound', True),
-            'auto_save_sgf': self.config_manager.get('storage.auto_save_sgf', False),
-            'sgf_path': self.config_manager.get('storage.sgf_path', './sgf'),
-            'use_gpu': self.config_manager.get('ai.gpu_enabled', False),
-            'threads': self.config_manager.get('ai.threads', 4),
-            'debug_mode': self.config_manager.get('debug_mode', False),
+            'default_board_size': getattr(config.rules, "default_board_size", 19),
+            'default_rules': getattr(config.rules, "default_rules", "chinese"),
+            'default_komi': getattr(config.rules, "default_komi", 7.5),
+            'auto_save': getattr(config.storage, "auto_save", True),
+            'confirm_exit': getattr(config, "confirm_exit", True),
+            'show_coordinates': getattr(config.display, "show_coordinates", True),
+            'show_move_numbers': getattr(config.display, "show_move_numbers", False),
+            'highlight_last_move': getattr(config.display, "show_last_move", True),
+            'show_territory': getattr(config.display, "show_territory", False),
+            'show_influence': getattr(config.display, "show_influence", False),
+            'enable_animations': getattr(config.display, "animation_enabled", True),
+            'animation_speed': getattr(config.display, "animation_speed", 1.0),
+            'default_ai_level': getattr(config.ai, "default_level", "medium"),
+            'ai_thinking_time': getattr(config.ai, "thinking_time", 1.0),
+            'show_ai_analysis': getattr(config.ai, "show_analysis", False),
+            'show_winrate': getattr(config.ai, "show_win_rate", False),
+            'show_best_moves': getattr(config.ai, "show_best_moves", False),
+            'auto_analyze': getattr(config.ai, "auto_analyze", False),
+            'sound_enabled': getattr(config.sound, "enabled", True),
+            'sound_volume': getattr(config.sound, "volume", 0.7),
+            'stone_sound': getattr(config.sound, "stone_sound", True),
+            'capture_sound': getattr(config.sound, "capture_sound", True),
+            'time_warning_sound': getattr(config.sound, "warning_sound", True),
+            'auto_save_sgf': getattr(config.storage, "auto_save_sgf", False),
+            'sgf_path': getattr(config.storage, "sgf_path", "./sgf"),
+            'use_gpu': getattr(config.ai, "gpu_enabled", False),
+            'threads': getattr(config.ai, "threads", 4),
+            'debug_mode': getattr(config, "debug_mode", False),
         }
+
+    def _get_settings_dialog_config(self) -> Dict[str, Any]:
+        return self._build_settings_dialog_config(self.config_manager.config)
 
     def _apply_language(self, language: str):
         """切换语言并刷新 UI 文本（菜单/左侧面板）。"""
@@ -1756,6 +1790,7 @@ class GoMasterApp:
             return
 
         self.translator.set_language(language)
+        set_global_language(language)
         self.config_manager.set('language', language, save=True)
 
         if self.info_panel:
@@ -1789,17 +1824,24 @@ class GoMasterApp:
 
     def show_settings(self):
         """显示设置对话框"""
+        theme_names = sorted(
+            [item.get("name") for item in self.theme_manager.list_themes() if item.get("name")]
+        )
+        default_config = self.config_manager.get_default_config()
+        default_values = self._build_settings_dialog_config(default_config)
         dialog = SettingsDialog(
             self.root,
             config=self._get_settings_dialog_config(),
-            translator=self.translator
+            translator=self.translator,
+            theme_names=theme_names,
+            defaults=default_values,
         )
         
         if dialog.result:
             result = dialog.result
 
             old_language = self.config_manager.get('language', 'zh')
-            old_theme = self.config_manager.get('display.theme', 'classic')
+            old_theme = self.config_manager.get('display.theme', 'wood')
 
             # 写入配置（尽量不影响其它功能：未知字段会被 ConfigManager 忽略）
             mappings = {
@@ -1983,7 +2025,7 @@ class GoMasterApp:
         {self.translator.get('total_games')}: {summary['total_games']}
         {self.translator.get('total_players')}: {summary['total_players']}
         {self.translator.get('average_game_length')}: {summary['average_moves']:.1f}
-        {self.translator.get('most_active_player')}: {summary['most_active_player'] or 'N/A'}
+        {self.translator.get('most_active_player')}: {summary['most_active_player'] or self.translator.get('not_available')}
         """
         
         messagebox.showinfo(
@@ -2017,27 +2059,53 @@ class GoMasterApp:
     
     def show_shortcuts(self):
         """显示快捷键"""
-        shortcuts = """
-        Ctrl+N - 新游戏
-        Ctrl+O - 打开
-        Ctrl+S - 保存
-        Ctrl+Q - 退出
-        Ctrl+Z - 悔棋
-        Ctrl+Y - 重做
-        Ctrl+M - 教学模式
-        
-        P - 虚手
-        R - 认输
-        H - 提示
-        A - 分析
-        S - 数子（预览）
-        E - 结束对局
-        
-        F1 - 帮助
-        F11 - 全屏
-        Space - 暂停
-        """
-        
+        label_map = {
+            "new_game": self.translator.get("new_game"),
+            "open_game": self.translator.get("open"),
+            "save_game": self.translator.get("save"),
+            "save_game_as": self.translator.get("save_as"),
+            "quit": self.translator.get("quit"),
+            "undo": self.translator.get("undo"),
+            "redo": self.translator.get("redo"),
+            "copy_sgf": self.translator.get("copy_sgf"),
+            "paste_sgf": self.translator.get("paste_sgf"),
+            "teaching_mode": self.translator.get("teaching_mode"),
+            "pass": self.translator.get("pass"),
+            "resign": self.translator.get("resign"),
+            "hint": self.translator.get("hint"),
+            "analyze": self.translator.get("analyze"),
+            "score": self.translator.get("score"),
+            "end_game": self.translator.get("end_game"),
+            "pause": self.translator.get("pause"),
+            "fullscreen": self.translator.get("fullscreen"),
+            "zoom_in": self.translator.get("zoom_in"),
+            "zoom_out": self.translator.get("zoom_out"),
+            "reset_view": self.translator.get("reset_view"),
+            "settings": self.translator.get("settings"),
+            "show_shortcuts": self.translator.get("shortcuts"),
+        }
+
+        groups = [
+            ["new_game", "open_game", "save_game", "save_game_as", "quit"],
+            ["undo", "redo", "copy_sgf", "paste_sgf", "teaching_mode"],
+            ["pass", "resign", "hint", "analyze", "score", "end_game", "pause"],
+            ["fullscreen", "zoom_in", "zoom_out", "reset_view", "settings", "show_shortcuts"],
+        ]
+
+        lines = []
+        for group in groups:
+            group_lines = []
+            for action in group:
+                hotkey = self._get_hotkey_display(action)
+                if not hotkey:
+                    continue
+                label = label_map.get(action, action)
+                group_lines.append(f"{hotkey} - {label}")
+            if group_lines:
+                lines.extend(group_lines)
+                lines.append("")
+
+        shortcuts = "\n".join(lines).strip()
         messagebox.showinfo(
             self.translator.get('shortcuts'),
             shortcuts.strip()
@@ -2048,7 +2116,7 @@ class GoMasterApp:
         dialog = AboutDialog(
             self.root,
             version=self.VERSION,
-            author="周盟",
+            author=self.translator.get("author_default"),
             contact="violentadvance@proton.me",
             translator=self.translator
         )

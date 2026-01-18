@@ -4,18 +4,16 @@
 """
 
 import json
-import os
-import hashlib
-from typing import List, Dict, Optional, Tuple, Set, Any
+from typing import List, Dict, Optional, Tuple, Any
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk
 import sqlite3
-from pathlib import Path
 
 # 导入核心模块
 from core import Board
+from ui.translator import Translator
 from utils.content_db import ContentDatabase, get_content_db
 
 
@@ -129,24 +127,6 @@ class JosekiSequence:
         return current
 
 
-JOSEKI_KEY_BY_NAME = {
-    "三三定式-基本型": "san_san_basic",
-    "星位定式-小飞挂": "star_point_small_approach_joseki",
-    "小目定式-高挂": "komoku_high_approach_joseki",
-    "高目定式-基本型": "takamoku_basic",
-    "3-3点入侵": "three_three_invasion",
-    "星位小飞挂": "star_point_small_approach",
-    "小目一间高挂": "komoku_one_space_high_approach",
-    "中国流布局": "chinese_fuseki",
-    "三连星布局": "three_star_fuseki",
-    "小林流布局": "kobayashi_fuseki",
-    "雪崩定式": "avalanche_joseki",
-    "大斜定式": "taisha_joseki",
-    "双飞燕定式": "double_flying_goose_joseki",
-    "镇神头": "zhen_shen_tou",
-}
-
-
 class JosekiDatabase:
     """定式数据库"""
     
@@ -163,10 +143,7 @@ class JosekiDatabase:
         self.content_db = content_db or get_content_db()
         
         self._init_database()
-        loaded = self._load_joseki_from_content()
-        if not loaded:
-            self._load_basic_joseki()
-            self._load_joseki_from_json()
+        self._load_joseki_from_content()
     
     def _init_database(self):
         """初始化数据库"""
@@ -275,274 +252,6 @@ class JosekiDatabase:
             if next_move:
                 move.next_moves.append(next_move)
         return move
-    
-    def _load_basic_joseki(self):
-        """加载基础定式"""
-        # 三三定式
-        san_san = self._create_san_san_joseki()
-        self.add_joseki(san_san)
-        
-        # 星位定式
-        star_point = self._create_star_point_joseki()
-        self.add_joseki(star_point)
-        
-        # 小目定式
-        komoku = self._create_komoku_joseki()
-        self.add_joseki(komoku)
-        
-        # 高目定式
-        takamoku = self._create_takamoku_joseki()
-        self.add_joseki(takamoku)
-
-    def _load_joseki_from_json(self):
-        """从JSON文件加载定式数据"""
-        base_dir = Path(__file__).resolve().parents[1]
-        json_path = base_dir / 'assets' / 'joseki' / 'joseki_db.json'
-
-        if not json_path.exists():
-            return
-
-        try:
-            with open(json_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-        except Exception:
-            return
-
-        sequences = data.get('joseki_sequences', [])
-        category_labels = data.get('categories', {})
-        difficulty_labels = data.get('difficulty_levels', {})
-
-        difficulty_map = {
-            'basic': 1,
-            'intermediate': 3,
-            'advanced': 4
-        }
-        popularity_map = {
-            'basic': 85,
-            'intermediate': 65,
-            'advanced': 45
-        }
-        type_map = {
-            'corner': JosekiType.CORNER,
-            'side': JosekiType.SIDE,
-            'opening': JosekiType.OPENING,
-            'fighting': JosekiType.FIGHTING,
-            'invasion': JosekiType.INVASION,
-            'reduction': JosekiType.REDUCTION
-        }
-        result_map = {
-            'equal': JosekiResult.EVEN,
-            'favorable_black': JosekiResult.BETTER_BLACK,
-            'favorable_white': JosekiResult.BETTER_WHITE,
-            'complex': JosekiResult.COMPLICATED,
-            'fighting': JosekiResult.COMPLICATED
-        }
-
-        for item in sequences:
-            name = item.get('name', '').strip()
-            moves = item.get('moves', []) or []
-            if not name or not moves:
-                continue
-
-            first_move = self._build_main_line(moves)
-            if not first_move:
-                continue
-
-            category_key = str(item.get('category', 'special')).lower()
-            difficulty_key = str(item.get('difficulty', 'basic')).lower()
-            result_key = str(item.get('result', 'equal')).lower()
-            joseki_key = self._get_joseki_key(name)
-
-            tags = [
-                category_labels.get(category_key, category_key),
-                difficulty_labels.get(difficulty_key, difficulty_key)
-            ]
-            tags = [tag for tag in tags if tag]
-
-            joseki = JosekiSequence(
-                name=name,
-                type=type_map.get(category_key, JosekiType.SPECIAL),
-                first_move=first_move,
-                result=result_map.get(result_key, JosekiResult.DEPENDS),
-                key=joseki_key,
-                popularity=popularity_map.get(difficulty_key, 50),
-                difficulty=difficulty_map.get(difficulty_key, 2),
-                comment=item.get('description', '') or "",
-                tags=tags
-            )
-            self.add_joseki(joseki)
-
-    def _get_joseki_key(self, name: str) -> str:
-        key = JOSEKI_KEY_BY_NAME.get(name)
-        if key:
-            return key
-        digest = hashlib.md5(name.encode('utf-8')).hexdigest()[:8]
-        return f"joseki_{digest}"
-
-    def _build_main_line(self, moves: List[Dict[str, Any]]) -> Optional[JosekiMove]:
-        """根据顺序着法构建主线"""
-        first_move = None
-        prev_move = None
-        order = 1
-
-        for move in moves:
-            try:
-                x = int(move.get('x'))
-                y = int(move.get('y'))
-            except Exception:
-                continue
-            color = str(move.get('color', '')).strip() or 'black'
-            if color not in ('black', 'white'):
-                continue
-
-            current = JosekiMove(x, y, color, order)
-            if prev_move:
-                prev_move.next_moves.append(current)
-            else:
-                first_move = current
-            prev_move = current
-            order += 1
-
-        return first_move
-    
-    def _create_san_san_joseki(self) -> JosekiSequence:
-        """创建三三定式"""
-        # 黑占三三
-        first = JosekiMove(2, 2, 'black', 1)
-        
-        # 白小飞挂
-        w2 = JosekiMove(4, 2, 'white', 2)
-        first.next_moves.append(w2)
-        
-        # 黑扳
-        b3 = JosekiMove(4, 3, 'black', 3)
-        w2.next_moves.append(b3)
-        
-        # 白长
-        w4 = JosekiMove(5, 2, 'white', 4)
-        b3.next_moves.append(w4)
-        
-        # 黑虎
-        b5 = JosekiMove(3, 3, 'black', 5)
-        w4.next_moves.append(b5)
-        
-        return JosekiSequence(
-            name="三三定式-基本型",
-            type=JosekiType.CORNER,
-            first_move=first,
-            result=JosekiResult.EVEN,
-            key="san_san_basic",
-            popularity=90,
-            difficulty=2,
-            comment="最基本的三三定式，黑角实地，白获外势",
-            tags=['三三', '实地', '基本定式']
-        )
-    
-    def _create_star_point_joseki(self) -> JosekiSequence:
-        """创建星位定式"""
-        # 黑占星位
-        first = JosekiMove(3, 3, 'black', 1)
-        
-        # 白小飞挂
-        w2 = JosekiMove(5, 2, 'white', 2)
-        first.next_moves.append(w2)
-        
-        # 黑一间夹
-        b3_a = JosekiMove(
-            2,
-            4,
-            'black',
-            3,
-            comment="一间夹，积极作战",
-            comment_key="joseki_move_comment_star_point_small_approach_joseki_one_space_pincer",
-        )
-        w2.next_moves.append(b3_a)
-        
-        # 黑二间夹
-        b3_b = JosekiMove(
-            2,
-            5,
-            'black',
-            3,
-            is_main_line=False,
-            comment="二间夹，重视外势",
-            comment_key="joseki_move_comment_star_point_small_approach_joseki_two_space_pincer",
-        )
-        w2.next_moves.append(b3_b)
-        
-        # 黑小飞应
-        b3_c = JosekiMove(
-            2,
-            5,
-            'black',
-            3,
-            comment="小飞应，简明",
-            comment_key="joseki_move_comment_star_point_small_approach_joseki_small_knight_reply",
-        )
-        w2.next_moves.append(b3_c)
-        
-        # 继续主线（一间夹后）
-        # 白三三
-        w4 = JosekiMove(2, 2, 'white', 4)
-        b3_a.next_moves.append(w4)
-        
-        return JosekiSequence(
-            name="星位定式-小飞挂",
-            type=JosekiType.CORNER,
-            first_move=first,
-            result=JosekiResult.EVEN,
-            key="star_point_small_approach_joseki",
-            popularity=85,
-            difficulty=3,
-            comment="星位小飞挂是最常见的定式之一",
-            tags=['星位', '小飞挂', '夹攻']
-        )
-    
-    def _create_komoku_joseki(self) -> JosekiSequence:
-        """创建小目定式"""
-        # 黑占小目
-        first = JosekiMove(3, 4, 'black', 1)
-        
-        # 白高挂
-        w2 = JosekiMove(5, 2, 'white', 2)
-        first.next_moves.append(w2)
-        
-        # 黑尖顶
-        b3 = JosekiMove(4, 2, 'black', 3)
-        w2.next_moves.append(b3)
-        
-        return JosekiSequence(
-            name="小目定式-高挂",
-            type=JosekiType.CORNER,
-            first_move=first,
-            result=JosekiResult.EVEN,
-            key="komoku_high_approach_joseki",
-            popularity=75,
-            difficulty=3,
-            comment="小目高挂定式，变化丰富",
-            tags=['小目', '高挂']
-        )
-    
-    def _create_takamoku_joseki(self) -> JosekiSequence:
-        """创建高目定式"""
-        # 黑占高目
-        first = JosekiMove(3, 5, 'black', 1)
-        
-        # 白挂角
-        w2 = JosekiMove(5, 3, 'white', 2)
-        first.next_moves.append(w2)
-        
-        return JosekiSequence(
-            name="高目定式-基本型",
-            type=JosekiType.CORNER,
-            first_move=first,
-            result=JosekiResult.EVEN,
-            key="takamoku_basic",
-            popularity=60,
-            difficulty=4,
-            comment="高目定式强调外势",
-            tags=['高目', '外势']
-        )
     
     def add_joseki(self, joseki: JosekiSequence):
         """添加定式"""
@@ -754,9 +463,16 @@ class JosekiMatcher:
 class JosekiExplorer(tk.Frame):
     """定式浏览器UI组件"""
     
-    def __init__(self, parent, database: JosekiDatabase, **kwargs):
+    def __init__(
+        self,
+        parent,
+        database: JosekiDatabase,
+        translator: Optional[Translator] = None,
+        **kwargs,
+    ):
         super().__init__(parent, **kwargs)
         self.database = database
+        self.translator = translator or Translator()
         self.current_joseki: Optional[JosekiSequence] = None
         self.current_move_index = 0
         
@@ -773,16 +489,26 @@ class JosekiExplorer(tk.Frame):
         search_frame = ttk.Frame(left_frame)
         search_frame.pack(fill='x', pady=(0, 5))
         
-        ttk.Label(search_frame, text="搜索:").pack(side='left')
+        ttk.Label(
+            search_frame,
+            text=f"{self.translator.get('search')}:",
+        ).pack(side='left')
         self.search_var = tk.StringVar()
         self.search_entry = ttk.Entry(search_frame, textvariable=self.search_var)
         self.search_entry.pack(side='left', fill='x', expand=True, padx=5)
         self.search_entry.bind('<Return>', lambda e: self._on_search())
         
-        ttk.Button(search_frame, text="搜索", command=self._on_search).pack(side='left')
+        ttk.Button(
+            search_frame,
+            text=self.translator.get('search'),
+            command=self._on_search,
+        ).pack(side='left')
         
         # 定式列表
-        list_frame = ttk.LabelFrame(left_frame, text="定式列表")
+        list_frame = ttk.LabelFrame(
+            left_frame,
+            text=self.translator.get('joseki_list'),
+        )
         list_frame.pack(fill='both', expand=True)
         
         # 列表框和滚动条
@@ -800,7 +526,10 @@ class JosekiExplorer(tk.Frame):
         right_frame.pack(side='right', fill='both', expand=True, padx=5, pady=5)
         
         # 定式信息
-        info_frame = ttk.LabelFrame(right_frame, text="定式信息")
+        info_frame = ttk.LabelFrame(
+            right_frame,
+            text=self.translator.get('joseki_info'),
+        )
         info_frame.pack(fill='x', pady=(0, 5))
         
         self.info_text = tk.Text(info_frame, height=5, wrap='word')
@@ -815,18 +544,27 @@ class JosekiExplorer(tk.Frame):
         ttk.Button(control_frame, text=">", command=self._next_move, width=3).pack(side='left', padx=2)
         ttk.Button(control_frame, text=">>", command=self._last_move, width=3).pack(side='left', padx=2)
         
-        self.move_label = ttk.Label(control_frame, text="0 / 0")
+        self.move_label = ttk.Label(
+            control_frame,
+            text=self.translator.get('move_progress', current=0, total=0),
+        )
         self.move_label.pack(side='left', padx=10)
         
         # 变化列表
-        variation_frame = ttk.LabelFrame(right_frame, text="变化")
+        variation_frame = ttk.LabelFrame(
+            right_frame,
+            text=self.translator.get('variations'),
+        )
         variation_frame.pack(fill='both', expand=True)
         
         self.variation_listbox = tk.Listbox(variation_frame, height=6)
         self.variation_listbox.pack(fill='both', expand=True, padx=5, pady=5)
         
         # 评注
-        comment_frame = ttk.LabelFrame(right_frame, text="评注")
+        comment_frame = ttk.LabelFrame(
+            right_frame,
+            text=self.translator.get('comment'),
+        )
         comment_frame.pack(fill='both', expand=True)
         
         self.comment_text = tk.Text(comment_frame, height=4, wrap='word')
@@ -881,16 +619,26 @@ class JosekiExplorer(tk.Frame):
         
         # 更新信息
         self.info_text.delete('1.0', 'end')
-        info = f"名称: {self.current_joseki.name}\n"
-        info += f"类型: {self.current_joseki.type.value}\n"
-        info += f"难度: {'★' * self.current_joseki.difficulty}\n"
-        info += f"流行度: {self.current_joseki.popularity}%\n"
-        info += f"结果: {self.current_joseki.result.value}"
+        type_key = f"joseki_type_{self.current_joseki.type.value}"
+        result_key = f"joseki_result_{self.current_joseki.result.value}"
+        type_text = self.translator.get(type_key, self.current_joseki.type.value)
+        result_text = self.translator.get(result_key, self.current_joseki.result.value)
+        info = f"{self.translator.get('name')}: {self.current_joseki.name}\n"
+        info += f"{self.translator.get('type')}: {type_text}\n"
+        info += f"{self.translator.get('difficulty')}: {'★' * self.current_joseki.difficulty}\n"
+        info += f"{self.translator.get('popularity')}: {self.current_joseki.popularity}%\n"
+        info += f"{self.translator.get('result')}: {result_text}"
         self.info_text.insert('1.0', info)
         
         # 更新手数
         main_line = self.current_joseki.get_main_line()
-        self.move_label.config(text=f"{self.current_move_index} / {len(main_line)}")
+        self.move_label.config(
+            text=self.translator.get(
+                'move_progress',
+                current=self.current_move_index,
+                total=len(main_line),
+            )
+        )
         
         # 更新变化（如果有）
         self.variation_listbox.delete(0, 'end')
@@ -898,7 +646,13 @@ class JosekiExplorer(tk.Frame):
             current_move = main_line[self.current_move_index]
             for i, next_move in enumerate(current_move.next_moves):
                 if not next_move.is_main_line:
-                    self.variation_listbox.insert('end', f"变化{i+1}")
+                    self.variation_listbox.insert(
+                        'end',
+                        self.translator.get(
+                            'variation_label_format',
+                            index=i + 1,
+                        ),
+                    )
         
         # 更新评注
         self.comment_text.delete('1.0', 'end')
@@ -959,8 +713,13 @@ class JosekiExplorer(tk.Frame):
 class JosekiTrainer:
     """定式训练器"""
     
-    def __init__(self, database: JosekiDatabase):
+    def __init__(
+        self,
+        database: JosekiDatabase,
+        translator: Optional[Translator] = None,
+    ):
         self.database = database
+        self.translator = translator or Translator()
         self.current_joseki: Optional[JosekiSequence] = None
         self.current_position = 0
         self.score = 0
@@ -1004,12 +763,12 @@ class JosekiTrainer:
             (是否正确, 反馈信息)
         """
         if not self.current_joseki:
-            return False, "没有正在学习的定式"
+            return False, self.translator.get("joseki_no_active")
         
         main_line = self.current_joseki.get_main_line()
         
         if self.current_position >= len(main_line):
-            return False, "定式已完成"
+            return False, self.translator.get("joseki_already_completed")
         
         expected_move = main_line[self.current_position]
         
@@ -1020,16 +779,24 @@ class JosekiTrainer:
             self.score += 1
             
             if self.current_position >= len(main_line):
-                return True, "恭喜！定式完成"
+                return True, self.translator.get("joseki_completed")
             else:
-                return True, "正确！请继续下一手"
+                return True, self.translator.get("joseki_correct_continue")
         else:
             # 检查是否是变化
             for variation in expected_move.next_moves:
                 if variation.matches(x, y) and variation.color == color:
-                    return True, f"这是一个变化手，主线是({expected_move.x}, {expected_move.y})"
-            
-            return False, f"错误。正确的位置是({expected_move.x}, {expected_move.y})"
+                    return True, self.translator.get(
+                        "joseki_variation_hint",
+                        x=expected_move.x,
+                        y=expected_move.y,
+                    )
+
+            return False, self.translator.get(
+                "joseki_wrong_move_hint",
+                x=expected_move.x,
+                y=expected_move.y,
+            )
     
     def get_hint(self) -> Optional[Tuple[int, int]]:
         """获取提示"""
@@ -1053,5 +820,13 @@ class JosekiTrainer:
             'total_attempts': self.total_attempts,
             'accuracy': accuracy,
             'current_joseki': self.current_joseki.name if self.current_joseki else None,
-            'progress': f"{self.current_position} / {len(self.current_joseki.get_main_line())}" if self.current_joseki else "0 / 0"
+            'progress': (
+                self.translator.get(
+                    "move_progress",
+                    current=self.current_position,
+                    total=len(self.current_joseki.get_main_line()),
+                )
+                if self.current_joseki
+                else self.translator.get("move_progress", current=0, total=0)
+            ),
         }

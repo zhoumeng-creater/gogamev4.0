@@ -40,14 +40,14 @@ class RulesHelpDialog(BaseDialog):
             language=getattr(self.translator, "language", "zh"),
         )
         self._rule_options = [
-            ("chinese", self.translator.get("chinese_rules", "中国规则")),
-            ("japanese", self.translator.get("japanese_rules", "日本规则")),
-            ("aga", self.translator.get("aga_rules", "AGA规则")),
+            ("chinese", self.translator.get("chinese_rules")),
+            ("japanese", self.translator.get("japanese_rules")),
+            ("aga", self.translator.get("aga_rules")),
         ]
         self._resources = self._load_resources("rules_help")
         super().__init__(
             parent,
-            title=self.translator.get("rules_help", "规则说明"),
+            title=self.translator.get("rules_help"),
             translator=self.translator,
             theme=self.theme,
             modal=kwargs.get("modal", True),
@@ -67,8 +67,7 @@ class RulesHelpDialog(BaseDialog):
         intro = ttk.Label(
             main_frame,
             text=self.translator.get(
-                "rules_description",
-                "不同规则在计分、劫争和贴目上略有差异，选择下方规则查看详情。",
+                "rules_help_intro",
             ),
             wraplength=720,
             justify="left",
@@ -81,7 +80,7 @@ class RulesHelpDialog(BaseDialog):
 
         ttk.Label(
             selection_frame,
-            text=self.translator.get("rules_type", "规则"),
+            text=self.translator.get("rules_type"),
             style="Dialog.TLabel",
         ).pack(side="left")
 
@@ -114,7 +113,7 @@ class RulesHelpDialog(BaseDialog):
 
         resources = ttk.LabelFrame(
             main_frame,
-            text=self.translator.get("resources", "在线参考"),
+            text=self.translator.get("resources"),
             padding=8,
             style="Dialog.TLabelframe",
         )
@@ -122,7 +121,7 @@ class RulesHelpDialog(BaseDialog):
 
         ttk.Label(
             resources,
-            text="选择任一链接可在浏览器中查看完整规则原文。",
+            text=self.translator.get("rules_help_resources_hint"),
             style="Dialog.TLabel",
             wraplength=720,
             justify="left",
@@ -154,9 +153,10 @@ class RulesHelpDialog(BaseDialog):
         self.content_text.delete("1.0", "end")
         self.content_text.insert("end", content.strip())
         if highlights:
+            title = self.translator.get("rules_help_highlights_title")
             self.content_text.insert(
                 "end",
-                "\n\n重点提示:\n- " + "\n- ".join(highlights),
+                f"\n\n{title}:\n- " + "\n- ".join(highlights),
             )
         self.content_text.configure(state="disabled")
 
@@ -172,66 +172,30 @@ class RulesHelpDialog(BaseDialog):
 
         hints: Dict[str, List[str]] = {
             "chinese": [
-                "数子法：活子与空点都计入地盘",
-                "贴目常用 7.5 目",
-                "收官阶段可以随手填空",
+                self.translator.get("rules_highlight_chinese_1"),
+                self.translator.get("rules_highlight_chinese_2"),
+                self.translator.get("rules_highlight_chinese_3"),
             ],
             "japanese": [
-                "数目法：只数空与提子/死子",
-                "贴 6.5 目，需判定死活后再数目",
-                "连续两次虚手结束对局",
+                self.translator.get("rules_highlight_japanese_1"),
+                self.translator.get("rules_highlight_japanese_2"),
+                self.translator.get("rules_highlight_japanese_3"),
             ],
             "aga": [
-                "区域计分，接近中国规则",
-                "白方贴 7.5 目，每次虚手需交还一子",
-                "规则明确，比赛常用",
+                self.translator.get("rules_highlight_aga_1"),
+                self.translator.get("rules_highlight_aga_2"),
+                self.translator.get("rules_highlight_aga_3"),
             ],
         }
-        return hints.get(rule_key, [])
+        return [hint for hint in hints.get(rule_key, []) if hint]
 
     def _load_resources(self, category: str) -> List[Dict[str, str]]:
         language = getattr(self.translator, "language", "zh")
         try:
             resources = self.content_db.list_resources(category, language)
-            if resources:
-                return resources
         except Exception:
-            pass
-        if category == "rules_help":
-            return [
-                {
-                    "label": "中国围棋规则（2018版）",
-                    "url": "https://www.qipai.org.cn/web/article/word/id/50301",
-                },
-                {
-                    "label": "日本棋院规则（英文）",
-                    "url": "https://www.nihonkiin.or.jp/match/ki_rules/download.html",
-                },
-                {
-                    "label": "AGA Rules of Go",
-                    "url": "https://www.usgo.org/aga-rules-go",
-                },
-                {
-                    "label": "Sensei's Library - Rules of Go",
-                    "url": "https://senseis.xmp.net/?RulesOfGo",
-                },
-            ]
-        if category == "tutorial":
-            return [
-                {
-                    "label": "在线围棋入门（OGS）",
-                    "url": "https://online-go.com/learn-to-play-go",
-                },
-                {
-                    "label": "AGA Learn to Play Go",
-                    "url": "https://www.usgo.org/learn-play-go",
-                },
-                {
-                    "label": "Sensei's Library - Beginner Exercises",
-                    "url": "https://senseis.xmp.net/?BeginnerExercises",
-                },
-            ]
-        return []
+            resources = []
+        return resources or []
 
     def _open_link(self, url: str):
         """在浏览器打开资源链接"""
@@ -239,8 +203,8 @@ class RulesHelpDialog(BaseDialog):
             webbrowser.open(url, new=2)
         except Exception as exc:  # pragma: no cover - UI 提示
             messagebox.showerror(
-                self.translator.get("error", "错误"),
-                f"无法打开链接: {exc}",
+                self.translator.get("error"),
+                self.translator.get("open_link_failed", error=exc),
                 parent=self,
             )
 
@@ -264,18 +228,18 @@ class TutorialDialog(BaseDialog):
             content_db=self.content_db,
         )
         self._type_labels: Dict[LessonType, str] = {
-            LessonType.RULES: self.translator.get("rules", "规则"),
-            LessonType.BASICS: self.translator.get("tutorial", "教程") + "·基础",
-            LessonType.TACTICS: "战术训练",
-            LessonType.STRATEGY: "战略思路",
-            LessonType.LIFE_DEATH: "死活",
-            LessonType.TESUJI: "手筋",
-            LessonType.ENDGAME: "官子",
+            LessonType.RULES: self.translator.get("lesson_type_rules"),
+            LessonType.BASICS: self.translator.get("lesson_type_basics"),
+            LessonType.TACTICS: self.translator.get("lesson_type_tactics"),
+            LessonType.STRATEGY: self.translator.get("lesson_type_strategy"),
+            LessonType.LIFE_DEATH: self.translator.get("lesson_type_life_death"),
+            LessonType.TESUJI: self.translator.get("lesson_type_tesuji"),
+            LessonType.ENDGAME: self.translator.get("lesson_type_endgame"),
         }
         self._resources = self._load_resources("tutorial")
         super().__init__(
             parent,
-            title=self.translator.get("tutorial", "教程"),
+            title=self.translator.get("tutorial"),
             translator=self.translator,
             theme=self.theme,
             modal=kwargs.get("modal", True),
@@ -293,7 +257,7 @@ class TutorialDialog(BaseDialog):
 
         intro = ttk.Label(
             main_frame,
-            text="选择左侧课程即可查看内容，右侧可以逐步阅读并记录完成进度。",
+            text=self.translator.get("tutorial_intro"),
             wraplength=920,
             justify="left",
             style="Dialog.TLabel",
@@ -308,7 +272,10 @@ class TutorialDialog(BaseDialog):
         left.pack(side="left", fill="y", padx=(0, 10))
 
         tree_frame = ttk.LabelFrame(
-            left, text="课程目录", padding=6, style="Dialog.TLabelframe"
+            left,
+            text=self.translator.get("tutorial_tree_title"),
+            padding=6,
+            style="Dialog.TLabelframe",
         )
         tree_frame.pack(fill="both", expand=True)
 
@@ -326,7 +293,10 @@ class TutorialDialog(BaseDialog):
         right.pack(side="left", fill="both", expand=True)
 
         overview = ttk.LabelFrame(
-            right, text="课程概览", padding=10, style="Dialog.TLabelframe"
+            right,
+            text=self.translator.get("tutorial_overview_title"),
+            padding=10,
+            style="Dialog.TLabelframe",
         )
         overview.pack(fill="x")
 
@@ -356,7 +326,7 @@ class TutorialDialog(BaseDialog):
 
         lesson_frame = ttk.LabelFrame(
             right,
-            text=self.translator.get("tutorial", "教程"),
+            text=self.translator.get("tutorial"),
             padding=6,
             style="Dialog.TLabelframe",
         )
@@ -366,13 +336,16 @@ class TutorialDialog(BaseDialog):
         self.lesson_view.pack(fill="both", expand=True)
 
         resource_frame = ttk.LabelFrame(
-            right, text="推荐阅读", padding=8, style="Dialog.TLabelframe"
+            right,
+            text=self.translator.get("tutorial_resources_title"),
+            padding=8,
+            style="Dialog.TLabelframe",
         )
         resource_frame.pack(fill="x", pady=(8, 0))
 
         ttk.Label(
             resource_frame,
-            text="需要更多示例或视频时，可以直接打开下列资源：",
+            text=self.translator.get("tutorial_resources_hint"),
             style="Dialog.TLabel",
             wraplength=640,
             justify="left",
@@ -389,26 +362,9 @@ class TutorialDialog(BaseDialog):
         language = getattr(self.translator, "language", "zh")
         try:
             resources = self.content_db.list_resources(category, language)
-            if resources:
-                return resources
         except Exception:
-            pass
-        if category == "tutorial":
-            return [
-                {
-                    "label": "在线围棋入门（OGS）",
-                    "url": "https://online-go.com/learn-to-play-go",
-                },
-                {
-                    "label": "AGA Learn to Play Go",
-                    "url": "https://www.usgo.org/learn-play-go",
-                },
-                {
-                    "label": "Sensei's Library - Beginner Exercises",
-                    "url": "https://senseis.xmp.net/?BeginnerExercises",
-                },
-            ]
-        return []
+            resources = []
+        return resources or []
 
         self._populate_tree()
         self._update_stats()
@@ -448,13 +404,24 @@ class TutorialDialog(BaseDialog):
     def _display_lesson(self, lesson: Lesson):
         """展示课程详情并加载内容"""
         prereq_titles = self._format_prerequisites(lesson.prerequisites)
-        prereq = "先修: " + ("、".join(prereq_titles) if prereq_titles else "无")
-        meta = f"{self._type_labels.get(lesson.type, lesson.type.value)} | 预计 {lesson.estimated_time} 分钟 | {prereq}"
+        prereq_label = self.translator.get("lesson_prerequisites")
+        prereq_text = "、".join(prereq_titles) if prereq_titles else self.translator.get("none")
+        prereq = f"{prereq_label}{prereq_text}"
+        meta = self.translator.get(
+            "lesson_meta_format",
+            lesson_type=self._type_labels.get(lesson.type, lesson.type.value),
+            minutes=lesson.estimated_time,
+            prerequisites=prereq,
+        )
         self.lesson_title.config(text=lesson.title)
         self.lesson_meta.config(text=meta)
         self.lesson_desc.config(text=lesson.description)
         if lesson.objectives:
-            obj_text = "学习目标:\n- " + "\n- ".join(lesson.objectives)
+            obj_text = (
+                self.translator.get("lesson_objectives_title")
+                + ":\n- "
+                + "\n- ".join(lesson.objectives)
+            )
         else:
             obj_text = ""
         self.objectives_label.config(text=obj_text)
@@ -464,8 +431,8 @@ class TutorialDialog(BaseDialog):
             self.lesson_view.load_lesson(lesson.id)
         except Exception:
             messagebox.showwarning(
-                self.translator.get("warning", "警告"),
-                "无法加载课程内容，请稍后再试。",
+                self.translator.get("warning"),
+                self.translator.get("lesson_load_failed"),
                 parent=self,
             )
         self._update_stats()
@@ -482,7 +449,13 @@ class TutorialDialog(BaseDialog):
         """更新统计信息"""
         stats = self.teaching_system.get_user_statistics()
         self.stats_label.config(
-            text=f"已完成课程: {stats['lessons_completed']}/{stats['lessons_total']} | 棋题解决: {stats['puzzles_solved']} | 总积分: {stats['total_score']}"
+            text=self.translator.get(
+                "tutorial_stats_format",
+                completed=stats["lessons_completed"],
+                total=stats["lessons_total"],
+                puzzles=stats["puzzles_solved"],
+                score=stats["total_score"],
+            )
         )
 
     def _open_link(self, url: str):
@@ -491,7 +464,7 @@ class TutorialDialog(BaseDialog):
             webbrowser.open(url, new=2)
         except Exception as exc:  # pragma: no cover - UI 提示
             messagebox.showerror(
-                self.translator.get("error", "错误"),
-                f"无法打开链接: {exc}",
+                self.translator.get("error"),
+                self.translator.get("open_link_failed", error=exc),
                 parent=self,
             )

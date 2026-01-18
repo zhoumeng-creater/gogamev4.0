@@ -14,9 +14,15 @@ from tkinter import ttk
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+from ui.translator import get_translator
+
 # 导入核心模块
 from core import Board, Rules, MoveResult, Territory
 from ai import AIFactory, AIPlayer
+
+
+def _t(key: str, **kwargs) -> str:
+    return get_translator().get(key, **kwargs)
 
 
 class AnalysisMode(Enum):
@@ -41,7 +47,7 @@ class MoveAnalysis:
     def get_coordinate_string(self) -> str:
         """获取坐标字符串"""
         if self.x < 0 or self.y < 0:
-            return "Pass"
+            return _t("pass")
         col = chr(ord('A') + self.x)
         if col >= 'I':  # 跳过I
             col = chr(ord(col) + 1)
@@ -69,9 +75,12 @@ class PositionAnalysis:
     def get_winrate_text(self) -> str:
         """获取胜率文本"""
         if self.winrate > 0.5:
-            return f"黑棋 {self.winrate:.1%}"
+            color = _t("black")
+            value = self.winrate
         else:
-            return f"白棋 {(1-self.winrate):.1%}"
+            color = _t("white")
+            value = 1 - self.winrate
+        return _t("winrate_side_format", color=color, value=value)
 
 
 class MistakeType(Enum):
@@ -322,15 +331,15 @@ class AnalysisEngine:
     def _generate_move_comment(self, x: int, y: int, winrate: float) -> str:
         """生成着法评注"""
         if winrate > 0.8:
-            return "明显优势"
+            return _t("analysis_comment_strong_advantage")
         elif winrate > 0.6:
-            return "略优"
+            return _t("analysis_comment_advantage")
         elif winrate > 0.4:
-            return "均势"
+            return _t("analysis_comment_even")
         elif winrate > 0.2:
-            return "略差"
+            return _t("analysis_comment_disadvantage")
         else:
-            return "明显劣势"
+            return _t("analysis_comment_strong_disadvantage")
     
     def clear_cache(self):
         """清除分析缓存"""
@@ -506,11 +515,11 @@ class MistakeDetector:
                              best_move: Tuple[int, int]) -> str:
         """生成错误说明"""
         explanations = {
-            MistakeType.BLUNDER: f"大错！胜率损失{winrate_loss:.1%}。",
-            MistakeType.MISTAKE: f"错误。胜率损失{winrate_loss:.1%}。",
-            MistakeType.INACCURACY: f"不够精确。胜率损失{winrate_loss:.1%}。",
-            MistakeType.GOOD: f"好手！胜率提升{-winrate_loss:.1%}。",
-            MistakeType.EXCELLENT: f"妙手！胜率提升{-winrate_loss:.1%}。"
+            MistakeType.BLUNDER: _t("analysis_mistake_blunder", value=winrate_loss),
+            MistakeType.MISTAKE: _t("analysis_mistake_mistake", value=winrate_loss),
+            MistakeType.INACCURACY: _t("analysis_mistake_inaccuracy", value=winrate_loss),
+            MistakeType.GOOD: _t("analysis_mistake_good", value=-winrate_loss),
+            MistakeType.EXCELLENT: _t("analysis_mistake_excellent", value=-winrate_loss),
         }
         
         base = explanations.get(mistake_type, "")
@@ -518,7 +527,7 @@ class MistakeDetector:
         if best_move[0] >= 0:
             col = chr(ord('A') + best_move[0])
             row = 19 - best_move[1]
-            base += f" 推荐下在{col}{row}。"
+            base += _t("analysis_best_move_hint", coord=f"{col}{row}")
         
         return base
 
@@ -566,7 +575,7 @@ class SuggestionEngine:
                         suggestions.insert(0, {
                             'move': liberty,
                             'coordinate': self._coords_to_string(*liberty),
-                            'reason': '紧急！救援危险棋块',
+                            'reason': _t('analysis_reason_save_group'),
                             'priority': 'urgent',
                             'winrate': 0,
                             'score_change': 0
@@ -577,7 +586,7 @@ class SuggestionEngine:
                         suggestions.insert(0, {
                             'move': liberty,
                             'coordinate': self._coords_to_string(*liberty),
-                            'reason': '紧急！可以吃子',
+                            'reason': _t('analysis_reason_capture'),
                             'priority': 'urgent',
                             'winrate': 0,
                             'score_change': 0
@@ -592,26 +601,26 @@ class SuggestionEngine:
         
         # 基于胜率
         if move.winrate > 0.6:
-            reasons.append("保持优势")
+            reasons.append(_t("analysis_reason_keep_advantage"))
         elif move.winrate > 0.4:
-            reasons.append("维持均势")
+            reasons.append(_t("analysis_reason_hold_balance"))
         else:
-            reasons.append("力争翻盘")
+            reasons.append(_t("analysis_reason_comeback"))
         
         # 基于位置特征
         x, y = move.x, move.y
         
         # 角部
         if (x < 5 or x > 13) and (y < 5 or y > 13):
-            reasons.append("占据角部")
+            reasons.append(_t("analysis_reason_corner"))
         # 边
         elif x < 3 or x > 15 or y < 3 or y > 15:
-            reasons.append("扩展边空")
+            reasons.append(_t("analysis_reason_side"))
         # 中腹
         else:
-            reasons.append("控制中腹")
+            reasons.append(_t("analysis_reason_center"))
         
-        return "，".join(reasons)
+        return _t("analysis_reason_separator").join(reasons)
     
     def _coords_to_string(self, x: int, y: int) -> str:
         """坐标转字符串"""
@@ -644,8 +653,8 @@ class WinrateGraph(tk.Frame):
     
     def _setup_plot(self):
         """设置图表"""
-        self.ax.set_xlabel('手数')
-        self.ax.set_ylabel('黑棋胜率')
+        self.ax.set_xlabel(_t('move_number'))
+        self.ax.set_ylabel(_t('black_win_rate_label'))
         self.ax.set_ylim(0, 1)
         self.ax.grid(True, alpha=0.3)
         self.ax.axhline(y=0.5, color='gray', linestyle='-', alpha=0.5)

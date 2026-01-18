@@ -5,6 +5,7 @@
 
 import json
 import os
+import sys
 from dataclasses import dataclass, asdict
 from typing import Dict, Any, Optional
 from pathlib import Path
@@ -94,11 +95,80 @@ class Theme:
         return cls(**data)
     
     @classmethod
-    def from_json(cls, json_path: str) -> 'Theme':
+    def _flatten_payload(cls, data: Dict[str, Any], name_override: Optional[str]) -> Dict[str, Any]:
+        name = name_override or str(data.get("id") or data.get("name") or "theme")
+        base = cls(name=name).to_dict()
+        if data.get("author"):
+            base["author"] = str(data.get("author"))
+        if data.get("version"):
+            base["version"] = str(data.get("version"))
+        if data.get("description"):
+            base["description"] = str(data.get("description"))
+        elif data.get("name"):
+            base["description"] = str(data.get("name"))
+
+        board = data.get("board") or {}
+        base["board_background"] = board.get("background", base["board_background"])
+        base["board_grid_color"] = board.get("grid_color", base["board_grid_color"])
+        base["board_star_color"] = board.get("star_point_color", base["board_star_color"])
+        base["board_coordinate_color"] = board.get(
+            "coordinate_color", base["board_coordinate_color"]
+        )
+        base["board_border_color"] = board.get("border_color", base["board_border_color"])
+
+        stones = data.get("stones") or {}
+        base["stone_black_color"] = stones.get("black", base["stone_black_color"])
+        base["stone_white_color"] = stones.get("white", base["stone_white_color"])
+        base["stone_black_border"] = stones.get("black_border", base["stone_black_border"])
+        base["stone_white_border"] = stones.get("white_border", base["stone_white_border"])
+        if "shadow" in stones:
+            base["enable_shadows"] = bool(stones.get("shadow"))
+
+        markers = data.get("markers") or {}
+        base["last_move_marker_color"] = markers.get(
+            "last_move", base["last_move_marker_color"]
+        )
+        base["territory_black_color"] = markers.get(
+            "territory_black", base["territory_black_color"]
+        )
+        base["territory_white_color"] = markers.get(
+            "territory_white", base["territory_white_color"]
+        )
+        base["hover_indicator_color"] = markers.get(
+            "hover", base["hover_indicator_color"]
+        )
+
+        ui = data.get("ui") or {}
+        base["ui_background"] = ui.get("background", base["ui_background"])
+        base["ui_panel_background"] = ui.get("panel_bg", base["ui_panel_background"])
+        base["ui_text_primary"] = ui.get("text_primary", base["ui_text_primary"])
+        base["ui_text_secondary"] = ui.get("text_secondary", base["ui_text_secondary"])
+        base["button_background"] = ui.get("button_bg", base["button_background"])
+        base["button_hover"] = ui.get("button_hover", base["button_hover"])
+        base["button_text"] = ui.get("button_text", base["button_text"])
+
+        return base
+
+    @classmethod
+    def from_payload(cls, data: Dict[str, Any], name_override: Optional[str] = None) -> 'Theme':
+        """从主题配置负载创建（兼容嵌套结构与扁平结构）"""
+        if not isinstance(data, dict):
+            return cls(name_override or "theme")
+        if any(key in data for key in ("board", "stones", "ui", "markers")):
+            payload = cls._flatten_payload(data, name_override)
+            return cls.from_dict(payload)
+
+        payload = dict(data)
+        if name_override and not payload.get("name"):
+            payload["name"] = name_override
+        return cls.from_dict(payload)
+
+    @classmethod
+    def from_json(cls, json_path: str, name_override: Optional[str] = None) -> 'Theme':
         """从JSON文件加载"""
         with open(json_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
-        return cls.from_dict(data)
+        return cls.from_payload(data, name_override=name_override)
     
     def to_json(self, json_path: str):
         """保存到JSON文件"""
@@ -108,294 +178,138 @@ class Theme:
 
 class ThemeManager:
     """主题管理器"""
-    
-    # 内置主题定义
-    BUILTIN_THEMES = {
-        'classic': Theme(
-            name='classic',
-            author='System',
-            description='经典木纹主题',
-            board_background='#F4D0A4',
-            board_grid_color='#8B4513',
-            ui_background='#F5F5DC',
-            ui_panel_background='#E8DCC0'
-        ),
-        'modern': Theme(
-            name='modern',
-            author='System',
-            description='现代简约主题',
-            board_background='#FFFFFF',
-            board_grid_color='#333333',
-            board_star_color='#666666',
-            ui_background='#FAFAFA',
-            ui_panel_background='#F0F0F0',
-            ui_panel_border='#E0E0E0',
-            button_background='#4CAF50',
-            button_hover='#45A049'
-        ),
-        'dark': Theme(
-            name='dark',
-            author='System',
-            description='深色护眼主题',
-            board_background='#2B2B2B',
-            board_grid_color='#808080',
-            board_star_color='#A0A0A0',
-            board_coordinate_color='#C0C0C0',
-            stone_black_color='#1A1A1A',
-            stone_white_color='#E0E0E0',
-            ui_background='#1E1E1E',
-            ui_panel_background='#2D2D2D',
-            ui_panel_border='#404040',
-            ui_text_primary='#E0E0E0',
-            ui_text_secondary='#B0B0B0',
-            button_background='#4A4A4A',
-            button_hover='#5A5A5A',
-            button_text='#E0E0E0',
-            input_background='#3A3A3A',
-            input_border='#505050',
-            input_text='#E0E0E0'
-        ),
-        'bamboo': Theme(
-            name='bamboo',
-            author='System',
-            description='竹林清新主题',
-            board_background='#E8F5E9',
-            board_grid_color='#4CAF50',
-            board_star_color='#2E7D32',
-            ui_background='#F1F8E9',
-            ui_panel_background='#DCEDC8',
-            button_background='#66BB6A',
-            button_hover='#4CAF50'
-        ),
-        'ocean': Theme(
-            name='ocean',
-            author='System',
-            description='海洋蓝色主题',
-            board_background='#E3F2FD',
-            board_grid_color='#1976D2',
-            board_star_color='#0D47A1',
-            ui_background='#F5F9FF',
-            ui_panel_background='#BBDEFB',
-            button_background='#42A5F5',
-            button_hover='#2196F3'
-        ),
-        'sakura': Theme(
-            name='sakura',
-            author='System',
-            description='樱花粉色主题',
-            board_background='#FCE4EC',
-            board_grid_color='#C2185B',
-            board_star_color='#880E4F',
-            ui_background='#FFF0F5',
-            ui_panel_background='#F8BBD0',
-            button_background='#EC407A',
-            button_hover='#E91E63'
-        )
-    }
-    
+
+    FALLBACK_THEME = Theme(name="classic", author="System", description="Classic")
+
     def __init__(self, themes_dir: Optional[str] = None):
         """
         初始化主题管理器
-        
+
         Args:
-            themes_dir: 主题目录路径
+            themes_dir: 自定义主题目录路径
         """
-        self.themes_dir = Path(themes_dir) if themes_dir else None
+        self.default_themes_dir = self._default_assets_themes_dir()
+        self.themes_dir = Path(themes_dir) if themes_dir else self._default_user_themes_dir()
         self.themes: Dict[str, Theme] = {}
+        self._builtin_names: set[str] = set()
         self.current_theme: Optional[Theme] = None
-        
-        # 加载内置主题
-        self._load_builtin_themes()
-        
-        # 加载自定义主题
-        if self.themes_dir and self.themes_dir.exists():
-            self._load_custom_themes()
-    
-    def _load_builtin_themes(self):
-        """加载内置主题"""
-        for name, theme in self.BUILTIN_THEMES.items():
-            self.themes[name] = theme
-    
-    def _load_custom_themes(self):
-        """加载自定义主题"""
-        if not self.themes_dir:
+
+        self._load_default_themes()
+        self._load_custom_themes()
+
+    def _default_assets_themes_dir(self) -> Path:
+        try:
+            base = Path(sys._MEIPASS)
+        except Exception:
+            base = Path(__file__).resolve().parents[1]
+        return base / "assets" / "themes"
+
+    def _default_user_themes_dir(self) -> Path:
+        return Path.home() / ".go_master" / "themes"
+
+    def _load_default_themes(self) -> None:
+        if not self.default_themes_dir.exists():
             return
-        
-        for theme_file in self.themes_dir.glob('*.json'):
+        for theme_file in self.default_themes_dir.glob("*.json"):
             try:
-                theme = Theme.from_json(str(theme_file))
-                self.themes[theme.name] = theme
+                theme = Theme.from_json(str(theme_file), name_override=theme_file.stem)
             except Exception as e:
                 print(f"加载主题文件 {theme_file} 失败: {e}")
-    
+                continue
+            self.themes[theme.name] = theme
+            self._builtin_names.add(theme.name)
+
+    def _load_custom_themes(self) -> None:
+        if not self.themes_dir or not self.themes_dir.exists():
+            return
+        for theme_file in self.themes_dir.glob("*.json"):
+            try:
+                theme = Theme.from_json(str(theme_file), name_override=theme_file.stem)
+            except Exception as e:
+                print(f"加载主题文件 {theme_file} 失败: {e}")
+                continue
+            if theme.name in self._builtin_names:
+                continue
+            self.themes[theme.name] = theme
+
     def get_theme(self, name: str) -> Optional[Theme]:
-        """
-        获取主题
-        
-        Args:
-            name: 主题名称
-            
-        Returns:
-            主题对象
-        """
         return self.themes.get(name)
-    
+
     def set_current_theme(self, name: str) -> bool:
-        """
-        设置当前主题
-        
-        Args:
-            name: 主题名称
-            
-        Returns:
-            是否成功
-        """
         theme = self.get_theme(name)
         if theme:
             self.current_theme = theme
             return True
         return False
-    
+
     def get_current_theme(self) -> Theme:
-        """
-        获取当前主题
-        
-        Returns:
-            当前主题，如果没有则返回默认主题
-        """
         if not self.current_theme:
-            self.current_theme = self.BUILTIN_THEMES['classic']
+            if self.themes:
+                first_name = sorted(self.themes.keys())[0]
+                self.current_theme = self.themes[first_name]
+            else:
+                self.current_theme = self.FALLBACK_THEME
         return self.current_theme
-    
+
     def list_themes(self) -> list:
-        """
-        列出所有可用主题
-        
-        Returns:
-            主题信息列表
-        """
         return [
             {
-                'name': theme.name,
-                'author': theme.author,
-                'description': theme.description,
-                'builtin': theme.name in self.BUILTIN_THEMES
+                "name": theme.name,
+                "author": theme.author,
+                "description": theme.description,
+                "builtin": theme.name in self._builtin_names,
             }
             for theme in self.themes.values()
         ]
-    
+
     def add_theme(self, theme: Theme) -> bool:
-        """
-        添加自定义主题
-        
-        Args:
-            theme: 主题对象
-            
-        Returns:
-            是否成功
-        """
-        if theme.name not in self.BUILTIN_THEMES:
-            self.themes[theme.name] = theme
-            
-            # 保存到文件
-            if self.themes_dir:
-                theme_file = self.themes_dir / f"{theme.name}.json"
-                theme.to_json(str(theme_file))
-            
-            return True
-        return False
-    
+        if theme.name in self._builtin_names:
+            return False
+        self.themes[theme.name] = theme
+        if self.themes_dir:
+            self.themes_dir.mkdir(parents=True, exist_ok=True)
+            theme_file = self.themes_dir / f"{theme.name}.json"
+            theme.to_json(str(theme_file))
+        return True
+
     def remove_theme(self, name: str) -> bool:
-        """
-        删除自定义主题
-        
-        Args:
-            name: 主题名称
-            
-        Returns:
-            是否成功
-        """
-        if name not in self.BUILTIN_THEMES and name in self.themes:
-            del self.themes[name]
-            
-            # 删除文件
-            if self.themes_dir:
-                theme_file = self.themes_dir / f"{name}.json"
-                if theme_file.exists():
-                    theme_file.unlink()
-            
-            return True
-        return False
-    
+        if name in self._builtin_names or name not in self.themes:
+            return False
+        del self.themes[name]
+        if self.themes_dir:
+            theme_file = self.themes_dir / f"{name}.json"
+            if theme_file.exists():
+                theme_file.unlink()
+        return True
+
     def export_theme(self, name: str, export_path: str) -> bool:
-        """
-        导出主题
-        
-        Args:
-            name: 主题名称
-            export_path: 导出路径
-            
-        Returns:
-            是否成功
-        """
         theme = self.get_theme(name)
         if theme:
             theme.to_json(export_path)
             return True
         return False
-    
+
     def import_theme(self, import_path: str) -> Optional[str]:
-        """
-        导入主题
-        
-        Args:
-            import_path: 导入路径
-            
-        Returns:
-            导入的主题名称，失败返回None
-        """
         try:
             theme = Theme.from_json(import_path)
-            
-            # 避免覆盖内置主题
-            if theme.name in self.BUILTIN_THEMES:
+            if theme.name in self._builtin_names:
                 theme.name = f"{theme.name}_custom"
-            
             self.add_theme(theme)
             return theme.name
         except Exception as e:
             print(f"导入主题失败: {e}")
             return None
-    
-    def create_custom_theme(self, base_theme: str, name: str, 
-                          modifications: Dict[str, Any]) -> Theme:
-        """
-        基于现有主题创建自定义主题
-        
-        Args:
-            base_theme: 基础主题名称
-            name: 新主题名称
-            modifications: 修改的属性
-            
-        Returns:
-            新主题对象
-        """
-        base = self.get_theme(base_theme)
-        if not base:
-            base = self.BUILTIN_THEMES['classic']
-        
-        # 复制基础主题
+
+    def create_custom_theme(
+        self, base_theme: str, name: str, modifications: Dict[str, Any]
+    ) -> Theme:
+        base = self.get_theme(base_theme) or self.get_current_theme()
         theme_dict = base.to_dict()
-        theme_dict['name'] = name
-        theme_dict['author'] = 'User'
-        
-        # 应用修改
+        theme_dict["name"] = name
+        theme_dict["author"] = "User"
         theme_dict.update(modifications)
-        
-        # 创建新主题
         new_theme = Theme.from_dict(theme_dict)
         self.add_theme(new_theme)
-        
         return new_theme
 
 

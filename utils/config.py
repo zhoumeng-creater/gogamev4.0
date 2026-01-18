@@ -6,6 +6,7 @@
 import os
 import json
 import copy
+import sys
 from dataclasses import dataclass, asdict, field
 from typing import Dict, Any, Optional, List
 from enum import Enum
@@ -216,26 +217,67 @@ class ConfigManager:
         user_dir = Path.home() / self.USER_CONFIG_DIR
         user_dir.mkdir(exist_ok=True)
         return str(user_dir / self.DEFAULT_CONFIG_FILE)
+
+    def _get_default_asset_config_path(self) -> str:
+        try:
+            base = Path(sys._MEIPASS)
+        except Exception:
+            base = Path(__file__).resolve().parents[1]
+        return str(base / "assets" / "config" / self.DEFAULT_CONFIG_FILE)
+
+    def _load_default_config_dict(self) -> Dict[str, Any]:
+        default_path = self._get_default_asset_config_path()
+        if os.path.exists(default_path):
+            try:
+                with open(default_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, dict):
+                    return data
+            except Exception as e:
+                print(f"加载默认配置失败: {e}")
+        return GameConfig().to_dict()
+
+    def _merge_dicts(self, base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+        for key, value in (override or {}).items():
+            if (
+                isinstance(value, dict)
+                and isinstance(base.get(key), dict)
+            ):
+                base[key] = self._merge_dicts(dict(base[key]), value)
+            else:
+                base[key] = value
+        return base
     
     def load_config(self) -> GameConfig:
         """加载配置"""
+        default_data = self._load_default_config_dict()
         if os.path.exists(self.config_file):
             try:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    cfg = GameConfig.from_dict(data)
-                    # 补齐新增的 UI 配置项，兼容旧配置
-                    if not isinstance(getattr(cfg, 'ui', None), dict):
-                        cfg.ui = {}
-                    cfg.ui.setdefault('skip_teaching_mode_prompt',
-                                      cfg.ui.get('skip_edit_mode_prompt', False))
-                    cfg.ui.setdefault('skip_edit_mode_prompt', False)
-                    return cfg
+                    user_data = json.load(f)
+                if isinstance(user_data, dict):
+                    merged = self._merge_dicts(copy.deepcopy(default_data), user_data)
+                else:
+                    merged = default_data
+                cfg = GameConfig.from_dict(merged)
             except Exception as e:
                 print(f"加载配置失败: {e}")
-        
-        # 返回默认配置
-        return GameConfig()
+                cfg = GameConfig.from_dict(default_data)
+        else:
+            cfg = GameConfig.from_dict(default_data)
+
+        # 补齐新增的 UI 配置项，兼容旧配置
+        if not isinstance(getattr(cfg, 'ui', None), dict):
+            cfg.ui = {}
+        cfg.ui.setdefault('skip_teaching_mode_prompt',
+                          cfg.ui.get('skip_edit_mode_prompt', False))
+        cfg.ui.setdefault('skip_edit_mode_prompt', False)
+        return cfg
+
+    def get_default_config(self) -> GameConfig:
+        """获取默认配置（来自 assets/config/config.json）。"""
+        data = self._load_default_config_dict()
+        return GameConfig.from_dict(data)
     
     def save_config(self, backup: bool = True) -> bool:
         """

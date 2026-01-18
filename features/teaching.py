@@ -16,10 +16,15 @@ import sqlite3
 from pathlib import Path
 
 from utils.content_db import ContentDatabase, get_content_db
+from ui.translator import get_translator
 from utils.user_db import get_user_db
 
 # 导入核心模块
 from core import Board, Rules, MoveResult
+
+
+def _resolve_translator(translator=None):
+    return translator or get_translator()
 
 
 class LessonType(Enum):
@@ -89,19 +94,25 @@ class Puzzle:
     hint: str = ""
     explanation: str = ""
     
-    def check_move(self, x: int, y: int) -> Tuple[bool, str]:
+    def check_move(
+        self,
+        x: int,
+        y: int,
+        translator=None,
+    ) -> Tuple[bool, str]:
         """检查着法"""
         move = (x, y)
+        translator = _resolve_translator(translator)
         
         # 检查是否为正解
         if self.solution and move == self.solution[0]:
-            return True, "正确！"
+            return True, translator.get("puzzle_correct")
         
         # 检查是否为已知错误
         if move in self.wrong_moves:
             return False, self.wrong_moves[move]
         
-        return False, "这不是最佳着法，请再想想。"
+        return False, translator.get("puzzle_try_again")
 
 
 class PuzzleDatabase:
@@ -1867,9 +1878,10 @@ class TeachingSystem:
         """检查棋题答案"""
         puzzle = self.get_puzzle(puzzle_id)
         if not puzzle:
-            return False, "棋题不存在"
+            translator = _resolve_translator(getattr(self, "translator", None))
+            return False, translator.get("puzzle_not_found")
 
-        correct, feedback = puzzle.check_move(x, y)
+        correct, feedback = puzzle.check_move(x, y, translator=self.translator)
         if self.user_db:
             try:
                 self.user_db.record_puzzle_attempt(
@@ -1933,11 +1945,19 @@ class InteractiveLesson(tk.Frame):
         self.current_step = 0
         
         self._create_widgets()
+
+    def _t(self, key: str, **kwargs) -> str:
+        translator = _resolve_translator(getattr(self.teaching_system, "translator", None))
+        return translator.get(key, **kwargs)
     
     def _create_widgets(self):
         """创建控件"""
         # 标题
-        self.title_label = ttk.Label(self, text="互动课程", font=('Arial', 14, 'bold'))
+        self.title_label = ttk.Label(
+            self,
+            text=self._t("interactive_lesson_title"),
+            font=('Arial', 14, 'bold'),
+        )
         self.title_label.pack(pady=10)
         
         # 进度条
@@ -1957,13 +1977,25 @@ class InteractiveLesson(tk.Frame):
         button_frame = ttk.Frame(self)
         button_frame.pack(pady=10)
         
-        self.prev_button = ttk.Button(button_frame, text="上一步", command=self.prev_step)
+        self.prev_button = ttk.Button(
+            button_frame,
+            text=self._t("step_prev"),
+            command=self.prev_step,
+        )
         self.prev_button.pack(side='left', padx=5)
         
-        self.next_button = ttk.Button(button_frame, text="下一步", command=self.next_step)
+        self.next_button = ttk.Button(
+            button_frame,
+            text=self._t("step_next"),
+            command=self.next_step,
+        )
         self.next_button.pack(side='left', padx=5)
         
-        self.check_button = ttk.Button(button_frame, text="检查答案", command=self.check_answer)
+        self.check_button = ttk.Button(
+            button_frame,
+            text=self._t("check_answer"),
+            command=self.check_answer,
+        )
         self.check_button.pack(side='left', padx=5)
         self.check_button.pack_forget()  # 初始隐藏
     
@@ -1971,12 +2003,18 @@ class InteractiveLesson(tk.Frame):
         """加载课程"""
         self.current_lesson = self.teaching_system.get_lesson(lesson_id)
         if not self.current_lesson:
-            messagebox.showerror("错误", "课程不存在")
+            messagebox.showerror(
+                self._t("error"),
+                self._t("lesson_not_found"),
+            )
             return
         
         # 检查先修课程
         if not self.teaching_system.start_lesson(lesson_id):
-            messagebox.showwarning("提示", "请先完成先修课程")
+            messagebox.showwarning(
+                self._t("warning"),
+                self._t("lesson_prereq_required"),
+            )
             return
         
         self.current_step = 0
@@ -2019,16 +2057,16 @@ class InteractiveLesson(tk.Frame):
             
         elif content.type == 'demo':
             self.content_text.insert('end', content.content.get('text', ''))
-            self.content_text.insert('end', "\n\n点击棋盘查看演示")
+            self.content_text.insert('end', "\n\n" + self._t("lesson_demo_hint"))
             self.check_button.pack_forget()
             
         elif content.type == 'puzzle':
             puzzle_id = content.content.get('puzzle_id')
             puzzle = self.teaching_system.get_puzzle(puzzle_id)
             if puzzle:
-                translator = self.teaching_system.translator
-                objective_label = translator.get('problem_objective') if translator else "目标"
-                hint_label = translator.get('hint') if translator else "提示"
+                translator = _resolve_translator(getattr(self.teaching_system, "translator", None))
+                objective_label = translator.get('problem_objective')
+                hint_label = translator.get('hint')
                 objective = self.teaching_system.get_puzzle_text(puzzle, "objective")
                 hint = self.teaching_system.get_puzzle_text(puzzle, "hint")
                 if objective:
@@ -2038,7 +2076,7 @@ class InteractiveLesson(tk.Frame):
             self.check_button.pack(side='left', padx=5)
             
         elif content.type == 'quiz':
-            self.content_text.insert('end', "请回答以下问题...")
+            self.content_text.insert('end', self._t("lesson_quiz_prompt"))
             self.check_button.pack(side='left', padx=5)
         
         # 配置文本标签样式
@@ -2061,12 +2099,18 @@ class InteractiveLesson(tk.Frame):
         elif self.current_lesson and self.current_step == len(self.current_lesson.content) - 1:
             # 课程完成
             self.teaching_system.complete_lesson(self.current_lesson.id)
-            messagebox.showinfo("恭喜", "课程完成！")
+            messagebox.showinfo(
+                self._t("lesson_completed_title"),
+                self._t("lesson_completed_message"),
+            )
     
     def check_answer(self):
         """检查答案（用于互动内容）"""
         # 这里需要与棋盘交互
-        messagebox.showinfo("提示", "请在棋盘上落子")
+        messagebox.showinfo(
+            self._t("hint"),
+            self._t("lesson_place_stone_prompt"),
+        )
 
 
 class TacticalPuzzles(tk.Frame):
@@ -2078,18 +2122,24 @@ class TacticalPuzzles(tk.Frame):
         self.current_puzzle: Optional[Puzzle] = None
         
         self._create_widgets()
+
+    def _t(self, key: str, **kwargs) -> str:
+        translator = _resolve_translator(getattr(self.teaching_system, "translator", None))
+        return translator.get(key, **kwargs)
     
     def _create_widgets(self):
         """创建控件"""
         # 标题
-        title_label = ttk.Label(self, text="战术训练", font=('Arial', 14, 'bold'))
+        title_label = ttk.Label(
+            self, text=self._t("tactical_training_title"), font=('Arial', 14, 'bold')
+        )
         title_label.pack(pady=10)
         
         # 难度选择
         difficulty_frame = ttk.Frame(self)
         difficulty_frame.pack(pady=5)
         
-        ttk.Label(difficulty_frame, text="难度:").pack(side='left')
+        ttk.Label(difficulty_frame, text=self._t("difficulty_label")).pack(side='left')
         
         self.difficulty_var = tk.IntVar(value=1)
         for i in range(1, 6):
@@ -2097,7 +2147,7 @@ class TacticalPuzzles(tk.Frame):
                           variable=self.difficulty_var, value=i).pack(side='left')
         
         # 题目信息
-        info_frame = ttk.LabelFrame(self, text="题目")
+        info_frame = ttk.LabelFrame(self, text=self._t("puzzle_section_title"))
         info_frame.pack(fill='x', padx=10, pady=5)
         
         self.puzzle_title = ttk.Label(info_frame, text="", font=('Arial', 12))
@@ -2113,15 +2163,24 @@ class TacticalPuzzles(tk.Frame):
         button_frame = ttk.Frame(self)
         button_frame.pack(pady=10)
         
-        ttk.Button(button_frame, text="新题目", command=self.new_puzzle).pack(side='left', padx=5)
-        ttk.Button(button_frame, text="显示提示", command=self.show_hint).pack(side='left', padx=5)
-        ttk.Button(button_frame, text="显示答案", command=self.show_solution).pack(side='left', padx=5)
+        ttk.Button(
+            button_frame, text=self._t("new_puzzle"), command=self.new_puzzle
+        ).pack(side='left', padx=5)
+        ttk.Button(
+            button_frame, text=self._t("show_hint"), command=self.show_hint
+        ).pack(side='left', padx=5)
+        ttk.Button(
+            button_frame, text=self._t("show_solution"), command=self.show_solution
+        ).pack(side='left', padx=5)
         
         # 统计信息
-        stats_frame = ttk.LabelFrame(self, text="统计")
+        stats_frame = ttk.LabelFrame(self, text=self._t("tactical_stats_title"))
         stats_frame.pack(fill='x', padx=10, pady=5)
         
-        self.stats_label = ttk.Label(stats_frame, text="已解决: 0 | 正确率: 0%")
+        self.stats_label = ttk.Label(
+            stats_frame,
+            text=self._t("tactical_stats_format", solved=0, accuracy=0),
+        )
         self.stats_label.pack(padx=5, pady=5)
     
     def new_puzzle(self):
@@ -2144,8 +2203,8 @@ class TacticalPuzzles(tk.Frame):
         if not self.current_puzzle:
             return
 
-        translator = self.teaching_system.translator
-        objective_label = translator.get('problem_objective') if translator else "目标"
+        translator = _resolve_translator(getattr(self.teaching_system, "translator", None))
+        objective_label = translator.get('problem_objective')
         title = self.teaching_system.get_puzzle_text(self.current_puzzle, "title")
         objective = self.teaching_system.get_puzzle_text(self.current_puzzle, "objective")
         self.puzzle_title.config(text=title or self.current_puzzle.title)
@@ -2157,15 +2216,15 @@ class TacticalPuzzles(tk.Frame):
         if self.current_puzzle:
             hint = self.teaching_system.get_puzzle_text(self.current_puzzle, "hint")
             if hint:
-                translator = self.teaching_system.translator
-                hint_label = translator.get('hint') if translator else "提示"
+                translator = _resolve_translator(getattr(self.teaching_system, "translator", None))
+                hint_label = translator.get('hint')
                 self.hint_label.config(text=f"{hint_label}: {hint}")
     
     def show_solution(self):
         """显示答案"""
         if self.current_puzzle:
-            translator = self.teaching_system.translator
-            label = translator.get('problem_solution') if translator else "答案"
+            translator = _resolve_translator(getattr(self.teaching_system, "translator", None))
+            label = translator.get('problem_solution')
             explanation = self.teaching_system.get_puzzle_text(
                 self.current_puzzle, "explanation"
             )
@@ -2178,9 +2237,9 @@ class TacticalPuzzles(tk.Frame):
     def check_move(self, x: int, y: int) -> Tuple[bool, str]:
         """检查着法"""
         if not self.current_puzzle:
-            return False, "请先选择题目"
+            return False, self._t("puzzle_select_prompt")
         
-        correct, feedback = self.current_puzzle.check_move(x, y)
+        correct, feedback = self.current_puzzle.check_move(x, y, translator=self.teaching_system.translator)
         if getattr(self.teaching_system, "user_db", None):
             try:
                 self.teaching_system.user_db.record_puzzle_attempt(

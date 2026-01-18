@@ -16,6 +16,7 @@ import numpy as np
 # 导入核心模块
 from core import Board, Game, GamePhase, Move, MoveSequence
 from ai import AIFactory
+from ui.translator import Translator, get_translator
 from utils.content_db import get_content_db
 from utils.user_db import get_user_db
 
@@ -494,8 +495,14 @@ class ReplayManager:
     def add_variation_from_current(self, moves: List[Move], name: str = "", 
                                    comment: str = "") -> Variation:
         """从当前位置添加变化"""
+        if not name:
+            translator = get_translator()
+            name = translator.get(
+                "variation_label_format",
+                index=len(self.move_tree.current_node.variations) + 1,
+            )
         variation = Variation(
-            name=name or f"变化 {len(self.move_tree.current_node.variations) + 1}",
+            name=name,
             moves=moves,
             comment=Comment(comment) if comment else None
         )
@@ -601,9 +608,16 @@ class ReplayManager:
 class ReplayViewer(tk.Frame):
     """复盘查看器UI组件"""
     
-    def __init__(self, parent, replay_manager: ReplayManager, **kwargs):
+    def __init__(
+        self,
+        parent,
+        replay_manager: ReplayManager,
+        translator: Optional[Translator] = None,
+        **kwargs,
+    ):
         super().__init__(parent, **kwargs)
         self.replay_manager = replay_manager
+        self.translator = translator or Translator()
         
         self._create_widgets()
         self._bind_events()
@@ -615,17 +629,43 @@ class ReplayViewer(tk.Frame):
         control_frame = ttk.Frame(self)
         control_frame.pack(fill='x', padx=5, pady=5)
         
-        ttk.Button(control_frame, text="<<", command=self.go_to_start, width=3).pack(side='left', padx=2)
-        ttk.Button(control_frame, text="<", command=self.previous_move, width=3).pack(side='left', padx=2)
-        ttk.Button(control_frame, text=">", command=self.next_move, width=3).pack(side='left', padx=2)
-        ttk.Button(control_frame, text=">>", command=self.go_to_end, width=3).pack(side='left', padx=2)
+        ttk.Button(
+            control_frame,
+            text=self.translator.get("nav_first"),
+            command=self.go_to_start,
+            width=3,
+        ).pack(side='left', padx=2)
+        ttk.Button(
+            control_frame,
+            text=self.translator.get("nav_prev"),
+            command=self.previous_move,
+            width=3,
+        ).pack(side='left', padx=2)
+        ttk.Button(
+            control_frame,
+            text=self.translator.get("nav_next"),
+            command=self.next_move,
+            width=3,
+        ).pack(side='left', padx=2)
+        ttk.Button(
+            control_frame,
+            text=self.translator.get("nav_last"),
+            command=self.go_to_end,
+            width=3,
+        ).pack(side='left', padx=2)
         
         # 手数显示
-        self.move_label = ttk.Label(control_frame, text="0 / 0")
+        self.move_label = ttk.Label(
+            control_frame,
+            text=self.translator.get("move_progress", current=0, total=0),
+        )
         self.move_label.pack(side='left', padx=10)
         
         # 变化列表
-        variation_frame = ttk.LabelFrame(self, text="变化分支")
+        variation_frame = ttk.LabelFrame(
+            self,
+            text=self.translator.get("variation_branches"),
+        )
         variation_frame.pack(fill='both', expand=True, padx=5, pady=5)
         
         self.variation_listbox = tk.Listbox(variation_frame, height=4)
@@ -633,29 +673,47 @@ class ReplayViewer(tk.Frame):
         self.variation_listbox.bind('<<ListboxSelect>>', self.on_variation_select)
         
         # 评注显示
-        comment_frame = ttk.LabelFrame(self, text="评注")
+        comment_frame = ttk.LabelFrame(self, text=self.translator.get("comment"))
         comment_frame.pack(fill='both', expand=True, padx=5, pady=5)
         
         self.comment_text = tk.Text(comment_frame, height=6, wrap='word')
         self.comment_text.pack(fill='both', expand=True, padx=5, pady=5)
         
         # 分析数据
-        analysis_frame = ttk.LabelFrame(self, text="分析")
+        analysis_frame = ttk.LabelFrame(self, text=self.translator.get("analysis"))
         analysis_frame.pack(fill='x', padx=5, pady=5)
         
-        self.winrate_label = ttk.Label(analysis_frame, text="胜率: --")
+        self.winrate_label = ttk.Label(
+            analysis_frame,
+            text=self.translator.get("win_rate_format", value="--"),
+        )
         self.winrate_label.pack(anchor='w', padx=5, pady=2)
         
-        self.best_moves_label = ttk.Label(analysis_frame, text="最佳着法: --")
+        self.best_moves_label = ttk.Label(
+            analysis_frame,
+            text=self.translator.get("best_moves_format", value="--"),
+        )
         self.best_moves_label.pack(anchor='w', padx=5, pady=2)
         
         # 操作按钮
         action_frame = ttk.Frame(self)
         action_frame.pack(fill='x', padx=5, pady=5)
         
-        ttk.Button(action_frame, text="分析当前", command=self.analyze_current).pack(side='left', padx=2)
-        ttk.Button(action_frame, text="添加评注", command=self.add_comment).pack(side='left', padx=2)
-        ttk.Button(action_frame, text="添加变化", command=self.add_variation).pack(side='left', padx=2)
+        ttk.Button(
+            action_frame,
+            text=self.translator.get("analyze_current"),
+            command=self.analyze_current,
+        ).pack(side='left', padx=2)
+        ttk.Button(
+            action_frame,
+            text=self.translator.get("add_comment"),
+            command=self.add_comment,
+        ).pack(side='left', padx=2)
+        ttk.Button(
+            action_frame,
+            text=self.translator.get("add_variation"),
+            command=self.add_variation,
+        ).pack(side='left', padx=2)
     
     def _bind_events(self):
         """绑定事件"""
@@ -671,7 +729,13 @@ class ReplayViewer(tk.Frame):
         # 更新手数
         move_num = current.get_move_number()
         total_moves = self._get_total_moves()
-        self.move_label.config(text=f"{move_num} / {total_moves}")
+        self.move_label.config(
+            text=self.translator.get(
+                "move_progress",
+                current=move_num,
+                total=total_moves,
+            )
+        )
         
         # 更新变化列表
         self.variation_listbox.delete(0, 'end')
@@ -686,15 +750,29 @@ class ReplayViewer(tk.Frame):
         # 更新分析数据
         if current.analysis_data:
             winrate = current.analysis_data.get('winrate', 0)
-            self.winrate_label.config(text=f"胜率: {winrate:.1%}")
+            self.winrate_label.config(
+                text=self.translator.get(
+                    "win_rate_format",
+                    value=f"{winrate:.1%}",
+                )
+            )
             
             best_moves = current.analysis_data.get('best_moves', [])
             if best_moves:
                 moves_text = ", ".join(f"({x},{y})" for x, y, _ in best_moves[:3])
-                self.best_moves_label.config(text=f"最佳着法: {moves_text}")
+                self.best_moves_label.config(
+                    text=self.translator.get(
+                        "best_moves_format",
+                        value=moves_text,
+                    )
+                )
         else:
-            self.winrate_label.config(text="胜率: --")
-            self.best_moves_label.config(text="最佳着法: --")
+            self.winrate_label.config(
+                text=self.translator.get("win_rate_format", value="--")
+            )
+            self.best_moves_label.config(
+                text=self.translator.get("best_moves_format", value="--")
+            )
     
     def _get_total_moves(self) -> int:
         """获取总手数"""
@@ -741,17 +819,24 @@ class ReplayViewer(tk.Frame):
         self.update_display()
         
         # 显示分析结果
-        messagebox.showinfo("分析完成", 
-                          f"胜率: {analysis['winrate']:.1%}\n"
-                          f"局面评分: {analysis['score']:.1f}")
+        messagebox.showinfo(
+            self.translator.get("analysis_complete"),
+            self.translator.get(
+                "analysis_result_format",
+                winrate=f"{analysis['winrate']:.1%}",
+                score=f"{analysis['score']:.1f}",
+            ),
+        )
     
     def add_comment(self):
         """添加评注对话框"""
         dialog = tk.Toplevel(self)
-        dialog.title("添加评注")
+        dialog.title(self.translator.get("add_comment"))
         dialog.geometry("400x300")
         
-        ttk.Label(dialog, text="评注内容:").pack(anchor='w', padx=5, pady=5)
+        ttk.Label(dialog, text=self.translator.get("comment_content_label")).pack(
+            anchor='w', padx=5, pady=5
+        )
         
         text = tk.Text(dialog, height=10)
         text.pack(fill='both', expand=True, padx=5, pady=5)
@@ -760,7 +845,9 @@ class ReplayViewer(tk.Frame):
         eval_frame = ttk.Frame(dialog)
         eval_frame.pack(fill='x', padx=5, pady=5)
         
-        ttk.Label(eval_frame, text="着法评价:").pack(side='left')
+        ttk.Label(eval_frame, text=self.translator.get("comment_evaluation_label")).pack(
+            side='left'
+        )
         
         eval_var = tk.StringVar()
         eval_combo = ttk.Combobox(eval_frame, textvariable=eval_var, width=15)
@@ -777,7 +864,7 @@ class ReplayViewer(tk.Frame):
                 self.update_display()
                 dialog.destroy()
         
-        ttk.Button(dialog, text="保存", command=save_comment).pack(pady=5)
+        ttk.Button(dialog, text=self.translator.get("save"), command=save_comment).pack(pady=5)
 
     def _get_evaluation_options(self) -> Tuple[List[str], Dict[str, str]]:
         order = ['good', 'excellent', 'bad', 'very_bad', 'interesting', 'dubious']
@@ -792,20 +879,30 @@ class ReplayViewer(tk.Frame):
         if labels:
             return [''] + labels, mapping
 
-        fallback_labels = ['好手', '妙手', '恶手', '大恶手', '有趣', '疑问']
+        fallback_labels = [
+            self.translator.get('evaluation_good'),
+            self.translator.get('evaluation_excellent'),
+            self.translator.get('evaluation_bad'),
+            self.translator.get('evaluation_very_bad'),
+            self.translator.get('evaluation_interesting'),
+            self.translator.get('evaluation_dubious'),
+        ]
         fallback_map = {
-            '好手': 'good',
-            '妙手': 'excellent',
-            '恶手': 'bad',
-            '大恶手': 'very_bad',
-            '有趣': 'interesting',
-            '疑问': 'dubious',
+            self.translator.get('evaluation_good'): 'good',
+            self.translator.get('evaluation_excellent'): 'excellent',
+            self.translator.get('evaluation_bad'): 'bad',
+            self.translator.get('evaluation_very_bad'): 'very_bad',
+            self.translator.get('evaluation_interesting'): 'interesting',
+            self.translator.get('evaluation_dubious'): 'dubious',
         }
         return [''] + fallback_labels, fallback_map
     
     def add_variation(self):
         """添加变化分支（需要棋盘交互）"""
-        messagebox.showinfo("添加变化", "请在棋盘上点击添加变化手")
+        messagebox.showinfo(
+            self.translator.get("add_variation"),
+            self.translator.get("add_variation_hint"),
+        )
     
     def on_position_changed(self):
         """局面改变回调（供外部调用）"""

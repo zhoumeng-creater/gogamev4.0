@@ -1,0 +1,14 @@
+{
+  "place_stone": "place_stone.wav",
+  "capture": "capture.wav",
+  "illegal": "illegal.wav",
+  "game_start": "game_start.wav",
+  "game_end": "game_end.wav",
+  "clock_tick": "clock_tick.wav",
+  "time_warning": "time_warning.wav",
+  "button_click": "button_click.wav",
+  "pass": "pass.wav",
+  "resign": "resign.wav",
+  "hint": "hint.wav",
+  "achievement": "achievement.wav"
+}

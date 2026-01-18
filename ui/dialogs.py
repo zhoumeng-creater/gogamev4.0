@@ -333,6 +333,18 @@ class NewGameDialog(BaseDialog):
     def _on_mode_change(self):
         """游戏模式改变处理"""
         mode = self.mode_var.get()
+
+        ai_name = self.translator.get('ai_name')
+        ai_black = self.translator.get(
+            'ai_name_color_format',
+            name=ai_name,
+            color=self.translator.get('black'),
+        )
+        ai_white = self.translator.get(
+            'ai_name_color_format',
+            name=ai_name,
+            color=self.translator.get('white'),
+        )
         
         # 更新玩家输入框
         if mode == 'human_vs_human':
@@ -349,14 +361,14 @@ class NewGameDialog(BaseDialog):
             self.black_ai_combo.grid_remove()
             self.white_ai_combo.grid()
             self.black_name_var.set(self.translator.get('player'))
-            self.white_name_var.set('AI')
+            self.white_name_var.set(ai_name)
             
         elif mode == 'ai_vs_human':
             self.black_name_entry.grid_remove()
             self.white_name_entry.grid()
             self.black_ai_combo.grid()
             self.white_ai_combo.grid_remove()
-            self.black_name_var.set('AI')
+            self.black_name_var.set(ai_name)
             self.white_name_var.set(self.translator.get('player'))
             
         elif mode == 'ai_vs_ai':
@@ -364,8 +376,8 @@ class NewGameDialog(BaseDialog):
             self.white_name_entry.grid_remove()
             self.black_ai_combo.grid()
             self.white_ai_combo.grid()
-            self.black_name_var.set('AI (Black)')
-            self.white_name_var.set('AI (White)')
+            self.black_name_var.set(ai_black)
+            self.white_name_var.set(ai_white)
     
     def _on_rules_change(self, event=None):
         """规则改变处理"""
@@ -430,12 +442,52 @@ class NewGameDialog(BaseDialog):
 class SettingsDialog(BaseDialog):
     """设置对话框"""
     
-    def __init__(self, parent, config: Dict[str, Any], **kwargs):
+    def __init__(
+        self,
+        parent,
+        config: Dict[str, Any],
+        theme_names: Optional[List[str]] = None,
+        defaults: Optional[Dict[str, Any]] = None,
+        **kwargs,
+    ):
         self.config = config.copy()  # 创建配置副本
+        self.theme_names = theme_names or []
+        self.defaults = defaults or {}
         super().__init__(parent, title=kwargs.get('translator', Translator()).get('settings'), **kwargs)
+
+    def _setup_option_maps(self) -> None:
+        self._rules_keys = ['chinese', 'japanese', 'aga', 'ing', 'new_zealand']
+        self._rules_label_by_key = {k: self.translator.get(k) for k in self._rules_keys}
+        self._rules_key_by_label = {v: k for k, v in self._rules_label_by_key.items()}
+
+        self._ai_level_keys = ['easy', 'medium', 'hard', 'expert']
+        self._ai_label_by_key = {k: self.translator.get(k) for k in self._ai_level_keys}
+        self._ai_key_by_label = {v: k for k, v in self._ai_label_by_key.items()}
+
+        try:
+            available_languages = list(self.translator.get_available_languages())
+        except Exception:
+            available_languages = ['en', 'zh']
+        self._language_keys = available_languages
+        self._language_label_by_key = {
+            k: self.translator.get(f"language_name_{k}", k) for k in available_languages
+        }
+        self._language_key_by_label = {v: k for k, v in self._language_label_by_key.items()}
+
+        theme_values = self.theme_names or ['wood', 'modern', 'dark']
+        self._theme_keys = theme_values
+        self._theme_label_by_key = {}
+        for name in theme_values:
+            label_key = f"{name}_theme"
+            label = self.translator.get(label_key)
+            if label == label_key:
+                label = name
+            self._theme_label_by_key[name] = label
+        self._theme_key_by_label = {v: k for k, v in self._theme_label_by_key.items()}
     
     def _create_widgets(self):
         """创建控件"""
+        self._setup_option_maps()
         # 创建标签页
         self.notebook = ttk.Notebook(self)
         self.notebook.pack(fill='both', expand=True, padx=10, pady=10)
@@ -479,17 +531,17 @@ class SettingsDialog(BaseDialog):
             row=row, column=0, sticky='w', padx=10, pady=5
         )
         
-        self.language_var = tk.StringVar(value=self.config.get('language', 'en'))
-        try:
-            available_languages = list(self.translator.get_available_languages())
-        except Exception:
-            available_languages = ['en', 'zh']
+        current_lang = self.config.get('language', 'en')
+        self.language_var = tk.StringVar(
+            value=self._language_label_by_key.get(current_lang, current_lang)
+        )
 
         # 优先排序：中文/英文/日文
         preferred_order = ['zh', 'en', 'ja']
-        language_values = [c for c in preferred_order if c in available_languages] + [
-            c for c in available_languages if c not in preferred_order
+        language_keys = [c for c in preferred_order if c in self._language_keys] + [
+            c for c in self._language_keys if c not in preferred_order
         ]
+        language_values = [self._language_label_by_key.get(k, k) for k in language_keys]
 
         language_combo = ttk.Combobox(
             frame,
@@ -506,10 +558,18 @@ class SettingsDialog(BaseDialog):
             row=row, column=0, sticky='w', padx=10, pady=5
         )
         
-        self.theme_var = tk.StringVar(value=self.config.get('theme', 'classic'))
-        theme_combo = ttk.Combobox(frame, textvariable=self.theme_var,
-                                  values=['classic', 'modern', 'dark', 'bamboo', 'ocean', 'sakura'],
-                                  state='readonly', width=15)
+        current_theme = self.config.get('theme', 'wood')
+        self.theme_var = tk.StringVar(
+            value=self._theme_label_by_key.get(current_theme, current_theme)
+        )
+        theme_values = [self._theme_label_by_key.get(k, k) for k in self._theme_keys]
+        theme_combo = ttk.Combobox(
+            frame,
+            textvariable=self.theme_var,
+            values=theme_values,
+            state='readonly',
+            width=15,
+        )
         theme_combo.grid(row=row, column=1, padx=10, pady=5)
         
         ttk.Button(frame, text=self.translator.get('customize'),
@@ -532,9 +592,12 @@ class SettingsDialog(BaseDialog):
             row=row, column=0, sticky='w', padx=10, pady=5
         )
         
-        self.default_rules_var = tk.StringVar(value=self.config.get('default_rules', 'chinese'))
+        default_rules_key = self.config.get('default_rules', 'chinese')
+        self.default_rules_var = tk.StringVar(
+            value=self._rules_label_by_key.get(default_rules_key, default_rules_key)
+        )
         rules_combo = ttk.Combobox(frame, textvariable=self.default_rules_var,
-                                  values=['chinese', 'japanese', 'aga', 'ing', 'new_zealand'],
+                                  values=[self._rules_label_by_key[k] for k in self._rules_keys],
                                   state='readonly', width=15)
         rules_combo.grid(row=row, column=1, padx=10, pady=5)
         
@@ -634,9 +697,19 @@ class SettingsDialog(BaseDialog):
                               orient='horizontal', length=200)
         speed_scale.grid(row=row, column=1, padx=10, pady=5)
         
-        self.speed_label = ttk.Label(frame, text=f"{self.animation_speed_var.get():.1f}x")
+        self.speed_label = ttk.Label(
+            frame,
+            text=self.translator.get(
+                'speed_multiplier_format',
+                value=self.animation_speed_var.get(),
+            ),
+        )
         self.speed_label.grid(row=row, column=2, padx=5, pady=5)
-        speed_scale.configure(command=lambda v: self.speed_label.configure(text=f"{float(v):.1f}x"))
+        speed_scale.configure(
+            command=lambda v: self.speed_label.configure(
+                text=self.translator.get('speed_multiplier_format', value=float(v))
+            )
+        )
     
     def _create_ai_tab(self):
         """创建AI设置标签页"""
@@ -649,9 +722,12 @@ class SettingsDialog(BaseDialog):
             row=row, column=0, sticky='w', padx=10, pady=5
         )
         
-        self.default_ai_level_var = tk.StringVar(value=self.config.get('default_ai_level', 'medium'))
+        default_ai_key = self.config.get('default_ai_level', 'medium')
+        self.default_ai_level_var = tk.StringVar(
+            value=self._ai_label_by_key.get(default_ai_key, default_ai_key)
+        )
         ai_combo = ttk.Combobox(frame, textvariable=self.default_ai_level_var,
-                               values=['easy', 'medium', 'hard', 'expert'],
+                               values=[self._ai_label_by_key[k] for k in self._ai_level_keys],
                                state='readonly', width=15)
         ai_combo.grid(row=row, column=1, padx=10, pady=5)
         
@@ -836,12 +912,17 @@ class SettingsDialog(BaseDialog):
     
     def customize_theme(self):
         """打开主题自定义对话框"""
-        dialog = ThemeCustomizeDialog(self, self.theme_var.get(), self.translator)
+        base_label = self.theme_var.get()
+        base_theme = self._theme_key_by_label.get(base_label, base_label)
+        dialog = ThemeCustomizeDialog(self, base_theme, self.translator)
         self.wait_window(dialog)
         
         if dialog.result:
             # 添加自定义主题
-            self.theme_var.set(dialog.result['name'])
+            name = dialog.result['name']
+            self._theme_label_by_key.setdefault(name, name)
+            self._theme_key_by_label.setdefault(name, name)
+            self.theme_var.set(self._theme_label_by_key.get(name, name))
     
     def browse_sgf_path(self):
         """浏览SGF保存路径"""
@@ -867,22 +948,39 @@ class SettingsDialog(BaseDialog):
             self.translator.get('restore_defaults_confirm')
         ):
             # 恢复默认值
-            self.language_var.set('en')
-            self.theme_var.set('classic')
-            self.default_board_size_var.set(19)
-            self.default_rules_var.set('chinese')
-            self.default_komi_var.set(7.5)
-            self.auto_save_var.set(True)
-            self.confirm_exit_var.set(True)
+            defaults = self.defaults
+            language_key = defaults.get('language')
+            if language_key is not None:
+                self.language_var.set(self._language_label_by_key.get(language_key, language_key))
+            theme_key = defaults.get('theme')
+            if theme_key is not None:
+                self.theme_var.set(self._theme_label_by_key.get(theme_key, theme_key))
+            self.default_board_size_var.set(defaults.get('default_board_size', 19))
+            default_rules_key = defaults.get('default_rules', 'chinese')
+            self.default_rules_var.set(
+                self._rules_label_by_key.get(default_rules_key, default_rules_key)
+            )
+            self.default_komi_var.set(defaults.get('default_komi', 7.5))
+            self.auto_save_var.set(defaults.get('auto_save', True))
+            self.confirm_exit_var.set(defaults.get('confirm_exit', True))
             # ... 其他默认值
     
     def _update_config(self):
         """更新配置字典"""
+        language_label = self.language_var.get()
+        language_key = self._language_key_by_label.get(language_label, language_label)
+        theme_label = self.theme_var.get()
+        theme_key = self._theme_key_by_label.get(theme_label, theme_label)
+        rules_label = self.default_rules_var.get()
+        rules_key = self._rules_key_by_label.get(rules_label, rules_label)
+        ai_label = self.default_ai_level_var.get()
+        ai_key = self._ai_key_by_label.get(ai_label, ai_label)
+
         self.config.update({
-            'language': self.language_var.get(),
-            'theme': self.theme_var.get(),
+            'language': language_key,
+            'theme': theme_key,
             'default_board_size': self.default_board_size_var.get(),
-            'default_rules': self.default_rules_var.get(),
+            'default_rules': rules_key,
             'default_komi': self.default_komi_var.get(),
             'auto_save': self.auto_save_var.get(),
             'confirm_exit': self.confirm_exit_var.get(),
@@ -893,7 +991,7 @@ class SettingsDialog(BaseDialog):
             'show_influence': self.show_influence_var.get(),
             'enable_animations': self.enable_animations_var.get(),
             'animation_speed': self.animation_speed_var.get(),
-            'default_ai_level': self.default_ai_level_var.get(),
+            'default_ai_level': ai_key,
             'ai_thinking_time': self.ai_thinking_time_var.get(),
             'show_ai_analysis': self.show_ai_analysis_var.get(),
             'show_winrate': self.show_winrate_var.get(),
@@ -930,16 +1028,16 @@ class AboutDialog(BaseDialog):
         **kwargs,
     ):
         # AboutDialog 额外参数不应透传给 BaseDialog（否则会触发 TypeError）
+        translator = kwargs.get('translator') or Translator()
         self.version = version
         self.app_name = app_name
-        self.author = author or "周盟"
+        self.author = author or translator.get('author_default')
         self.contact = contact
 
-        translator = kwargs.get('translator') or Translator()
         super().__init__(
             parent,
             title=translator.get('about'),
-            translator=kwargs.get('translator'),
+            translator=translator,
             theme=kwargs.get('theme'),
             modal=kwargs.get('modal', True),
             auto_wait=False,  # 延后 wait_window，避免窗口被销毁后再几何设置
@@ -1020,7 +1118,7 @@ class AboutDialog(BaseDialog):
                 self.author,
                 "",
                 f"{self.translator.get('license')}:",
-                "MIT License",
+                self.translator.get('license_mit'),
                 "",
                 f"{self.translator.get('contact')}:",
                 self.contact or "",
@@ -1054,7 +1152,7 @@ class SaveGameDialog(BaseDialog):
         
         # 生成默认文件名
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        default_name = f"game_{timestamp}"
+        default_name = self.translator.get('save_default_name_format', timestamp=timestamp)
         
         self.filename_var = tk.StringVar(value=default_name)
         filename_entry = ttk.Entry(self, textvariable=self.filename_var, width=30)
@@ -1072,8 +1170,9 @@ class SaveGameDialog(BaseDialog):
         info_frame = ttk.LabelFrame(self, text=self.translator.get('game_info'))
         info_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=10, sticky='ew')
         
-        info_text = f"{self.translator.get('black')}: {self.game_info.get('black_player', 'Unknown')}\n"
-        info_text += f"{self.translator.get('white')}: {self.game_info.get('white_player', 'Unknown')}\n"
+        unknown_label = self.translator.get('unknown')
+        info_text = f"{self.translator.get('black')}: {self.game_info.get('black_player', unknown_label)}\n"
+        info_text += f"{self.translator.get('white')}: {self.game_info.get('white_player', unknown_label)}\n"
         info_text += f"{self.translator.get('moves')}: {self.game_info.get('moves', 0)}\n"
         info_text += f"{self.translator.get('date')}: {self.game_info.get('date', '')}"
         
@@ -1147,7 +1246,11 @@ class LoadGameDialog(BaseDialog):
         
         # 填充数据
         for game in self.saved_games:
-            players = f"{game.get('black_player', '')} vs {game.get('white_player', '')}"
+            players = self.translator.get(
+                'players_vs_format',
+                black=game.get('black_player', ''),
+                white=game.get('white_player', ''),
+            )
             self.game_tree.insert('', 'end', values=(
                 game.get('filename', ''),
                 game.get('date', ''),
@@ -1252,7 +1355,9 @@ class SGFDialog(BaseDialog):
         )
         
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self.filename_var = tk.StringVar(value=f"game_{timestamp}.sgf")
+        self.filename_var = tk.StringVar(
+            value=self.translator.get('sgf_default_name_format', timestamp=timestamp)
+        )
         filename_entry = ttk.Entry(self, textvariable=self.filename_var, width=30)
         filename_entry.grid(row=0, column=1, padx=10, pady=5)
         
@@ -1285,7 +1390,10 @@ class SGFDialog(BaseDialog):
         """浏览文件"""
         filename = filedialog.askopenfilename(
             title=self.translator.get('select_sgf_file'),
-            filetypes=[('SGF Files', '*.sgf'), ('All Files', '*.*')]
+            filetypes=[
+                (self.translator.get('sgf_files'), '*.sgf'),
+                (self.translator.get('all_files'), '*.*'),
+            ]
         )
         if filename:
             self.file_var.set(filename)
