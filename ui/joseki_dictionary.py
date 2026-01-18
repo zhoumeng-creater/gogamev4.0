@@ -70,6 +70,24 @@ class JosekiDictionaryWindow(tk.Toplevel):
             command=self._on_search,
         ).pack(side="left")
 
+        filter_frame = ttk.Frame(container)
+        filter_frame.pack(fill="x", pady=(0, 8))
+
+        ttk.Label(filter_frame, text=self.translator.get("pattern_category")).pack(
+            side="left"
+        )
+        self.type_var = tk.StringVar(value=self.translator.get("pattern_filter_all"))
+        type_labels = self._type_labels()
+        self.type_combo = ttk.Combobox(
+            filter_frame,
+            textvariable=self.type_var,
+            values=list(type_labels.keys()),
+            state="readonly",
+            width=14,
+        )
+        self.type_combo.pack(side="left", padx=6)
+        self.type_combo.bind("<<ComboboxSelected>>", lambda _e: self._on_search())
+
         paned = ttk.PanedWindow(container, orient=tk.HORIZONTAL)
         paned.pack(fill="both", expand=True)
 
@@ -124,34 +142,22 @@ class JosekiDictionaryWindow(tk.Toplevel):
             control_frame,
             text=self.translator.get("nav_first"),
             command=self._first_move,
-            width=3,
-        ).pack(
-            side="left", padx=2
-        )
+        ).pack(side="left", padx=4)
         ttk.Button(
             control_frame,
             text=self.translator.get("nav_prev"),
             command=self._prev_move,
-            width=3,
-        ).pack(
-            side="left", padx=2
-        )
+        ).pack(side="left", padx=4)
         ttk.Button(
             control_frame,
             text=self.translator.get("nav_next"),
             command=self._next_move,
-            width=3,
-        ).pack(
-            side="left", padx=2
-        )
+        ).pack(side="left", padx=4)
         ttk.Button(
             control_frame,
             text=self.translator.get("nav_last"),
             command=self._last_move,
-            width=3,
-        ).pack(
-            side="left", padx=2
-        )
+        ).pack(side="left", padx=4)
 
         self.move_label = ttk.Label(
             control_frame,
@@ -161,8 +167,18 @@ class JosekiDictionaryWindow(tk.Toplevel):
 
         comment_frame = ttk.LabelFrame(right, text=self.translator.get("comment"))
         comment_frame.pack(fill="both", expand=True, pady=(6, 0))
-        self.comment_text = tk.Text(comment_frame, height=5, wrap="word")
-        self.comment_text.pack(fill="both", expand=True, padx=6, pady=6)
+        comment_body = ttk.Frame(comment_frame)
+        comment_body.pack(fill="both", expand=True, padx=6, pady=6)
+        comment_scrollbar = ttk.Scrollbar(comment_body, orient="vertical")
+        self.comment_text = tk.Text(
+            comment_body,
+            height=7,
+            wrap="word",
+            yscrollcommand=comment_scrollbar.set,
+        )
+        comment_scrollbar.config(command=self.comment_text.yview)
+        self.comment_text.pack(side="left", fill="both", expand=True)
+        comment_scrollbar.pack(side="right", fill="y")
         self._set_text(self.info_text, "")
         self._set_text(self.comment_text, "")
 
@@ -174,6 +190,38 @@ class JosekiDictionaryWindow(tk.Toplevel):
 
     def _format_move_progress(self, current: int, total: int) -> str:
         return self.translator.get("move_progress", current=current, total=total)
+
+    def _type_labels(self) -> dict:
+        return {
+            self.translator.get("pattern_filter_all"): "all",
+            self.translator.get("joseki_type_corner"): JosekiType.CORNER,
+            self.translator.get("joseki_type_side"): JosekiType.SIDE,
+            self.translator.get("joseki_type_invasion"): JosekiType.INVASION,
+            self.translator.get("joseki_type_reduction"): JosekiType.REDUCTION,
+            self.translator.get("joseki_type_special"): JosekiType.SPECIAL,
+            self.translator.get("joseki_type_opening"): JosekiType.OPENING,
+            self.translator.get("joseki_type_fighting"): JosekiType.FIGHTING,
+        }
+
+    def _selected_type(self) -> Optional[JosekiType]:
+        type_labels = self._type_labels()
+        selected = type_labels.get(self.type_var.get(), "all")
+        if selected == "all":
+            return None
+        return selected
+
+    def _filter_joseki(self, keyword: str) -> List[JosekiSequence]:
+        keyword = keyword.lower().strip()
+        selected_type = self._selected_type()
+        results = []
+        for joseki in self.database.joseki_dict.values():
+            if selected_type and joseki.type != selected_type:
+                continue
+            if keyword and not self._matches_keyword(joseki, keyword):
+                continue
+            results.append(joseki)
+        results.sort(key=lambda item: self._localize_joseki_name(item).lower())
+        return results
 
     def _load_list(self, joseki_list: Optional[List[JosekiSequence]] = None) -> None:
         self.joseki_listbox.delete(0, "end")
@@ -189,10 +237,10 @@ class JosekiDictionaryWindow(tk.Toplevel):
         self.board_canvas.clear_board()
         self.move_label.config(text=self._format_move_progress(0, 0))
 
-        items = joseki_list or self.database.search_joseki()
+        items = joseki_list or self._filter_joseki(self.search_var.get().strip())
         for joseki in items:
             display_name = self._localize_joseki_name(joseki)
-            display = f"{display_name} ({joseki.popularity}%)"
+            display = f"{display_name}"
             self.joseki_listbox.insert("end", display)
             self._list_items.append(joseki)
 
@@ -201,25 +249,17 @@ class JosekiDictionaryWindow(tk.Toplevel):
 
     def _on_search(self) -> None:
         keyword = self.search_var.get().strip()
-        if not keyword:
-            self._load_list()
-            return
-
-        results = []
-        lowered = keyword.lower()
-        for joseki in self.database.joseki_dict.values():
-            if self._matches_keyword(joseki, lowered):
-                results.append(joseki)
-        results.sort(key=lambda item: item.popularity, reverse=True)
+        results = self._filter_joseki(keyword)
         if results:
             self._load_list(results)
             return
 
         self.joseki_listbox.delete(0, "end")
         self._list_items = []
-        self._web_search_keyword = keyword
-        label = f"{self.translator.get('search_web')}: {keyword}"
-        self.joseki_listbox.insert("end", label)
+        self._web_search_keyword = keyword if keyword else None
+        if keyword:
+            label = f"{self.translator.get('search_web')}: {keyword}"
+            self.joseki_listbox.insert("end", label)
         self._set_text(self.info_text, self.translator.get("no_results"))
         self._set_text(self.comment_text, "")
         if self.board_canvas.board_size != self.full_board_size:
@@ -259,7 +299,6 @@ class JosekiDictionaryWindow(tk.Toplevel):
             f"{self.translator.get('name')}: {joseki_name}",
             f"{self.translator.get('type')}: {joseki_type}",
             f"{self.translator.get('difficulty')}: {difficulty_marks}",
-            f"{self.translator.get('popularity')}: {self.current_joseki.popularity}%",
             f"{self.translator.get('result')}: {joseki_result}",
         ]
         self._set_text(self.info_text, "\n".join(info))
@@ -279,9 +318,12 @@ class JosekiDictionaryWindow(tk.Toplevel):
         )
 
         current_move = main_line[self.current_move_index]
-        comment = self._localize_move_comment(current_move)
-        if not comment:
-            comment = self._localize_joseki_comment(self.current_joseki)
+        move_comment = self._localize_move_comment(current_move)
+        overview_comment = self._localize_joseki_comment(self.current_joseki)
+        if move_comment and overview_comment:
+            comment = f"{overview_comment}\n\n{move_comment}"
+        else:
+            comment = move_comment or overview_comment
         self._set_text(self.comment_text, comment)
 
         self._render_board(main_line[: self.current_move_index + 1])
@@ -372,6 +414,9 @@ class JosekiDictionaryWindow(tk.Toplevel):
 
     def _localize_joseki_comment(self, joseki: JosekiSequence) -> str:
         key = getattr(joseki, "key", "") or ""
+        lang = getattr(self.translator, "language", "") or ""
+        if lang == "zh" and joseki.comment:
+            return joseki.comment
         if key:
             return self.translator.get(f"joseki_comment_{key}", joseki.comment)
         return joseki.comment

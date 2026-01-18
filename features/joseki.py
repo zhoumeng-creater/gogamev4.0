@@ -575,7 +575,7 @@ class JosekiExplorer(tk.Frame):
         self.joseki_listbox.delete(0, 'end')
         
         for joseki in self.database.joseki_dict.values():
-            display_text = f"{joseki.name} ({joseki.popularity}%)"
+            display_text = f"{joseki.name}"
             self.joseki_listbox.insert('end', display_text)
     
     def _on_search(self):
@@ -592,7 +592,7 @@ class JosekiExplorer(tk.Frame):
         for joseki in self.database.joseki_dict.values():
             if keyword.lower() in joseki.name.lower() or \
                any(keyword.lower() in tag.lower() for tag in joseki.tags):
-                display_text = f"{joseki.name} ({joseki.popularity}%)"
+                display_text = f"{joseki.name}"
                 self.joseki_listbox.insert('end', display_text)
     
     def _on_joseki_select(self, event):
@@ -626,7 +626,6 @@ class JosekiExplorer(tk.Frame):
         info = f"{self.translator.get('name')}: {self.current_joseki.name}\n"
         info += f"{self.translator.get('type')}: {type_text}\n"
         info += f"{self.translator.get('difficulty')}: {'★' * self.current_joseki.difficulty}\n"
-        info += f"{self.translator.get('popularity')}: {self.current_joseki.popularity}%\n"
         info += f"{self.translator.get('result')}: {result_text}"
         self.info_text.insert('1.0', info)
         
