@@ -13,8 +13,9 @@ import webbrowser
 
 from features.teaching import TeachingSystem, Puzzle
 from ui.board_canvas import BoardCanvas
-from ui.themes import Theme
+from ui.themes import Theme, theme_font
 from ui.translator import Translator
+from ui.widgets import ModernScrollbar
 from utils.content_db import get_content_db
 
 
@@ -180,7 +181,7 @@ class ProblemLibraryWindow(tk.Toplevel):
         list_frame = ttk.LabelFrame(left, text=self.translator.get("problem_list"))
         list_frame.pack(fill="both", expand=True)
 
-        scrollbar = ttk.Scrollbar(list_frame, orient="vertical")
+        scrollbar = ModernScrollbar(list_frame, orient="vertical", theme=self.theme)
         self.problem_listbox = tk.Listbox(
             list_frame,
             yscrollcommand=scrollbar.set,
@@ -249,8 +250,8 @@ class ProblemLibraryWindow(tk.Toplevel):
         self._resource_canvas = tk.Canvas(
             resource_frame, highlightthickness=0, borderwidth=0, height=120
         )
-        resource_scrollbar = ttk.Scrollbar(
-            resource_frame, orient="vertical", command=self._resource_canvas.yview
+        resource_scrollbar = ModernScrollbar(
+            resource_frame, orient="vertical", command=self._resource_canvas.yview, theme=self.theme
         )
         self._resource_canvas.configure(yscrollcommand=resource_scrollbar.set)
 
@@ -795,7 +796,9 @@ class ProblemLibraryWindow(tk.Toplevel):
             container.pack(fill="both", expand=True)
 
             self._solution_title = ttk.Label(
-                container, text="", font=("Arial", 12, "bold")
+                container,
+                text="",
+                font=theme_font(self.theme, self.theme.font_size_large, weight="bold"),
             )
             self._solution_title.pack(anchor="w", pady=(0, 6))
 

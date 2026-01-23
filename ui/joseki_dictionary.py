@@ -14,6 +14,7 @@ from features.joseki import JosekiDatabase, JosekiMove, JosekiSequence, JosekiTy
 from ui.board_canvas import BoardCanvas
 from ui.translator import Translator
 from ui.themes import Theme
+from ui.widgets import ModernScrollbar
 
 
 class JosekiDictionaryWindow(tk.Toplevel):
@@ -97,7 +98,7 @@ class JosekiDictionaryWindow(tk.Toplevel):
         list_frame = ttk.LabelFrame(left, text=self.translator.get("joseki_list"))
         list_frame.pack(fill="both", expand=True)
 
-        scrollbar = ttk.Scrollbar(list_frame, orient="vertical")
+        scrollbar = ModernScrollbar(list_frame, orient="vertical", theme=self.theme)
         self.joseki_listbox = tk.Listbox(
             list_frame,
             yscrollcommand=scrollbar.set,
@@ -169,7 +170,7 @@ class JosekiDictionaryWindow(tk.Toplevel):
         comment_frame.pack(fill="both", expand=True, pady=(6, 0))
         comment_body = ttk.Frame(comment_frame)
         comment_body.pack(fill="both", expand=True, padx=6, pady=6)
-        comment_scrollbar = ttk.Scrollbar(comment_body, orient="vertical")
+        comment_scrollbar = ModernScrollbar(comment_body, orient="vertical", theme=self.theme)
         self.comment_text = tk.Text(
             comment_body,
             height=7,

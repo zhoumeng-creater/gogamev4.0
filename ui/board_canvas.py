@@ -248,6 +248,15 @@ class BoardRenderer:
         offset_x = getattr(self, 'coord_offset_x', 0)
         offset_y = getattr(self, 'coord_offset_y', 0)
         letters_full = 'ABCDEFGHJKLMNOPQRST'[:coord_board_size]
+        font_family = (self.theme.font_family or "Arial").split(',')[0].strip()
+        coord_font_size = max(8, int(self.cell_size * 0.25))
+        coord_font = (font_family, coord_font_size)
+        coord_gap = max(12, int(coord_font_size * 1.4))
+        board_edge = (self.board_size - 1) * self.cell_size
+        top_y = self.margin_y - coord_gap
+        bottom_y = self.margin_y + board_edge + coord_gap
+        left_x = self.margin_x - coord_gap
+        right_x = self.margin_x + board_edge + coord_gap
         
         for i in range(self.board_size):
             letter_index = offset_x + i
@@ -257,19 +266,19 @@ class BoardRenderer:
             
             # 上方坐标
             text = self.canvas.create_text(
-                x, self.margin_y - 20,
+                x, top_y,
                 text=letter,
                 fill=self.theme.board_coordinate_color,
-                font=('Arial', 10)
+                font=coord_font
             )
             self.coordinates.append(text)
             
             # 下方坐标
             text = self.canvas.create_text(
-                x, self.margin_y + self.board_size * self.cell_size + 5,
+                x, bottom_y,
                 text=letter,
                 fill=self.theme.board_coordinate_color,
-                font=('Arial', 10)
+                font=coord_font
             )
             self.coordinates.append(text)
             
@@ -280,19 +289,19 @@ class BoardRenderer:
             
             # 左侧坐标
             text = self.canvas.create_text(
-                self.margin_x - 20, y,
+                left_x, y,
                 text=number,
                 fill=self.theme.board_coordinate_color,
-                font=('Arial', 10)
+                font=coord_font
             )
             self.coordinates.append(text)
             
             # 右侧坐标
             text = self.canvas.create_text(
-                self.margin_x + self.board_size * self.cell_size + 5, y,
+                right_x, y,
                 text=number,
                 fill=self.theme.board_coordinate_color,
-                font=('Arial', 10)
+                font=coord_font
             )
             self.coordinates.append(text)
     
@@ -550,6 +559,7 @@ class BoardRenderer:
             return
 
         font_size = max(8, int(self.cell_size * 0.28))
+        font_family = (self.theme.font_family or "Arial").split(',')[0].strip()
         for (x, y), n in move_numbers.items():
             if not (0 <= x < self.board_size and 0 <= y < self.board_size):
                 continue
@@ -569,7 +579,7 @@ class BoardRenderer:
                 cy,
                 text=str(n),
                 fill=text_color,
-                font=('Arial', font_size, 'bold'),
+                font=(font_family, font_size, 'bold'),
                 tags=('move_number',),
             )
     

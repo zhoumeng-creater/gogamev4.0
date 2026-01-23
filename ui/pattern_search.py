@@ -16,6 +16,7 @@ from core import Board
 from ui.board_canvas import BoardCanvas
 from ui.translator import Translator
 from ui.themes import Theme
+from ui.widgets import ModernScrollbar
 
 
 @dataclass
@@ -132,7 +133,7 @@ class PatternSearchWindow(tk.Toplevel):
         list_frame = ttk.LabelFrame(left, text=self.translator.get("pattern_matches"))
         list_frame.pack(fill="both", expand=True)
 
-        scrollbar = ttk.Scrollbar(list_frame, orient="vertical")
+        scrollbar = ModernScrollbar(list_frame, orient="vertical", theme=self.theme)
         self.result_listbox = tk.Listbox(
             list_frame,
             yscrollcommand=scrollbar.set,

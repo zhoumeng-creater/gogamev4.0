@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 import tkinter as tk
 from tkinter import ttk, messagebox
+from tkinter import font as tkfont
 import sqlite3
 from pathlib import Path
 
@@ -25,6 +26,16 @@ from core import Board, Rules, MoveResult
 
 def _resolve_translator(translator=None):
     return translator or get_translator()
+
+
+def _default_font(size: int, weight: Optional[str] = None):
+    try:
+        family = tkfont.nametofont("TkDefaultFont").actual("family")
+    except Exception:
+        family = "Arial"
+    if weight:
+        return (family, size, weight)
+    return (family, size)
 
 
 class LessonType(Enum):
@@ -1956,7 +1967,7 @@ class InteractiveLesson(tk.Frame):
         self.title_label = ttk.Label(
             self,
             text=self._t("interactive_lesson_title"),
-            font=('Arial', 14, 'bold'),
+            font=_default_font(14, "bold"),
         )
         self.title_label.pack(pady=10)
         
@@ -2080,7 +2091,7 @@ class InteractiveLesson(tk.Frame):
             self.check_button.pack(side='left', padx=5)
         
         # 配置文本标签样式
-        self.content_text.tag_config('title', font=('Arial', 12, 'bold'))
+        self.content_text.tag_config('title', font=_default_font(12, "bold"))
     
     def prev_step(self):
         """上一步"""
@@ -2131,7 +2142,7 @@ class TacticalPuzzles(tk.Frame):
         """创建控件"""
         # 标题
         title_label = ttk.Label(
-            self, text=self._t("tactical_training_title"), font=('Arial', 14, 'bold')
+            self, text=self._t("tactical_training_title"), font=_default_font(14, "bold")
         )
         title_label.pack(pady=10)
         
@@ -2150,7 +2161,7 @@ class TacticalPuzzles(tk.Frame):
         info_frame = ttk.LabelFrame(self, text=self._t("puzzle_section_title"))
         info_frame.pack(fill='x', padx=10, pady=5)
         
-        self.puzzle_title = ttk.Label(info_frame, text="", font=('Arial', 12))
+        self.puzzle_title = ttk.Label(info_frame, text="", font=_default_font(12))
         self.puzzle_title.pack(anchor='w', padx=5, pady=2)
         
         self.objective_label = ttk.Label(info_frame, text="")

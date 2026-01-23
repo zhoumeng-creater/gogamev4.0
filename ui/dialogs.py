@@ -2,6 +2,10 @@
 对话框组件
 包含新游戏、设置、关于等对话框
 """
+"""
+对话框组件
+包含新游戏、设置、关于等对话框
+"""
 
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
@@ -9,7 +13,8 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 from .translator import Translator
-from .themes import Theme, ThemeManager
+from .themes import Theme, ThemeManager, theme_font
+from .widgets import ModernButton, ModernCard, ModernLabel, ModernSlider, ModernScrollbar
 
 
 class BaseDialog(tk.Toplevel):
@@ -323,12 +328,16 @@ class NewGameDialog(BaseDialog):
         
         # 按钮
         button_frame = ttk.Frame(main_frame, style='Dialog.TFrame')
-        button_frame.pack(pady=10)
+        button_frame.pack(pady=20)
         
-        ttk.Button(button_frame, text=self.translator.get('start'),
-                  command=self.ok).pack(side='left', padx=5)
-        ttk.Button(button_frame, text=self.translator.get('cancel'),
-                  command=self.cancel).pack(side='left', padx=5)
+        self.start_button = ModernButton(button_frame, text=self.translator.get('start'),
+                                        theme=self.theme, width=140, command=self.ok)
+        self.start_button.pack(side='left', padx=10)
+        
+        self.cancel_button = ModernButton(button_frame, text=self.translator.get('cancel'),
+                                         theme=self.theme, width=140, command=self.cancel)
+        self.cancel_button.pack(side='left', padx=10)
+
     
     def _on_mode_change(self):
         """游戏模式改变处理"""
@@ -490,40 +499,6 @@ class SettingsDialog(BaseDialog):
         self._setup_option_maps()
         # 创建标签页
         self.notebook = ttk.Notebook(self)
-        self.notebook.pack(fill='both', expand=True, padx=10, pady=10)
-        
-        # 通用设置
-        self._create_general_tab()
-        
-        # 显示设置
-        self._create_display_tab()
-        
-        # AI设置
-        self._create_ai_tab()
-        
-        # 音效设置
-        self._create_sound_tab()
-        
-        # 高级设置
-        self._create_advanced_tab()
-        
-        # 按钮
-        button_frame = ttk.Frame(self)
-        button_frame.pack(pady=10)
-        
-        ttk.Button(button_frame, text=self.translator.get('ok'),
-                  command=self.ok).pack(side='left', padx=5)
-        ttk.Button(button_frame, text=self.translator.get('cancel'),
-                  command=self.cancel).pack(side='left', padx=5)
-        ttk.Button(button_frame, text=self.translator.get('apply'),
-                  command=self.apply_settings).pack(side='left', padx=5)
-        ttk.Button(button_frame, text=self.translator.get('restore_defaults'),
-                  command=self.restore_defaults).pack(side='left', padx=5)
-    
-    def _create_general_tab(self):
-        """创建通用设置标签页"""
-        frame = ttk.Frame(self.notebook)
-        self.notebook.add(frame, text=self.translator.get('general'))
         
         # 语言设置
         row = 0
@@ -692,9 +667,9 @@ class SettingsDialog(BaseDialog):
         )
         
         self.animation_speed_var = tk.DoubleVar(value=self.config.get('animation_speed', 1.0))
-        speed_scale = ttk.Scale(frame, from_=0.5, to=3.0, 
+        speed_scale = ModernSlider(frame, from_=0.5, to=3.0, 
                               variable=self.animation_speed_var,
-                              orient='horizontal', length=200)
+                              orient='horizontal', length=200, theme=self.theme)
         speed_scale.grid(row=row, column=1, padx=10, pady=5)
         
         self.speed_label = ttk.Label(
@@ -794,9 +769,9 @@ class SettingsDialog(BaseDialog):
         self.volume_label.grid(row=row, column=0, sticky='w', padx=10, pady=5)
         
         self.volume_var = tk.DoubleVar(value=self.config.get('sound_volume', 0.7))
-        self.volume_scale = ttk.Scale(frame, from_=0, to=1,
+        self.volume_scale = ModernSlider(frame, from_=0, to=1,
                                     variable=self.volume_var,
-                                    orient='horizontal', length=200)
+                                    orient='horizontal', length=200, theme=self.theme)
         self.volume_scale.grid(row=row, column=1, padx=10, pady=5)
         
         self.volume_percent_label = ttk.Label(frame, text=f"{int(self.volume_var.get()*100)}%")
@@ -1078,19 +1053,23 @@ class AboutDialog(BaseDialog):
             or (self.master.title() if hasattr(self, 'master') and hasattr(self.master, 'title') else None)
             or self.translator.get('app_name')
         )
-        title_label = ttk.Label(self, text=title_text, font=('Arial', 18, 'bold'))
+        title_label = ttk.Label(
+            self,
+            text=title_text,
+            font=theme_font(self.theme, self.theme.font_size_title, weight='bold'),
+        )
         title_label.pack(pady=10)
         
         version_text = self.version or ""
         ttk.Label(
             self,
             text=f"{self.translator.get('version')}: {version_text}" if version_text else self.translator.get('version'),
-            font=('Arial', 12),
+            font=theme_font(self.theme, self.theme.font_size_large),
         ).pack()
         ttk.Label(
             self,
             text=f"{self.translator.get('author')}: {self.author}",
-            font=('Arial', 10),
+            font=theme_font(self.theme, self.theme.font_size_small),
         ).pack(pady=(2, 0))
         
         # 信息文本
@@ -1238,7 +1217,9 @@ class LoadGameDialog(BaseDialog):
         self.game_tree.column('moves', width=80)
         
         # 添加滚动条
-        scrollbar = ttk.Scrollbar(list_frame, orient='vertical', command=self.game_tree.yview)
+        scrollbar = ModernScrollbar(
+            list_frame, orient='vertical', command=self.game_tree.yview, theme=self.theme
+        )
         self.game_tree.configure(yscrollcommand=scrollbar.set)
         
         self.game_tree.pack(side='left', fill='both', expand=True)

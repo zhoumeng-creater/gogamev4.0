@@ -18,6 +18,7 @@ from core import Board, Game, Rules
 from .board_canvas import BoardCanvas
 from .translator import Translator
 from .themes import Theme
+from .widgets import ModernScrollbar
 from features.replay import ReplayManager, MoveNode
 
 
@@ -88,7 +89,7 @@ class GameTreeWindow(tk.Toplevel):
         self.tree.column("move", width=110, stretch=False, anchor="w")
         self.tree.column("captured", width=70, stretch=False, anchor="e")
 
-        yscroll = ttk.Scrollbar(left, orient="vertical", command=self.tree.yview)
+        yscroll = ModernScrollbar(left, orient="vertical", command=self.tree.yview, theme=self.theme)
         self.tree.configure(yscrollcommand=yscroll.set)
 
         self.tree.pack(side="left", fill="both", expand=True)

@@ -31,6 +31,11 @@ from ui import (
     RulesHelpDialog, TutorialDialog,
     JosekiDictionaryWindow, PatternSearchWindow, ProblemLibraryWindow
 )
+from ui.fonts import apply_app_fonts
+from ui.widgets import (
+    ModernWindow, ModernMenuBar, ModernMenu, ModernScrollbar, 
+    ModernTitleBar, ModernButton
+)
 from ui.translator import Translator, set_global_language
 
 # 导入AI模块
@@ -141,6 +146,16 @@ class GoMasterApp:
         # 设置当前主题
         theme_name = config.display.theme if hasattr(config.display, 'theme') else 'wood'
         self.theme_manager.set_current_theme(theme_name)
+
+        # 字体设置（优先使用项目内字体，其次系统字体）
+        try:
+            self._font_bundle = apply_app_fonts(
+                self.root,
+                self.theme_manager,
+                language=getattr(config, "language", None),
+            )
+        except Exception:
+            self._font_bundle = None
         
         # 注意：删除了这里的 AnimationManager 创建代码
         # AnimationManager 会在 BoardCanvas 中创建，因为它需要 canvas 对象
@@ -178,8 +193,10 @@ class GoMasterApp:
     def _create_ui(self):
         """创建用户界面"""
         # 创建主框架
-        main_frame = ttk.Frame(self.root)
+        parent = self.root.content_area if hasattr(self.root, 'content_area') else self.root
+        main_frame = ttk.Frame(parent)
         main_frame.pack(fill=tk.BOTH, expand=True)
+        self.main_frame = main_frame
         
         # 创建分割面板
         paned = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
@@ -193,10 +210,18 @@ class GoMasterApp:
             left_container,
             highlightthickness=0,
             borderwidth=0,
-            bg=self.root.cget('bg'),
+            bg=self.theme_manager.get_current_theme().ui_panel_background,
         )
-        left_scrollbar = ttk.Scrollbar(left_container, orient='vertical', command=self._left_sidebar_canvas.yview)
+        
+        left_scrollbar = ModernScrollbar(
+            left_container, 
+            orient='vertical', 
+            command=self._left_sidebar_canvas.yview,
+            theme=self.theme_manager.get_current_theme()
+        )
         self._left_sidebar_canvas.configure(yscrollcommand=left_scrollbar.set)
+        
+        self.left_scrollbar = left_scrollbar # Store for theme updates
 
         left_scrollbar.pack(side='right', fill='y')
         self._left_sidebar_canvas.pack(side='left', fill='both', expand=True)
@@ -305,34 +330,51 @@ class GoMasterApp:
 
     def _create_menu(self):
         """创建菜单栏"""
-        menubar = tk.Menu(self.root)
-        self.root.config(menu=menubar)
+        # remove native menu
+        self.root.config(menu="")
+
+        if getattr(self, "menubar", None):
+            try:
+                self.menubar.destroy()
+            except Exception:
+                pass
+        
+        current_theme = self.theme_manager.get_current_theme()
+        
+        # Create ModernMenuBar
+        parent = self.root.content_area if hasattr(self.root, 'content_area') else self.root
+        menubar = ModernMenuBar(parent, theme=current_theme)
+        if getattr(self, "main_frame", None) is not None:
+            menubar.pack(side="top", fill="x", before=self.main_frame)
+        else:
+            menubar.pack(side="top", fill="x")
+        self.menubar = menubar
         
         # 文件菜单
-        file_menu = tk.Menu(menubar, tearoff=0)
+        file_menu = ModernMenu(menubar, theme=current_theme)
         menubar.add_cascade(label=self.translator.get('file'), menu=file_menu)
         
         file_menu.add_command(
             label=self.translator.get('new_game'),
             command=self.new_game,
-            accelerator=self._get_hotkey_display("new_game")
+            shortcut=self._get_hotkey_display("new_game")
         )
         file_menu.add_separator()
         
         file_menu.add_command(
             label=self.translator.get('open'),
             command=self.open_game,
-            accelerator=self._get_hotkey_display("open_game")
+            shortcut=self._get_hotkey_display("open_game")
         )
         file_menu.add_command(
             label=self.translator.get('save'),
             command=self.save_game,
-            accelerator=self._get_hotkey_display("save_game")
+            shortcut=self._get_hotkey_display("save_game")
         )
         file_menu.add_command(
             label=self.translator.get('save_as'),
             command=self.save_game_as,
-            accelerator=self._get_hotkey_display("save_game_as")
+            shortcut=self._get_hotkey_display("save_game_as")
         )
         file_menu.add_separator()
         
@@ -347,7 +389,7 @@ class GoMasterApp:
         file_menu.add_separator()
         
         # 最近文件
-        recent_menu = tk.Menu(file_menu, tearoff=0)
+        recent_menu = ModernMenu(file_menu, theme=current_theme)
         file_menu.add_cascade(label=self.translator.get('recent_files'), menu=recent_menu)
         self._update_recent_files_menu(recent_menu)
         
@@ -355,34 +397,34 @@ class GoMasterApp:
         file_menu.add_command(
             label=self.translator.get('quit'),
             command=self.on_closing,
-            accelerator=self._get_hotkey_display("quit")
+            shortcut=self._get_hotkey_display("quit")
         )
         
         # 编辑菜单
-        edit_menu = tk.Menu(menubar, tearoff=0)
+        edit_menu = ModernMenu(menubar, theme=current_theme)
         menubar.add_cascade(label=self.translator.get('edit'), menu=edit_menu)
         
         edit_menu.add_command(
             label=self.translator.get('undo'),
             command=self.on_undo,
-            accelerator=self._get_hotkey_display("undo")
+            shortcut=self._get_hotkey_display("undo")
         )
         edit_menu.add_command(
             label=self.translator.get('redo'),
             command=self.on_redo,
-            accelerator=self._get_hotkey_display("redo")
+            shortcut=self._get_hotkey_display("redo")
         )
         edit_menu.add_separator()
         
         edit_menu.add_command(
             label=self.translator.get('copy_sgf'),
             command=self.copy_sgf,
-            accelerator=self._get_hotkey_display("copy_sgf")
+            shortcut=self._get_hotkey_display("copy_sgf")
         )
         edit_menu.add_command(
             label=self.translator.get('paste_sgf'),
             command=self.paste_sgf,
-            accelerator=self._get_hotkey_display("paste_sgf")
+            shortcut=self._get_hotkey_display("paste_sgf")
         )
         edit_menu.add_separator()
         
@@ -393,55 +435,55 @@ class GoMasterApp:
         edit_menu.add_command(
             label=self.translator.get('teaching_mode'),
             command=self.toggle_teaching_mode,
-            accelerator=self._get_hotkey_display("teaching_mode")
+            shortcut=self._get_hotkey_display("teaching_mode")
         )
         
         # 游戏菜单
-        game_menu = tk.Menu(menubar, tearoff=0)
+        game_menu = ModernMenu(menubar, theme=current_theme)
         menubar.add_cascade(label=self.translator.get('game'), menu=game_menu)
         
         game_menu.add_command(
             label=self.translator.get('pass'),
             command=self.on_pass,
-            accelerator=self._get_hotkey_display("pass")
+            shortcut=self._get_hotkey_display("pass")
         )
         game_menu.add_command(
             label=self.translator.get('resign'),
             command=self.on_resign,
-            accelerator=self._get_hotkey_display("resign")
+            shortcut=self._get_hotkey_display("resign")
         )
         game_menu.add_separator()
         
         game_menu.add_command(
             label=self.translator.get('hint'),
             command=self.on_hint,
-            accelerator=self._get_hotkey_display("hint")
+            shortcut=self._get_hotkey_display("hint")
         )
         game_menu.add_command(
             label=self.translator.get('analyze'),
             command=self.on_analyze,
-            accelerator=self._get_hotkey_display("analyze")
+            shortcut=self._get_hotkey_display("analyze")
         )
         game_menu.add_command(
             label=self.translator.get('score'),
             command=self.on_score,
-            accelerator=self._get_hotkey_display("score")
+            shortcut=self._get_hotkey_display("score")
         )
         game_menu.add_command(
             label=self.translator.get('end_game'),
             command=self.on_end_game,
-            accelerator=self._get_hotkey_display("end_game")
+            shortcut=self._get_hotkey_display("end_game")
         )
         game_menu.add_separator()
         
         game_menu.add_command(
             label=self.translator.get('pause'),
             command=self.on_pause,
-            accelerator=self._get_hotkey_display("pause")
+            shortcut=self._get_hotkey_display("pause")
         )
         
         # 视图菜单
-        view_menu = tk.Menu(menubar, tearoff=0)
+        view_menu = ModernMenu(menubar, theme=current_theme)
         menubar.add_cascade(label=self.translator.get('view'), menu=view_menu)
         
         # 显示选项
@@ -477,26 +519,26 @@ class GoMasterApp:
         view_menu.add_command(
             label=self.translator.get('fullscreen'),
             command=self.toggle_fullscreen,
-            accelerator=self._get_hotkey_display("fullscreen")
+            shortcut=self._get_hotkey_display("fullscreen")
         )
         view_menu.add_command(
             label=self.translator.get('zoom_in'),
             command=self.zoom_in,
-            accelerator=self._get_hotkey_display("zoom_in")
+            shortcut=self._get_hotkey_display("zoom_in")
         )
         view_menu.add_command(
             label=self.translator.get('zoom_out'),
             command=self.zoom_out,
-            accelerator=self._get_hotkey_display("zoom_out")
+            shortcut=self._get_hotkey_display("zoom_out")
         )
         view_menu.add_command(
             label=self.translator.get('reset_view'),
             command=self.reset_view,
-            accelerator=self._get_hotkey_display("reset_view")
+            shortcut=self._get_hotkey_display("reset_view")
         )
         
         # 工具菜单
-        tools_menu = tk.Menu(menubar, tearoff=0)
+        tools_menu = ModernMenu(menubar, theme=current_theme)
         menubar.add_cascade(label=self.translator.get('tools'), menu=tools_menu)
         
         tools_menu.add_command(
@@ -529,8 +571,8 @@ class GoMasterApp:
         )
         tools_menu.add_separator()
 
-        # 语言切换（用户可直接在菜单中切换，无需进入设置）
-        language_menu = tk.Menu(tools_menu, tearoff=0)
+        # 语言切换
+        language_menu = ModernMenu(tools_menu, theme=current_theme)
         tools_menu.add_cascade(label=self.translator.get('language'), menu=language_menu)
         self.language_var = tk.StringVar(value=getattr(self.translator, 'language', 'zh'))
         for code in self.translator.get_available_languages():
@@ -546,11 +588,11 @@ class GoMasterApp:
         tools_menu.add_command(
             label=self.translator.get('settings'),
             command=self.show_settings,
-            accelerator=self._get_hotkey_display("settings")
+            shortcut=self._get_hotkey_display("settings")
         )
         
         # 帮助菜单
-        help_menu = tk.Menu(menubar, tearoff=0)
+        help_menu = ModernMenu(menubar, theme=current_theme)
         menubar.add_cascade(label=self.translator.get('help'), menu=help_menu)
         
         help_menu.add_command(
@@ -566,7 +608,7 @@ class GoMasterApp:
         help_menu.add_command(
             label=self.translator.get('shortcuts'),
             command=self.show_shortcuts,
-            accelerator=self._get_hotkey_display("show_shortcuts")
+            shortcut=self._get_hotkey_display("show_shortcuts")
         )
         help_menu.add_separator()
         
@@ -1793,6 +1835,16 @@ class GoMasterApp:
         set_global_language(language)
         self.config_manager.set('language', language, save=True)
 
+        # 语言切换时更新字体（日文优先使用日文字体）
+        try:
+            self._font_bundle = apply_app_fonts(
+                self.root,
+                self.theme_manager,
+                language=language,
+            )
+        except Exception:
+            pass
+
         if self.info_panel:
             self.info_panel.update_translator(self.translator)
         if self.control_panel:
@@ -1813,6 +1865,16 @@ class GoMasterApp:
         self.theme_manager.set_current_theme(theme_name)
         theme = self.theme_manager.get_current_theme()
 
+        # 重新应用字体和 Tk 默认样式
+        try:
+            self._font_bundle = apply_app_fonts(
+                self.root,
+                self.theme_manager,
+                language=getattr(self.translator, "language", None),
+            )
+        except Exception:
+            pass
+
         if self.board_canvas:
             self.board_canvas.set_theme(theme)
         if self.info_panel:
@@ -1821,6 +1883,17 @@ class GoMasterApp:
             self.control_panel.update_theme(theme)
         if self.analysis_panel:
             self.analysis_panel.update_theme(theme)
+        if getattr(self, "menubar", None):
+            self.menubar.update_theme(theme)
+        if getattr(self, "left_scrollbar", None):
+            self.left_scrollbar.update_theme(theme)
+        if getattr(self, "_left_sidebar_canvas", None):
+            try:
+                self._left_sidebar_canvas.configure(bg=theme.ui_panel_background)
+            except Exception:
+                pass
+        if hasattr(self.root, "update_theme") and callable(getattr(self.root, "update_theme")):
+            self.root.update_theme(theme)
 
     def show_settings(self):
         """显示设置对话框"""
@@ -2123,11 +2196,34 @@ class GoMasterApp:
     
     def _update_recent_files_menu(self, menu: tk.Menu):
         """更新最近文件菜单"""
+        if hasattr(menu, "clear_items"):
+            try:
+                menu.clear_items()
+            except Exception:
+                pass
+
         recent_files = self.config_manager.get('recent_files', [])
-        
-        for file_path in recent_files[:10]:
+        if not isinstance(recent_files, list):
+            recent_files = []
+
+        cleaned = []
+        for path in recent_files:
+            if isinstance(path, str) and path.strip():
+                cleaned.append(path)
+
+        if cleaned != recent_files:
+            self.config_manager.set('recent_files', cleaned)
+
+        if not cleaned:
             menu.add_command(
-                label=os.path.basename(file_path),
+                label=self.translator.get('none'),
+                command=None
+            )
+            return
+        
+        for file_path in cleaned[:10]:
+            menu.add_command(
+                label=os.path.basename(file_path) or file_path,
                 command=lambda f=file_path: self.open_recent_file(f)
             )
     
@@ -2175,7 +2271,7 @@ class GoMasterApp:
 def main():
     """主函数"""
     # 创建根窗口
-    root = tk.Tk()
+    root = ModernWindow(title="围棋大师 Go Master 4.0")
     
     # 创建应用程序
     app = GoMasterApp(root)

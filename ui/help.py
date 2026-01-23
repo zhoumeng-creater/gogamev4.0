@@ -10,7 +10,7 @@ from typing import Optional, Dict, List
 
 from .dialogs import BaseDialog
 from .translator import Translator
-from .themes import Theme
+from .themes import Theme, theme_font
 from utils.content_db import get_content_db
 from features.teaching import (
     RulesTutorial,
@@ -301,7 +301,10 @@ class TutorialDialog(BaseDialog):
         overview.pack(fill="x")
 
         self.lesson_title = ttk.Label(
-            overview, text="", font=("Arial", 13, "bold"), style="Dialog.TLabel"
+            overview,
+            text="",
+            font=theme_font(self.theme, self.theme.font_size_large, weight="bold"),
+            style="Dialog.TLabel",
         )
         self.lesson_title.pack(anchor="w")
 

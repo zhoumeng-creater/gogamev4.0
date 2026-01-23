@@ -60,6 +60,20 @@ class Theme:
     button_text: str = "#FFFFFF"
     button_border: str = "#A08060"
     
+    # 新增控件属性 (用于 ModernButton 等)
+    @property
+    def button_bg(self): return self.button_background
+    @property
+    def button_fg(self): return self.button_text
+    @property
+    def button_hover_bg(self): return self.button_hover
+    @property
+    def button_hover_fg(self): return self.button_text
+    @property
+    def button_pressed_bg(self): return self.button_pressed
+    @property
+    def button_disabled_bg(self): return self.button_disabled
+
     # 输入框颜色
     input_background: str = "#FFFFFF"
     input_border: str = "#C0C0C0"
@@ -75,6 +89,8 @@ class Theme:
     
     # 字体设置
     font_family: str = "Arial, sans-serif"
+    font_family_mono: str = "Consolas"
+    font_family_jp: str = ""
     font_size_normal: int = 12
     font_size_small: int = 10
     font_size_large: int = 14
@@ -362,6 +378,43 @@ def apply_theme_to_tk(widget, theme: Theme):
                    foreground=theme.input_text)
     
     # 设置字体
-    default_font = (theme.font_family.split(',')[0].strip(), 
-                   theme.font_size_normal)
+    primary_family = (theme.font_family or "Arial").split(',')[0].strip()
+    mono_family = (getattr(theme, "font_family_mono", "") or primary_family).split(',')[0].strip()
+    default_font = (primary_family, theme.font_size_normal)
     widget.option_add('*Font', default_font)
+
+    # 同步 Tk named fonts，覆盖默认字体，确保 Text/Entry 等控件一致
+    try:
+        import tkinter.font as tkfont
+
+        def _safe_config(name, **kwargs):
+            try:
+                tkfont.nametofont(name).configure(**kwargs)
+            except Exception:
+                pass
+
+        _safe_config("TkDefaultFont", family=primary_family, size=theme.font_size_normal)
+        _safe_config("TkTextFont", family=primary_family, size=theme.font_size_normal)
+        _safe_config("TkMenuFont", family=primary_family, size=theme.font_size_normal)
+        _safe_config("TkHeadingFont", family=primary_family, size=theme.font_size_normal, weight="bold")
+        _safe_config("TkCaptionFont", family=primary_family, size=theme.font_size_large, weight="bold")
+        _safe_config("TkSmallCaptionFont", family=primary_family, size=theme.font_size_small)
+        _safe_config("TkIconFont", family=primary_family, size=theme.font_size_small)
+        _safe_config("TkTooltipFont", family=primary_family, size=theme.font_size_small)
+        _safe_config("TkFixedFont", family=mono_family, size=theme.font_size_normal)
+    except Exception:
+        pass
+
+
+def theme_font(theme: Theme, size: Optional[int] = None, weight: Optional[str] = None,
+               prefer_jp: bool = False):
+    """
+    Generate a font tuple from theme settings.
+    """
+    family = (theme.font_family or "Arial").split(',')[0].strip()
+    if prefer_jp and getattr(theme, "font_family_jp", None):
+        family = str(getattr(theme, "font_family_jp")).split(',')[0].strip() or family
+    font_size = int(size if size is not None else theme.font_size_normal)
+    if weight:
+        return (family, font_size, weight)
+    return (family, font_size)
