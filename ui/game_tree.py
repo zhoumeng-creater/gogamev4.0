@@ -89,7 +89,13 @@ class GameTreeWindow(tk.Toplevel):
         self.tree.column("move", width=110, stretch=False, anchor="w")
         self.tree.column("captured", width=70, stretch=False, anchor="e")
 
-        yscroll = ModernScrollbar(left, orient="vertical", command=self.tree.yview, theme=self.theme)
+        yscroll = ModernScrollbar(
+            left,
+            orient="vertical",
+            command=self.tree.yview,
+            theme=self.theme,
+            match_widget=self.tree,
+        )
         self.tree.configure(yscrollcommand=yscroll.set)
 
         self.tree.pack(side="left", fill="both", expand=True)

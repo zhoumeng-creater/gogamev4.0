@@ -7,6 +7,7 @@
 包含新游戏、设置、关于等对话框
 """
 
+import os
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from typing import Optional, Dict, Any, List
@@ -14,7 +15,19 @@ from datetime import datetime
 
 from .translator import Translator
 from .themes import Theme, ThemeManager, theme_font
-from .widgets import ModernButton, ModernCard, ModernLabel, ModernSlider, ModernScrollbar
+from .widgets import (
+    ModernButton,
+    ModernCard,
+    ModernLabel,
+    ModernSlider,
+    ModernScrollbar,
+    ModernEntry,
+    ModernCheckbutton,
+    ModernRadioButton,
+    ModernSpinbox,
+    ModernSelect,
+    ModernText,
+)
 
 
 class BaseDialog(tk.Toplevel):
@@ -66,13 +79,106 @@ class BaseDialog(tk.Toplevel):
         self.configure(bg=self.theme.ui_background)
         
         style = ttk.Style(self)
+        font_family = (self.theme.font_family or "Arial").split(',')[0].strip()
+        base_font = (font_family, max(10, int(self.theme.font_size_normal)))
         style.configure('Dialog.TFrame', background=self.theme.ui_background)
-        style.configure('Dialog.TLabel', 
+        style.configure('Dialog.TLabel',
                        background=self.theme.ui_background,
-                       foreground=self.theme.ui_text_primary)
+                       foreground=self.theme.ui_text_primary,
+                       font=base_font)
         style.configure('Dialog.TLabelframe',
                        background=self.theme.ui_background,
                        foreground=self.theme.ui_text_primary)
+        style.configure(
+            'Dialog.TLabelframe.Label',
+            background=self.theme.ui_background,
+            foreground=self.theme.ui_text_primary,
+            font=(font_family, max(10, int(self.theme.font_size_normal)), 'bold'),
+        )
+        style.configure(
+            'Dialog.TNotebook',
+            background=self.theme.ui_background,
+            borderwidth=0,
+        )
+        style.configure(
+            'Dialog.TNotebook.Tab',
+            background=self.theme.ui_panel_background,
+            foreground=self.theme.ui_text_primary,
+            padding=(10, 6),
+        )
+        style.map(
+            'Dialog.TNotebook.Tab',
+            background=[
+                ('selected', self.theme.ui_panel_background),
+                ('active', self.theme.input_background),
+            ],
+            foreground=[('disabled', self.theme.ui_text_disabled)],
+        )
+        try:
+            self.option_add("*Font", base_font)
+        except Exception:
+            pass
+
+        # Inputs
+        style.configure(
+            'Dialog.TEntry',
+            fieldbackground=self.theme.ui_panel_background,
+            foreground=self.theme.input_text,
+            font=base_font,
+        )
+        style.configure(
+            'Dialog.TCombobox',
+            fieldbackground=self.theme.ui_panel_background,
+            background=self.theme.ui_panel_background,
+            foreground=self.theme.input_text,
+            font=base_font,
+            arrowcolor=self.theme.ui_text_primary,
+        )
+        style.map(
+            'Dialog.TCombobox',
+            fieldbackground=[('readonly', self.theme.ui_panel_background)],
+            foreground=[('readonly', self.theme.input_text)],
+        )
+        style.configure(
+            'Dialog.TSpinbox',
+            fieldbackground=self.theme.ui_panel_background,
+            background=self.theme.ui_panel_background,
+            foreground=self.theme.input_text,
+            font=base_font,
+            arrowcolor=self.theme.ui_text_primary,
+        )
+
+        # Treeview (for load/save lists)
+        style.configure(
+            'Dialog.Treeview',
+            background=self.theme.ui_panel_background,
+            fieldbackground=self.theme.ui_panel_background,
+            foreground=self.theme.ui_text_primary,
+            rowheight=22,
+            font=base_font,
+        )
+        style.map(
+            'Dialog.Treeview',
+            background=[('selected', self.theme.button_hover)],
+            foreground=[('selected', self.theme.button_text)],
+        )
+        style.configure(
+            'Dialog.Treeview.Heading',
+            background=self.theme.ui_panel_background,
+            foreground=self.theme.ui_text_primary,
+            font=(font_family, max(10, int(self.theme.font_size_small)), 'bold'),
+            relief='flat',
+        )
+
+        # Combobox listbox colors
+        try:
+            self.option_add("*TCombobox*Listbox.background", self.theme.ui_panel_background)
+            self.option_add("*TCombobox*Listbox.foreground", self.theme.ui_text_primary)
+            self.option_add("*TCombobox*Listbox.selectBackground", self.theme.button_hover)
+            self.option_add("*TCombobox*Listbox.selectForeground", self.theme.button_text)
+            self.option_add("*TCombobox*Listbox.font", base_font)
+        except Exception:
+            pass
     
     def _center_window(self):
         """居中窗口"""
@@ -187,155 +293,287 @@ class NewGameDialog(BaseDialog):
         """创建控件"""
         self._setup_option_maps()
         # 主框架
-        main_frame = ttk.Frame(self, style='Dialog.TFrame', padding=10)
+        main_frame = ttk.Frame(self, style='Dialog.TFrame', padding=12)
         main_frame.pack(fill='both', expand=True)
-        
+
         # 游戏模式
-        mode_frame = ttk.LabelFrame(main_frame, text=self.translator.get('game_mode'),
-                                   style='Dialog.TLabelframe')
-        mode_frame.pack(fill='x', pady=5)
-        
+        mode_card = ModernCard(main_frame, theme=self.theme, padding=10)
+        mode_card.pack(fill='x', pady=(0, 10))
+        ModernLabel(
+            mode_card,
+            text=self.translator.get('game_mode'),
+            theme=self.theme,
+            font_style='section',
+        ).pack(anchor='w', pady=(0, 6))
+
         self.mode_var = tk.StringVar(value='human_vs_human')
-        
-        ttk.Radiobutton(mode_frame, text=self.translator.get('human_vs_human'),
-                       variable=self.mode_var, value='human_vs_human',
-                       command=self._on_mode_change).pack(anchor='w', padx=10, pady=2)
-        
-        ttk.Radiobutton(mode_frame, text=self.translator.get('human_vs_ai'),
-                       variable=self.mode_var, value='human_vs_ai',
-                       command=self._on_mode_change).pack(anchor='w', padx=10, pady=2)
-        
-        ttk.Radiobutton(mode_frame, text=self.translator.get('ai_vs_human'),
-                       variable=self.mode_var, value='ai_vs_human',
-                       command=self._on_mode_change).pack(anchor='w', padx=10, pady=2)
-        
-        ttk.Radiobutton(mode_frame, text=self.translator.get('ai_vs_ai'),
-                       variable=self.mode_var, value='ai_vs_ai',
-                       command=self._on_mode_change).pack(anchor='w', padx=10, pady=2)
-        
+        mode_items = [
+            ('human_vs_human', self.translator.get('human_vs_human')),
+            ('human_vs_ai', self.translator.get('human_vs_ai')),
+            ('ai_vs_human', self.translator.get('ai_vs_human')),
+            ('ai_vs_ai', self.translator.get('ai_vs_ai')),
+        ]
+        for value, label in mode_items:
+            ModernRadioButton(
+                mode_card,
+                text=label,
+                value=value,
+                variable=self.mode_var,
+                command=self._on_mode_change,
+                theme=self.theme,
+                font_size=self.theme.font_size_normal,
+            ).pack(anchor='w', pady=2)
+
         # 玩家设置
-        player_frame = ttk.LabelFrame(main_frame, text=self.translator.get('players'),
-                                     style='Dialog.TLabelframe')
-        player_frame.pack(fill='x', pady=5)
-        
+        player_card = ModernCard(main_frame, theme=self.theme, padding=10)
+        player_card.pack(fill='x', pady=(0, 10))
+        ModernLabel(
+            player_card,
+            text=self.translator.get('players'),
+            theme=self.theme,
+            font_style='section',
+        ).grid(row=0, column=0, columnspan=3, sticky='w', pady=(0, 6))
+        player_card.columnconfigure(1, weight=1)
+
         # 黑方
-        ttk.Label(player_frame, text=self.translator.get('black_player'),
-                 style='Dialog.TLabel').grid(row=0, column=0, sticky='w', padx=10, pady=5)
-        
+        ModernLabel(
+            player_card,
+            text=self.translator.get('black_player'),
+            theme=self.theme,
+        ).grid(row=1, column=0, sticky='w', padx=8, pady=5)
+
         self.black_name_var = tk.StringVar(value=self.translator.get('player_1'))
-        self.black_name_entry = ttk.Entry(player_frame, textvariable=self.black_name_var, width=20)
-        self.black_name_entry.grid(row=0, column=1, padx=5, pady=5)
-        
+        self.black_name_entry = ModernEntry(
+            player_card,
+            theme=self.theme,
+            textvariable=self.black_name_var,
+            width=200,
+            height=32,
+            font_size=self.theme.font_size_normal,
+            background=self.theme.ui_panel_background,
+        )
+        self.black_name_entry.grid(row=1, column=1, padx=5, pady=5, sticky='w')
+
         self.black_ai_level_var = tk.StringVar(
             value=self._ai_level_label_by_key.get('medium', 'medium')
         )
-        self.black_ai_combo = ttk.Combobox(player_frame, textvariable=self.black_ai_level_var,
-                                          values=[self._ai_level_label_by_key[k] for k in self._ai_level_keys],
-                                          state='readonly', width=10)
-        self.black_ai_combo.grid(row=0, column=2, padx=5, pady=5)
+        self.black_ai_combo = ModernSelect(
+            player_card,
+            values=[self._ai_level_label_by_key[k] for k in self._ai_level_keys],
+            variable=self.black_ai_level_var,
+            theme=self.theme,
+            width=150,
+            height=32,
+            font_size=self.theme.font_size_normal,
+            background=self.theme.ui_panel_background,
+        )
+        self.black_ai_combo.grid(row=1, column=2, padx=5, pady=5)
         self.black_ai_combo.grid_remove()  # 初始隐藏
-        
+
         # 白方
-        ttk.Label(player_frame, text=self.translator.get('white_player'),
-                 style='Dialog.TLabel').grid(row=1, column=0, sticky='w', padx=10, pady=5)
-        
+        ModernLabel(
+            player_card,
+            text=self.translator.get('white_player'),
+            theme=self.theme,
+        ).grid(row=2, column=0, sticky='w', padx=8, pady=5)
+
         self.white_name_var = tk.StringVar(value=self.translator.get('player_2'))
-        self.white_name_entry = ttk.Entry(player_frame, textvariable=self.white_name_var, width=20)
-        self.white_name_entry.grid(row=1, column=1, padx=5, pady=5)
-        
+        self.white_name_entry = ModernEntry(
+            player_card,
+            theme=self.theme,
+            textvariable=self.white_name_var,
+            width=200,
+            height=32,
+            font_size=self.theme.font_size_normal,
+            background=self.theme.ui_panel_background,
+        )
+        self.white_name_entry.grid(row=2, column=1, padx=5, pady=5, sticky='w')
+
         self.white_ai_level_var = tk.StringVar(
             value=self._ai_level_label_by_key.get('medium', 'medium')
         )
-        self.white_ai_combo = ttk.Combobox(player_frame, textvariable=self.white_ai_level_var,
-                                          values=[self._ai_level_label_by_key[k] for k in self._ai_level_keys],
-                                          state='readonly', width=10)
-        self.white_ai_combo.grid(row=1, column=2, padx=5, pady=5)
+        self.white_ai_combo = ModernSelect(
+            player_card,
+            values=[self._ai_level_label_by_key[k] for k in self._ai_level_keys],
+            variable=self.white_ai_level_var,
+            theme=self.theme,
+            width=150,
+            height=32,
+            font_size=self.theme.font_size_normal,
+            background=self.theme.ui_panel_background,
+        )
+        self.white_ai_combo.grid(row=2, column=2, padx=5, pady=5)
         self.white_ai_combo.grid_remove()  # 初始隐藏
-        
+
         # 游戏设置
-        settings_frame = ttk.LabelFrame(main_frame, text=self.translator.get('game_settings'),
-                                       style='Dialog.TLabelframe')
-        settings_frame.pack(fill='x', pady=5)
-        
+        settings_card = ModernCard(main_frame, theme=self.theme, padding=10)
+        settings_card.pack(fill='x', pady=(0, 10))
+        ModernLabel(
+            settings_card,
+            text=self.translator.get('game_settings'),
+            theme=self.theme,
+            font_style='section',
+        ).grid(row=0, column=0, columnspan=2, sticky='w', pady=(0, 6))
+        settings_card.columnconfigure(1, weight=1)
+
         # 棋盘大小
-        ttk.Label(settings_frame, text=self.translator.get('board_size'),
-                 style='Dialog.TLabel').grid(row=0, column=0, sticky='w', padx=10, pady=5)
-        
+        ModernLabel(
+            settings_card,
+            text=self.translator.get('board_size'),
+            theme=self.theme,
+        ).grid(row=1, column=0, sticky='w', padx=8, pady=5)
+
         default_board_size = int(self._config_get('rules.default_board_size', 19) or 19)
         self.board_size_var = tk.IntVar(value=default_board_size)
-        board_size_combo = ttk.Combobox(settings_frame, textvariable=self.board_size_var,
-                                       values=[9, 13, 19], state='readonly', width=10)
-        board_size_combo.grid(row=0, column=1, padx=5, pady=5)
-        
+        board_size_combo = ModernSelect(
+            settings_card,
+            values=[9, 13, 19],
+            variable=self.board_size_var,
+            theme=self.theme,
+            width=140,
+            height=32,
+            font_size=self.theme.font_size_normal,
+            background=self.theme.ui_panel_background,
+        )
+        board_size_combo.grid(row=1, column=1, padx=5, pady=5, sticky='w')
+
         # 规则
-        ttk.Label(settings_frame, text=self.translator.get('rules'),
-                 style='Dialog.TLabel').grid(row=1, column=0, sticky='w', padx=10, pady=5)
-        
+        ModernLabel(
+            settings_card,
+            text=self.translator.get('rules'),
+            theme=self.theme,
+        ).grid(row=2, column=0, sticky='w', padx=8, pady=5)
+
         default_rules_key = str(self._config_get('rules.default_rules', 'chinese') or 'chinese')
         self.rules_var = tk.StringVar(
             value=self._rules_label_by_key.get(default_rules_key, self._rules_label_by_key.get('chinese', 'chinese'))
         )
-        rules_combo = ttk.Combobox(settings_frame, textvariable=self.rules_var,
-                                  values=[self._rules_label_by_key[k] for k in self._rules_keys],
-                                  state='readonly', width=10)
-        rules_combo.grid(row=1, column=1, padx=5, pady=5)
-        rules_combo.bind('<<ComboboxSelected>>', self._on_rules_change)
-        
+        rules_combo = ModernSelect(
+            settings_card,
+            values=[self._rules_label_by_key[k] for k in self._rules_keys],
+            variable=self.rules_var,
+            theme=self.theme,
+            width=140,
+            height=32,
+            font_size=self.theme.font_size_normal,
+            background=self.theme.ui_panel_background,
+            command=self._on_rules_change,
+        )
+        rules_combo.grid(row=2, column=1, padx=5, pady=5, sticky='w')
+
         # 贴目
-        ttk.Label(settings_frame, text=self.translator.get('komi'),
-                 style='Dialog.TLabel').grid(row=2, column=0, sticky='w', padx=10, pady=5)
-        
+        ModernLabel(
+            settings_card,
+            text=self.translator.get('komi'),
+            theme=self.theme,
+        ).grid(row=3, column=0, sticky='w', padx=8, pady=5)
+
         default_komi = float(self._config_get('rules.default_komi', 7.5) or 7.5)
         self.komi_var = tk.DoubleVar(value=default_komi)
-        komi_spin = ttk.Spinbox(settings_frame, textvariable=self.komi_var,
-                               from_=0, to=20, increment=0.5, width=10)
-        komi_spin.grid(row=2, column=1, padx=5, pady=5)
-        
+        komi_spin = ModernSpinbox(
+            settings_card,
+            textvariable=self.komi_var,
+            from_=0,
+            to=20,
+            increment=0.5,
+            width=140,
+            height=32,
+            theme=self.theme,
+            background=self.theme.ui_panel_background,
+            font_size=self.theme.font_size_normal,
+        )
+        komi_spin.grid(row=3, column=1, padx=5, pady=5, sticky='w')
+
         # 让子
-        ttk.Label(settings_frame, text=self.translator.get('handicap'),
-                 style='Dialog.TLabel').grid(row=3, column=0, sticky='w', padx=10, pady=5)
-        
+        ModernLabel(
+            settings_card,
+            text=self.translator.get('handicap'),
+            theme=self.theme,
+        ).grid(row=4, column=0, sticky='w', padx=8, pady=5)
+
         default_handicap = int(self._config_get('rules.default_handicap', 0) or 0)
         self.handicap_var = tk.IntVar(value=default_handicap)
-        handicap_spin = ttk.Spinbox(settings_frame, textvariable=self.handicap_var,
-                                   from_=0, to=9, width=10)
-        handicap_spin.grid(row=3, column=1, padx=5, pady=5)
-        
+        handicap_spin = ModernSpinbox(
+            settings_card,
+            textvariable=self.handicap_var,
+            from_=0,
+            to=9,
+            width=140,
+            height=32,
+            theme=self.theme,
+            background=self.theme.ui_panel_background,
+            font_size=self.theme.font_size_normal,
+        )
+        handicap_spin.grid(row=4, column=1, padx=5, pady=5, sticky='w')
+
         # 时间设置
-        ttk.Label(settings_frame, text=self.translator.get('time_control'),
-                 style='Dialog.TLabel').grid(row=4, column=0, sticky='w', padx=10, pady=5)
-        
+        ModernLabel(
+            settings_card,
+            text=self.translator.get('time_control'),
+            theme=self.theme,
+        ).grid(row=5, column=0, sticky='w', padx=8, pady=5)
+
         self.time_control_var = tk.StringVar(value=self._time_label_by_key.get('none', 'none'))
-        time_combo = ttk.Combobox(settings_frame, textvariable=self.time_control_var,
-                                 values=[self._time_label_by_key[k] for k in self._time_keys],
-                                 state='readonly', width=10)
-        time_combo.grid(row=4, column=1, padx=5, pady=5)
-        time_combo.bind('<<ComboboxSelected>>', self._on_time_change)
-        
+        time_combo = ModernSelect(
+            settings_card,
+            values=[self._time_label_by_key[k] for k in self._time_keys],
+            variable=self.time_control_var,
+            theme=self.theme,
+            width=140,
+            height=32,
+            font_size=self.theme.font_size_normal,
+            background=self.theme.ui_panel_background,
+            command=self._on_time_change,
+        )
+        time_combo.grid(row=5, column=1, padx=5, pady=5, sticky='w')
+
         # 基本时间
-        self.time_label = ttk.Label(settings_frame, text=self.translator.get('main_time'),
-                                   style='Dialog.TLabel')
-        self.time_label.grid(row=5, column=0, sticky='w', padx=10, pady=5)
-        
+        self.time_label = ModernLabel(
+            settings_card,
+            text=self.translator.get('main_time'),
+            theme=self.theme,
+        )
+        self.time_label.grid(row=6, column=0, sticky='w', padx=8, pady=5)
+
         self.main_time_var = tk.IntVar(value=1800)
-        self.time_spin = ttk.Spinbox(settings_frame, textvariable=self.main_time_var,
-                                    from_=60, to=7200, increment=60, width=10)
-        self.time_spin.grid(row=5, column=1, padx=5, pady=5)
-        
+        self.time_spin = ModernSpinbox(
+            settings_card,
+            textvariable=self.main_time_var,
+            from_=60,
+            to=7200,
+            increment=60,
+            width=140,
+            height=32,
+            theme=self.theme,
+            background=self.theme.ui_panel_background,
+            font_size=self.theme.font_size_normal,
+        )
+        self.time_spin.grid(row=6, column=1, padx=5, pady=5, sticky='w')
+
         # 初始隐藏时间设置
         self.time_label.grid_remove()
         self.time_spin.grid_remove()
-        
+
         # 按钮
         button_frame = ttk.Frame(main_frame, style='Dialog.TFrame')
-        button_frame.pack(pady=20)
-        
-        self.start_button = ModernButton(button_frame, text=self.translator.get('start'),
-                                        theme=self.theme, width=140, command=self.ok)
+        button_frame.pack(pady=16)
+
+        self.start_button = ModernButton(
+            button_frame,
+            text=self.translator.get('start'),
+            theme=self.theme,
+            width=140,
+            command=self.ok,
+        )
         self.start_button.pack(side='left', padx=10)
-        
-        self.cancel_button = ModernButton(button_frame, text=self.translator.get('cancel'),
-                                         theme=self.theme, width=140, command=self.cancel)
+
+        self.cancel_button = ModernButton(
+            button_frame,
+            text=self.translator.get('cancel'),
+            theme=self.theme,
+            width=140,
+            command=self.cancel,
+        )
         self.cancel_button.pack(side='left', padx=10)
 
     
@@ -497,15 +735,24 @@ class SettingsDialog(BaseDialog):
     def _create_widgets(self):
         """创建控件"""
         self._setup_option_maps()
+        main_frame = ttk.Frame(self, style='Dialog.TFrame', padding=12)
+        main_frame.pack(fill='both', expand=True)
+
         # 创建标签页
-        self.notebook = ttk.Notebook(self)
-        
+        self.notebook = ttk.Notebook(main_frame, style='Dialog.TNotebook')
+        self.notebook.pack(fill='both', expand=True)
+
+        # 通用设置
+        frame = ttk.Frame(self.notebook, style='Dialog.TFrame')
+        self.notebook.add(frame, text=self.translator.get('general'))
+        frame.columnconfigure(1, weight=1)
+
         # 语言设置
         row = 0
-        ttk.Label(frame, text=self.translator.get('language')).grid(
+        ttk.Label(frame, text=self.translator.get('language'), style='Dialog.TLabel').grid(
             row=row, column=0, sticky='w', padx=10, pady=5
         )
-        
+
         current_lang = self.config.get('language', 'en')
         self.language_var = tk.StringVar(
             value=self._language_label_by_key.get(current_lang, current_lang)
@@ -523,16 +770,17 @@ class SettingsDialog(BaseDialog):
             textvariable=self.language_var,
             values=language_values,
             state='readonly',
-            width=15,
+            width=16,
+            style='Dialog.TCombobox',
         )
-        language_combo.grid(row=row, column=1, padx=10, pady=5)
-        
+        language_combo.grid(row=row, column=1, padx=10, pady=5, sticky='w')
+
         # 主题设置
         row += 1
-        ttk.Label(frame, text=self.translator.get('theme')).grid(
+        ttk.Label(frame, text=self.translator.get('theme'), style='Dialog.TLabel').grid(
             row=row, column=0, sticky='w', padx=10, pady=5
         )
-        
+
         current_theme = self.config.get('theme', 'wood')
         self.theme_var = tk.StringVar(
             value=self._theme_label_by_key.get(current_theme, current_theme)
@@ -543,65 +791,131 @@ class SettingsDialog(BaseDialog):
             textvariable=self.theme_var,
             values=theme_values,
             state='readonly',
-            width=15,
+            width=16,
+            style='Dialog.TCombobox',
         )
-        theme_combo.grid(row=row, column=1, padx=10, pady=5)
-        
-        ttk.Button(frame, text=self.translator.get('customize'),
-                  command=self.customize_theme).grid(row=row, column=2, padx=5, pady=5)
-        
+        theme_combo.grid(row=row, column=1, padx=10, pady=5, sticky='w')
+
+        ModernButton(
+            frame,
+            text=self.translator.get('customize'),
+            theme=self.theme,
+            width=90,
+            command=self.customize_theme,
+        ).grid(row=row, column=2, padx=6, pady=5)
+
         # 默认棋盘大小
         row += 1
-        ttk.Label(frame, text=self.translator.get('default_board_size')).grid(
+        ttk.Label(frame, text=self.translator.get('default_board_size'), style='Dialog.TLabel').grid(
             row=row, column=0, sticky='w', padx=10, pady=5
         )
-        
+
         self.default_board_size_var = tk.IntVar(value=self.config.get('default_board_size', 19))
-        board_size_combo = ttk.Combobox(frame, textvariable=self.default_board_size_var,
-                                       values=[9, 13, 19], state='readonly', width=15)
-        board_size_combo.grid(row=row, column=1, padx=10, pady=5)
-        
+        board_size_combo = ttk.Combobox(
+            frame,
+            textvariable=self.default_board_size_var,
+            values=[9, 13, 19],
+            state='readonly',
+            width=16,
+            style='Dialog.TCombobox',
+        )
+        board_size_combo.grid(row=row, column=1, padx=10, pady=5, sticky='w')
+
         # 默认规则
         row += 1
-        ttk.Label(frame, text=self.translator.get('default_rules')).grid(
+        ttk.Label(frame, text=self.translator.get('default_rules'), style='Dialog.TLabel').grid(
             row=row, column=0, sticky='w', padx=10, pady=5
         )
-        
+
         default_rules_key = self.config.get('default_rules', 'chinese')
         self.default_rules_var = tk.StringVar(
             value=self._rules_label_by_key.get(default_rules_key, default_rules_key)
         )
-        rules_combo = ttk.Combobox(frame, textvariable=self.default_rules_var,
-                                  values=[self._rules_label_by_key[k] for k in self._rules_keys],
-                                  state='readonly', width=15)
-        rules_combo.grid(row=row, column=1, padx=10, pady=5)
-        
+        rules_combo = ttk.Combobox(
+            frame,
+            textvariable=self.default_rules_var,
+            values=[self._rules_label_by_key[k] for k in self._rules_keys],
+            state='readonly',
+            width=16,
+            style='Dialog.TCombobox',
+        )
+        rules_combo.grid(row=row, column=1, padx=10, pady=5, sticky='w')
+
         # 默认贴目
         row += 1
-        ttk.Label(frame, text=self.translator.get('default_komi')).grid(
+        ttk.Label(frame, text=self.translator.get('default_komi'), style='Dialog.TLabel').grid(
             row=row, column=0, sticky='w', padx=10, pady=5
         )
-        
+
         self.default_komi_var = tk.DoubleVar(value=self.config.get('default_komi', 7.5))
-        komi_spin = ttk.Spinbox(frame, textvariable=self.default_komi_var,
-                               from_=0, to=20, increment=0.5, width=15)
-        komi_spin.grid(row=row, column=1, padx=10, pady=5)
-        
+        komi_spin = ttk.Spinbox(
+            frame,
+            textvariable=self.default_komi_var,
+            from_=0,
+            to=20,
+            increment=0.5,
+            width=16,
+            style='Dialog.TSpinbox',
+        )
+        komi_spin.grid(row=row, column=1, padx=10, pady=5, sticky='w')
+
         # 自动保存
         row += 1
         self.auto_save_var = tk.BooleanVar(value=self.config.get('auto_save', True))
-        ttk.Checkbutton(frame, text=self.translator.get('auto_save'),
-                       variable=self.auto_save_var).grid(
-            row=row, column=0, columnspan=2, sticky='w', padx=10, pady=5
-        )
-        
+        ttk.Checkbutton(
+            frame,
+            text=self.translator.get('auto_save'),
+            variable=self.auto_save_var,
+        ).grid(row=row, column=0, columnspan=2, sticky='w', padx=10, pady=5)
+
         # 确认退出
         row += 1
         self.confirm_exit_var = tk.BooleanVar(value=self.config.get('confirm_exit', True))
-        ttk.Checkbutton(frame, text=self.translator.get('confirm_exit'),
-                       variable=self.confirm_exit_var).grid(
-            row=row, column=0, columnspan=2, sticky='w', padx=10, pady=5
-        )
+        ttk.Checkbutton(
+            frame,
+            text=self.translator.get('confirm_exit'),
+            variable=self.confirm_exit_var,
+        ).grid(row=row, column=0, columnspan=2, sticky='w', padx=10, pady=5)
+
+        # 其他标签页
+        self._create_display_tab()
+        self._create_ai_tab()
+        self._create_sound_tab()
+        self._create_advanced_tab()
+
+        # 底部按钮
+        button_frame = ttk.Frame(main_frame, style='Dialog.TFrame')
+        button_frame.pack(pady=(10, 0))
+
+        ModernButton(
+            button_frame,
+            text=self.translator.get('apply'),
+            theme=self.theme,
+            width=110,
+            command=self.apply_settings,
+        ).pack(side='left', padx=6)
+        ModernButton(
+            button_frame,
+            text=self.translator.get('restore_defaults'),
+            theme=self.theme,
+            width=110,
+            command=self.restore_defaults,
+        ).pack(side='left', padx=6)
+        ModernButton(
+            button_frame,
+            text=self.translator.get('ok'),
+            theme=self.theme,
+            width=110,
+            command=self.ok,
+        ).pack(side='left', padx=6)
+        ModernButton(
+            button_frame,
+            text=self.translator.get('cancel'),
+            theme=self.theme,
+            width=110,
+            style='secondary',
+            command=self.cancel,
+        ).pack(side='left', padx=6)
     
     def _create_display_tab(self):
         """创建显示设置标签页"""
@@ -1116,73 +1430,155 @@ class AboutDialog(BaseDialog):
 
 
 class SaveGameDialog(BaseDialog):
-    """保存游戏对话框"""
-    
-    def __init__(self, parent, game_info: Dict[str, Any], **kwargs):
-        self.game_info = game_info
-        super().__init__(parent, title=kwargs.get('translator', Translator()).get('save_game'), **kwargs)
-    
+    """保存游戏对话框（面向文件保存的简化版本）"""
+
+    def __init__(
+        self,
+        parent,
+        game_info: Dict[str, Any],
+        initial_dir: Optional[str] = None,
+        initial_name: Optional[str] = None,
+        title: Optional[str] = None,
+        **kwargs,
+    ):
+        self.game_info = game_info or {}
+        self.initial_dir = initial_dir
+        self.initial_name = initial_name
+        resolved_title = title or kwargs.get('translator', Translator()).get('save_game')
+        super().__init__(parent, title=resolved_title, **kwargs)
+
     def _create_widgets(self):
         """创建控件"""
-        # 文件名
-        ttk.Label(self, text=self.translator.get('filename')).grid(
-            row=0, column=0, sticky='w', padx=10, pady=5
-        )
-        
-        # 生成默认文件名
+        main_frame = ttk.Frame(self, style='Dialog.TFrame', padding=12)
+        main_frame.pack(fill='both', expand=True)
+
+        form_card = ModernCard(main_frame, theme=self.theme, padding=10)
+        form_card.pack(fill='x', pady=(0, 10))
+        form_card.columnconfigure(1, weight=1)
+
+        ModernLabel(
+            form_card,
+            text=self.translator.get('filename'),
+            theme=self.theme,
+        ).grid(row=0, column=0, sticky='w', padx=8, pady=5)
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         default_name = self.translator.get('save_default_name_format', timestamp=timestamp)
-        
-        self.filename_var = tk.StringVar(value=default_name)
-        filename_entry = ttk.Entry(self, textvariable=self.filename_var, width=30)
-        filename_entry.grid(row=0, column=1, padx=10, pady=5)
-        
-        # 描述
-        ttk.Label(self, text=self.translator.get('description')).grid(
-            row=1, column=0, sticky='nw', padx=10, pady=5
+        initial_name = (self.initial_name or default_name).strip()
+        if initial_name.lower().endswith(".sgf"):
+            initial_name = initial_name[:-4]
+
+        self.filename_var = tk.StringVar(value=initial_name)
+        self.filename_entry = ModernEntry(
+            form_card,
+            theme=self.theme,
+            textvariable=self.filename_var,
+            width=320,
+            height=32,
+            font_size=self.theme.font_size_normal,
+            background=self.theme.ui_panel_background,
         )
-        
-        self.description_text = tk.Text(self, height=5, width=40)
-        self.description_text.grid(row=1, column=1, padx=10, pady=5)
-        
-        # 游戏信息
-        info_frame = ttk.LabelFrame(self, text=self.translator.get('game_info'))
-        info_frame.grid(row=2, column=0, columnspan=2, padx=10, pady=10, sticky='ew')
-        
-        unknown_label = self.translator.get('unknown')
-        info_text = f"{self.translator.get('black')}: {self.game_info.get('black_player', unknown_label)}\n"
-        info_text += f"{self.translator.get('white')}: {self.game_info.get('white_player', unknown_label)}\n"
-        info_text += f"{self.translator.get('moves')}: {self.game_info.get('moves', 0)}\n"
-        info_text += f"{self.translator.get('date')}: {self.game_info.get('date', '')}"
-        
-        ttk.Label(info_frame, text=info_text).pack(padx=10, pady=5)
-        
-        # 保存格式
-        ttk.Label(self, text=self.translator.get('format')).grid(
-            row=3, column=0, sticky='w', padx=10, pady=5
+        self.filename_entry.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
+
+        ModernLabel(
+            form_card,
+            text=self.translator.get('save_location'),
+            theme=self.theme,
+        ).grid(row=1, column=0, sticky='w', padx=8, pady=5)
+
+        path_row = tk.Frame(form_card, bg=self.theme.ui_panel_background)
+        path_row.grid(row=1, column=1, padx=5, pady=5, sticky='ew')
+        path_row.columnconfigure(0, weight=1)
+
+        initial_dir = (self.initial_dir or os.getcwd()).strip()
+        self.folder_var = tk.StringVar(value=initial_dir)
+        self.folder_entry = ModernEntry(
+            path_row,
+            theme=self.theme,
+            textvariable=self.folder_var,
+            width=360,
+            height=32,
+            font_size=self.theme.font_size_small,
+            background=self.theme.ui_panel_background,
         )
-        
-        self.format_var = tk.StringVar(value='sgf')
-        format_combo = ttk.Combobox(self, textvariable=self.format_var,
-                                   values=['sgf', 'pkl', 'json'],
-                                   state='readonly', width=10)
-        format_combo.grid(row=3, column=1, sticky='w', padx=10, pady=5)
-        
-        # 按钮
-        button_frame = ttk.Frame(self)
-        button_frame.grid(row=4, column=0, columnspan=2, pady=10)
-        
-        ttk.Button(button_frame, text=self.translator.get('save'),
-                  command=self.ok).pack(side='left', padx=5)
-        ttk.Button(button_frame, text=self.translator.get('cancel'),
-                  command=self.cancel).pack(side='left', padx=5)
-    
-    def _get_result(self) -> Dict[str, Any]:
+        self.folder_entry.grid(row=0, column=0, sticky='ew')
+        try:
+            self.folder_entry.entry.configure(state="readonly")
+        except Exception:
+            pass
+
+        ModernButton(
+            path_row,
+            text=self.translator.get('browse'),
+            theme=self.theme,
+            width=90,
+            height=30,
+            style="secondary",
+            command=self._browse_folder,
+        ).grid(row=0, column=1, padx=(8, 0))
+
+        button_frame = ttk.Frame(main_frame, style='Dialog.TFrame')
+        button_frame.pack(pady=8)
+
+        ModernButton(
+            button_frame,
+            text=self.translator.get('save'),
+            theme=self.theme,
+            width=120,
+            command=self.ok,
+        ).pack(side='left', padx=6)
+        ModernButton(
+            button_frame,
+            text=self.translator.get('cancel'),
+            theme=self.theme,
+            width=120,
+            command=self.cancel,
+        ).pack(side='left', padx=6)
+
+    def _browse_folder(self) -> None:
+        try:
+            initial_dir = self.folder_var.get().strip()
+        except Exception:
+            initial_dir = ""
+        selected = filedialog.askdirectory(
+            title=self.translator.get('select_sgf_folder'),
+            initialdir=initial_dir or None,
+        )
+        if selected:
+            self.folder_var.set(selected)
+
+    def ok(self):
+        """校验后关闭"""
+        result = self._get_result()
+        if not result:
+            return
+        self.result = result
+        self.destroy()
+
+    def _get_result(self) -> Optional[Dict[str, Any]]:
         """获取结果"""
+        filename = str(self.filename_var.get() or "").strip()
+        if not filename:
+            messagebox.showwarning(
+                self.translator.get('save'),
+                self.translator.get('enter_save_name'),
+            )
+            return None
+        folder = str(self.folder_var.get() or "").strip() or os.getcwd()
+        root, ext = os.path.splitext(filename)
+        if ext and ext.lower() != ".sgf":
+            messagebox.showinfo(
+                self.translator.get('info'),
+                self.translator.get('sgf_extension_warning'),
+            )
+            filename = f"{root}.sgf"
+        elif not ext:
+            filename = f"{filename}.sgf"
+        file_path = os.path.join(folder, filename)
         return {
-            'filename': self.filename_var.get(),
-            'description': self.description_text.get('1.0', 'end-1c'),
-            'format': self.format_var.get()
+            'file_path': file_path,
+            'directory': folder,
+            'filename': filename,
         }
 
 
@@ -1196,35 +1592,48 @@ class LoadGameDialog(BaseDialog):
     
     def _create_widgets(self):
         """创建控件"""
+        main_frame = ttk.Frame(self, style='Dialog.TFrame', padding=12)
+        main_frame.pack(fill='both', expand=True)
+
         # 游戏列表
-        list_frame = ttk.Frame(self)
-        list_frame.pack(fill='both', expand=True, padx=10, pady=10)
-        
+        list_card = ModernCard(main_frame, theme=self.theme, padding=8)
+        list_card.pack(fill='both', expand=True, pady=(0, 10))
+
         # 创建列表
         columns = ('name', 'date', 'players', 'moves')
-        self.game_tree = ttk.Treeview(list_frame, columns=columns, show='headings', height=12)
-        
+        self.game_tree = ttk.Treeview(
+            list_card,
+            columns=columns,
+            show='headings',
+            height=12,
+            style='Dialog.Treeview',
+        )
+
         # 设置列标题
         self.game_tree.heading('name', text=self.translator.get('filename'))
         self.game_tree.heading('date', text=self.translator.get('date'))
         self.game_tree.heading('players', text=self.translator.get('players'))
         self.game_tree.heading('moves', text=self.translator.get('moves'))
-        
+
         # 设置列宽
         self.game_tree.column('name', width=200)
         self.game_tree.column('date', width=150)
         self.game_tree.column('players', width=150)
         self.game_tree.column('moves', width=80)
-        
+
         # 添加滚动条
         scrollbar = ModernScrollbar(
-            list_frame, orient='vertical', command=self.game_tree.yview, theme=self.theme
+            list_card,
+            orient='vertical',
+            command=self.game_tree.yview,
+            theme=self.theme,
+            match_widget=self.game_tree,
         )
         self.game_tree.configure(yscrollcommand=scrollbar.set)
-        
+
         self.game_tree.pack(side='left', fill='both', expand=True)
         scrollbar.pack(side='right', fill='y')
-        
+
         # 填充数据
         for game in self.saved_games:
             players = self.translator.get(
@@ -1238,20 +1647,37 @@ class LoadGameDialog(BaseDialog):
                 players,
                 game.get('moves', 0)
             ))
-        
+
         # 双击加载
         self.game_tree.bind('<Double-1>', lambda e: self.ok())
-        
+
         # 按钮
-        button_frame = ttk.Frame(self)
-        button_frame.pack(pady=10)
-        
-        ttk.Button(button_frame, text=self.translator.get('load'),
-                  command=self.ok).pack(side='left', padx=5)
-        ttk.Button(button_frame, text=self.translator.get('cancel'),
-                  command=self.cancel).pack(side='left', padx=5)
-        ttk.Button(button_frame, text=self.translator.get('delete'),
-                  command=self.delete_game).pack(side='left', padx=5)
+        button_frame = ttk.Frame(main_frame, style='Dialog.TFrame')
+        button_frame.pack(pady=8)
+
+        ModernButton(
+            button_frame,
+            text=self.translator.get('load'),
+            theme=self.theme,
+            width=120,
+            command=self.ok,
+        ).pack(side='left', padx=6)
+        ModernButton(
+            button_frame,
+            text=self.translator.get('cancel'),
+            theme=self.theme,
+            width=120,
+            style='secondary',
+            command=self.cancel,
+        ).pack(side='left', padx=6)
+        ModernButton(
+            button_frame,
+            text=self.translator.get('delete'),
+            theme=self.theme,
+            width=120,
+            style='danger',
+            command=self.delete_game,
+        ).pack(side='left', padx=6)
     
     def delete_game(self):
         """删除选中的游戏"""
@@ -1291,81 +1717,184 @@ class SGFDialog(BaseDialog):
     
     def _create_import_widgets(self):
         """创建导入控件"""
+        main_frame = ttk.Frame(self, style='Dialog.TFrame', padding=12)
+        main_frame.pack(fill='both', expand=True)
+
         # 文件选择
-        ttk.Label(self, text=self.translator.get('sgf_file')).grid(
-            row=0, column=0, sticky='w', padx=10, pady=5
-        )
-        
+        file_card = ModernCard(main_frame, theme=self.theme, padding=10)
+        file_card.pack(fill='x', pady=(0, 10))
+        file_card.columnconfigure(1, weight=1)
+
+        ModernLabel(
+            file_card,
+            text=self.translator.get('sgf_file'),
+            theme=self.theme,
+        ).grid(row=0, column=0, sticky='w', padx=8, pady=5)
+
         self.file_var = tk.StringVar()
-        file_entry = ttk.Entry(self, textvariable=self.file_var, width=40)
-        file_entry.grid(row=0, column=1, padx=10, pady=5)
-        
-        ttk.Button(self, text=self.translator.get('browse'),
-                  command=self.browse_file).grid(row=0, column=2, padx=5, pady=5)
-        
+        self.file_entry = ModernEntry(
+            file_card,
+            theme=self.theme,
+            textvariable=self.file_var,
+            width=320,
+            height=32,
+            font_size=self.theme.font_size_normal,
+            background=self.theme.ui_panel_background,
+        )
+        self.file_entry.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
+
+        ModernButton(
+            file_card,
+            text=self.translator.get('browse'),
+            theme=self.theme,
+            width=90,
+            command=self.browse_file,
+        ).grid(row=0, column=2, padx=5, pady=5)
+
         # 选项
-        options_frame = ttk.LabelFrame(self, text=self.translator.get('import_options'))
-        options_frame.grid(row=1, column=0, columnspan=3, padx=10, pady=10, sticky='ew')
-        
+        options_card = ModernCard(main_frame, theme=self.theme, padding=10)
+        options_card.pack(fill='x', pady=(0, 10))
+        ModernLabel(
+            options_card,
+            text=self.translator.get('import_options'),
+            theme=self.theme,
+            font_style='section',
+        ).pack(anchor='w', pady=(0, 6))
+
         self.overwrite_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(options_frame, text=self.translator.get('overwrite_current'),
-                       variable=self.overwrite_var).pack(anchor='w', padx=10, pady=5)
-        
+        ModernCheckbutton(
+            options_card,
+            text=self.translator.get('overwrite_current'),
+            variable=self.overwrite_var,
+            theme=self.theme,
+            font_size=self.theme.font_size_normal,
+        ).pack(anchor='w', pady=2)
+
         self.import_comments_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(options_frame, text=self.translator.get('import_comments'),
-                       variable=self.import_comments_var).pack(anchor='w', padx=10, pady=5)
-        
+        ModernCheckbutton(
+            options_card,
+            text=self.translator.get('import_comments'),
+            variable=self.import_comments_var,
+            theme=self.theme,
+            font_size=self.theme.font_size_normal,
+        ).pack(anchor='w', pady=2)
+
         self.import_variations_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(options_frame, text=self.translator.get('import_variations'),
-                       variable=self.import_variations_var).pack(anchor='w', padx=10, pady=5)
-        
+        ModernCheckbutton(
+            options_card,
+            text=self.translator.get('import_variations'),
+            variable=self.import_variations_var,
+            theme=self.theme,
+            font_size=self.theme.font_size_normal,
+        ).pack(anchor='w', pady=2)
+
         # 按钮
-        button_frame = ttk.Frame(self)
-        button_frame.grid(row=2, column=0, columnspan=3, pady=10)
-        
-        ttk.Button(button_frame, text=self.translator.get('import'),
-                  command=self.ok).pack(side='left', padx=5)
-        ttk.Button(button_frame, text=self.translator.get('cancel'),
-                  command=self.cancel).pack(side='left', padx=5)
+        button_frame = ttk.Frame(main_frame, style='Dialog.TFrame')
+        button_frame.pack(pady=8)
+
+        ModernButton(
+            button_frame,
+            text=self.translator.get('import'),
+            theme=self.theme,
+            width=120,
+            command=self.ok,
+        ).pack(side='left', padx=6)
+        ModernButton(
+            button_frame,
+            text=self.translator.get('cancel'),
+            theme=self.theme,
+            width=120,
+            style='secondary',
+            command=self.cancel,
+        ).pack(side='left', padx=6)
     
     def _create_export_widgets(self):
         """创建导出控件"""
+        main_frame = ttk.Frame(self, style='Dialog.TFrame', padding=12)
+        main_frame.pack(fill='both', expand=True)
+
         # 文件名
-        ttk.Label(self, text=self.translator.get('filename')).grid(
-            row=0, column=0, sticky='w', padx=10, pady=5
-        )
-        
+        file_card = ModernCard(main_frame, theme=self.theme, padding=10)
+        file_card.pack(fill='x', pady=(0, 10))
+        file_card.columnconfigure(1, weight=1)
+
+        ModernLabel(
+            file_card,
+            text=self.translator.get('filename'),
+            theme=self.theme,
+        ).grid(row=0, column=0, sticky='w', padx=8, pady=5)
+
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         self.filename_var = tk.StringVar(
             value=self.translator.get('sgf_default_name_format', timestamp=timestamp)
         )
-        filename_entry = ttk.Entry(self, textvariable=self.filename_var, width=30)
-        filename_entry.grid(row=0, column=1, padx=10, pady=5)
-        
+        self.filename_entry = ModernEntry(
+            file_card,
+            theme=self.theme,
+            textvariable=self.filename_var,
+            width=260,
+            height=32,
+            font_size=self.theme.font_size_normal,
+            background=self.theme.ui_panel_background,
+        )
+        self.filename_entry.grid(row=0, column=1, padx=5, pady=5, sticky='ew')
+
         # 选项
-        options_frame = ttk.LabelFrame(self, text=self.translator.get('export_options'))
-        options_frame.grid(row=1, column=0, columnspan=2, padx=10, pady=10, sticky='ew')
-        
+        options_card = ModernCard(main_frame, theme=self.theme, padding=10)
+        options_card.pack(fill='x', pady=(0, 10))
+        ModernLabel(
+            options_card,
+            text=self.translator.get('export_options'),
+            theme=self.theme,
+            font_style='section',
+        ).pack(anchor='w', pady=(0, 6))
+
         self.include_comments_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(options_frame, text=self.translator.get('include_comments'),
-                       variable=self.include_comments_var).pack(anchor='w', padx=10, pady=5)
-        
+        ModernCheckbutton(
+            options_card,
+            text=self.translator.get('include_comments'),
+            variable=self.include_comments_var,
+            theme=self.theme,
+            font_size=self.theme.font_size_normal,
+        ).pack(anchor='w', pady=2)
+
         self.include_variations_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(options_frame, text=self.translator.get('include_variations'),
-                       variable=self.include_variations_var).pack(anchor='w', padx=10, pady=5)
-        
+        ModernCheckbutton(
+            options_card,
+            text=self.translator.get('include_variations'),
+            variable=self.include_variations_var,
+            theme=self.theme,
+            font_size=self.theme.font_size_normal,
+        ).pack(anchor='w', pady=2)
+
         self.include_analysis_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(options_frame, text=self.translator.get('include_analysis'),
-                       variable=self.include_analysis_var).pack(anchor='w', padx=10, pady=5)
-        
+        ModernCheckbutton(
+            options_card,
+            text=self.translator.get('include_analysis'),
+            variable=self.include_analysis_var,
+            theme=self.theme,
+            font_size=self.theme.font_size_normal,
+        ).pack(anchor='w', pady=2)
+
         # 按钮
-        button_frame = ttk.Frame(self)
-        button_frame.grid(row=2, column=0, columnspan=2, pady=10)
-        
-        ttk.Button(button_frame, text=self.translator.get('export'),
-                  command=self.ok).pack(side='left', padx=5)
-        ttk.Button(button_frame, text=self.translator.get('cancel'),
-                  command=self.cancel).pack(side='left', padx=5)
+        button_frame = ttk.Frame(main_frame, style='Dialog.TFrame')
+        button_frame.pack(pady=8)
+
+        ModernButton(
+            button_frame,
+            text=self.translator.get('export'),
+            theme=self.theme,
+            width=120,
+            command=self.ok,
+        ).pack(side='left', padx=6)
+        ModernButton(
+            button_frame,
+            text=self.translator.get('cancel'),
+            theme=self.theme,
+            width=120,
+            style='secondary',
+            command=self.cancel,
+        ).pack(side='left', padx=6)
     
     def browse_file(self):
         """浏览文件"""

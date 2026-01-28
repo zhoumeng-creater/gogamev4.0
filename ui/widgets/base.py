@@ -1,6 +1,20 @@
 from abc import ABC, abstractmethod
 from typing import Optional
+from tkinter import font as tkfont
 from ui.themes import Theme
+
+
+def resolve_font_family(theme: Optional[Theme] = None) -> str:
+    """
+    Resolve the primary font family. Prefer theme font, then Tk default.
+    """
+    if theme and getattr(theme, "font_family", None):
+        return (theme.font_family or "Arial").split(",")[0].strip()
+    try:
+        return tkfont.nametofont("TkDefaultFont").actual("family")
+    except Exception:
+        return "Arial"
+
 
 class ThemeAwareMixin(ABC):
     """

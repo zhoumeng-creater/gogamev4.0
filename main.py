@@ -26,7 +26,7 @@ from core.board import StoneColor
 # 导入UI模块
 from ui import (
     BoardCanvas, InfoPanel, ControlPanel, AnalysisPanel,
-    NewGameDialog, SettingsDialog, AboutDialog,
+    NewGameDialog, SettingsDialog, AboutDialog, SaveGameDialog,
     Theme, ThemeManager, AnimationManager, GameTreeWindow,
     RulesHelpDialog, TutorialDialog,
     JosekiDictionaryWindow, PatternSearchWindow, ProblemLibraryWindow
@@ -84,6 +84,7 @@ class GoMasterApp:
         self.ai_white: Optional[AIPlayer] = None
         self.is_ai_thinking = False
         self.game_paused = False
+        self._current_save_path: Optional[str] = None
         
         # UI组件
         self.board_canvas: Optional[BoardCanvas] = None
@@ -217,7 +218,8 @@ class GoMasterApp:
             left_container, 
             orient='vertical', 
             command=self._left_sidebar_canvas.yview,
-            theme=self.theme_manager.get_current_theme()
+            theme=self.theme_manager.get_current_theme(),
+            match_widget=self._left_sidebar_canvas,
         )
         self._left_sidebar_canvas.configure(yscrollcommand=left_scrollbar.set)
         
@@ -392,6 +394,7 @@ class GoMasterApp:
         recent_menu = ModernMenu(file_menu, theme=current_theme)
         file_menu.add_cascade(label=self.translator.get('recent_files'), menu=recent_menu)
         self._update_recent_files_menu(recent_menu)
+        self.recent_menu = recent_menu
         
         file_menu.add_separator()
         file_menu.add_command(
@@ -686,7 +689,8 @@ class GoMasterApp:
         dialog = NewGameDialog(
             self.root,
             translator=self.translator,
-            config=self.config_manager.config
+            config=self.config_manager.config,
+            theme=self.theme_manager.get_current_theme(),
         )
         
         if dialog.result:
@@ -717,6 +721,7 @@ class GoMasterApp:
         # 停止当前游戏的计时器
         if self.game:
             self.game.cleanup()
+        self._current_save_path = None
         
         # 创建新游戏
         self.game = Game(
@@ -1417,11 +1422,10 @@ class GoMasterApp:
         """保存游戏"""
         if not self.game:
             return
-        
-        game_data = self.game.to_dict()
-        
+
         if auto:
             # 自动保存
+            game_data = self.game.to_dict()
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
             save_id = self.storage_manager.save_game(
                 game_data,
@@ -1429,56 +1433,239 @@ class GoMasterApp:
                 tags=['auto_save']
             )
         else:
-            # 手动保存
-            name = tk.simpledialog.askstring(
-                self.translator.get('save'),
-                self.translator.get('enter_save_name')
-            )
-            
-            if name:
-                save_id = self.storage_manager.save_game(game_data, name)
-                
-                if save_id:
-                    messagebox.showinfo(
-                        self.translator.get('info'),
-                        self.translator.get('game_saved')
-                    )
+            # 手动保存：优先覆盖上次保存位置，否则进入“另存为”
+            if self._current_save_path:
+                self._save_sgf_to_path(self._current_save_path, show_message=True)
+            else:
+                self.save_game_as()
     
     def save_game_as(self):
-        """另存为"""
-        file_path = filedialog.asksaveasfilename(
-            defaultextension=".pkl",
-            filetypes=[
-                (self.translator.get('game_files'), "*.pkl"),
-                (self.translator.get('all_files'), "*.*")
-            ]
+        """另存为（面向文件保存）"""
+        if not self.game:
+            return
+
+        current_dir = None
+        current_name = None
+        if self._current_save_path:
+            try:
+                current_dir = os.path.dirname(self._current_save_path)
+                current_name = os.path.splitext(os.path.basename(self._current_save_path))[0]
+            except Exception:
+                current_dir = None
+                current_name = None
+
+        if not current_dir:
+            current_dir = self.config_manager.get('storage.sgf_path', './sgf')
+
+        dialog = SaveGameDialog(
+            self.root,
+            game_info=self.game.get_game_info() if self.game else {},
+            translator=self.translator,
+            theme=self.theme_manager.get_current_theme(),
+            initial_dir=current_dir,
+            initial_name=current_name,
+            title=self.translator.get('save_as'),
         )
-        
-        if file_path:
-            # TODO: 实现另存为功能
+
+        result = getattr(dialog, "result", None)
+        if not result:
+            return
+
+        file_path = result.get('file_path')
+        if not file_path:
+            return
+
+        file_path = self._normalize_sgf_path(file_path)
+        if os.path.exists(file_path):
+            if not messagebox.askyesno(
+                self.translator.get('confirm'),
+                self.translator.get('confirm_overwrite_file'),
+            ):
+                return
+
+        self._save_sgf_to_path(file_path, show_message=True)
+
+    def _normalize_sgf_path(self, file_path: str) -> str:
+        if not file_path:
+            return file_path
+        root, ext = os.path.splitext(file_path)
+        if ext.lower() != ".sgf":
+            return f"{root}.sgf"
+        return file_path
+
+    def _save_sgf_to_path(
+        self,
+        file_path: str,
+        show_message: bool = False,
+        update_current: bool = True,
+        record_recent: bool = True,
+    ) -> bool:
+        if not self.game or not file_path:
+            return False
+        file_path = self._normalize_sgf_path(file_path)
+        try:
+            os.makedirs(os.path.dirname(file_path) or '.', exist_ok=True)
+            sgf_text = self.game.export_to_sgf()
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(sgf_text)
+        except Exception:
+            messagebox.showerror(
+                self.translator.get('error'),
+                self.translator.get('save_failed')
+            )
+            return False
+
+        if update_current:
+            self._current_save_path = file_path
+        if record_recent:
+            self._record_recent_file(file_path)
+        try:
+            save_dir = os.path.dirname(file_path) or '.'
+            self.config_manager.set('storage.sgf_path', save_dir, save=False)
+            self.config_manager.save_config()
+        except Exception:
             pass
-    
-    def open_game(self):
-        """打开游戏"""
-        # 显示存档列表
-        saves = self.storage_manager.list_saves()
-        
-        if not saves:
+
+        if show_message:
             messagebox.showinfo(
                 self.translator.get('info'),
-                self.translator.get('no_saved_games')
+                self.translator.get('game_saved')
             )
+        return True
+
+    def _record_recent_file(self, file_path: str) -> None:
+        if not file_path:
             return
-        
-        # TODO: 显示存档选择对话框
-        # 暂时使用第一个存档
-        if saves:
-            save = self.storage_manager.load_game(saves[0].save_id)
-            
-            if save:
-                self.game = Game.from_dict(save.game_data)
-                self.update_display()
-                
+        try:
+            normalized = os.path.abspath(file_path)
+        except Exception:
+            normalized = file_path
+
+        recent_files = self.config_manager.get('recent_files', [])
+        if not isinstance(recent_files, list):
+            recent_files = []
+
+        recent_files = [p for p in recent_files if p and p != normalized]
+        recent_files.insert(0, normalized)
+        recent_files = recent_files[:10]
+        self.config_manager.set('recent_files', recent_files)
+
+        if getattr(self, "recent_menu", None) is not None:
+            self._update_recent_files_menu(self.recent_menu)
+
+    def _normalize_ruleset(self, rules_text: Optional[str]) -> str:
+        value = str(rules_text or "").lower()
+        if "japan" in value:
+            return "japanese"
+        if "aga" in value:
+            return "aga"
+        if "china" in value or "chinese" in value:
+            return "chinese"
+        return self.config_manager.get('rules.default_rules', 'chinese')
+
+    def _build_game_from_sgf(self, sgf_game: Any) -> Optional[Game]:
+        try:
+            info = sgf_game.get_info()
+        except Exception:
+            info = {}
+        try:
+            board_size = int(info.get('board_size', 19))
+        except Exception:
+            board_size = 19
+        try:
+            komi = float(info.get('komi', 7.5))
+        except Exception:
+            komi = 7.5
+        try:
+            handicap = int(info.get('handicap', 0))
+        except Exception:
+            handicap = 0
+
+        rule_set = self._normalize_ruleset(info.get('rules'))
+        game = Game(
+            board_size=board_size,
+            rules=rule_set,
+            komi=komi,
+            handicap=handicap,
+        )
+        game.set_player_info(
+            black_name=info.get('player_black', 'Black'),
+            white_name=info.get('player_white', 'White'),
+        )
+
+        try:
+            moves = sgf_game.get_moves()
+        except Exception:
+            moves = []
+
+        for color, x, y in moves:
+            if color and color != game.current_player:
+                game.current_player = color
+            if x < 0 or y < 0:
+                game.pass_turn()
+            else:
+                game.make_move(x, y)
+
+        try:
+            game.game_info.result = info.get('result', '')
+            game.game_info.date = info.get('date', '')
+        except Exception:
+            pass
+        return game
+
+    def _load_sgf_from_path(self, file_path: str, set_current_path: bool = True) -> bool:
+        sgf_game = SGFParser.load_from_file(file_path)
+        if not sgf_game:
+            messagebox.showerror(
+                self.translator.get('error'),
+                self.translator.get('invalid_sgf')
+            )
+            return False
+
+        game = self._build_game_from_sgf(sgf_game)
+        if not game:
+            messagebox.showerror(
+                self.translator.get('error'),
+                self.translator.get('invalid_sgf')
+            )
+            return False
+        if self.game:
+            try:
+                self.game.cleanup()
+            except Exception:
+                pass
+        self.ai_black = None
+        self.ai_white = None
+        self.is_ai_thinking = False
+        self.game_paused = False
+        self.game = game
+        if self.board_canvas:
+            try:
+                self.board_canvas.set_board_size(game.board.size)
+                self.board_canvas.clear_board()
+            except Exception:
+                pass
+        self.update_display()
+        if set_current_path:
+            self._current_save_path = file_path
+        else:
+            self._current_save_path = None
+        self._record_recent_file(file_path)
+        return True
+
+    def open_game(self):
+        """打开SGF文件"""
+        file_path = filedialog.askopenfilename(
+            defaultextension=".sgf",
+            filetypes=[
+                (self.translator.get('sgf_files'), "*.sgf"),
+                (self.translator.get('all_files'), "*.*")
+            ],
+            initialdir=self.config_manager.get('storage.sgf_path', './sgf'),
+        )
+
+        if file_path:
+            if self._load_sgf_from_path(file_path, set_current_path=True):
                 messagebox.showinfo(
                     self.translator.get('info'),
                     self.translator.get('game_loaded')
@@ -1487,16 +1674,16 @@ class GoMasterApp:
     def import_sgf(self):
         """导入SGF"""
         file_path = filedialog.askopenfilename(
+            defaultextension=".sgf",
             filetypes=[
                 (self.translator.get('sgf_files'), "*.sgf"),
                 (self.translator.get('all_files'), "*.*")
-            ]
+            ],
+            initialdir=self.config_manager.get('storage.sgf_path', './sgf'),
         )
-        
+
         if file_path:
-            save_id = self.storage_manager.import_sgf(file_path)
-            
-            if save_id:
+            if self._load_sgf_from_path(file_path, set_current_path=False):
                 messagebox.showinfo(
                     self.translator.get('info'),
                     self.translator.get('sgf_loaded')
@@ -1522,14 +1709,17 @@ class GoMasterApp:
                 filetypes=[
                     (self.translator.get('sgf_files'), "*.sgf"),
                     (self.translator.get('all_files'), "*.*")
-                ]
+                ],
+                initialdir=self.config_manager.get('storage.sgf_path', './sgf'),
             )
-        
+
         if file_path:
-            # 生成SGF
-            sgf_game = self.game.to_sgf()
-            
-            if SGFParser.save_to_file(sgf_game, file_path):
+            if self._save_sgf_to_path(
+                file_path,
+                show_message=False,
+                update_current=False,
+                record_recent=not auto,
+            ):
                 if not auto:
                     messagebox.showinfo(
                         self.translator.get('info'),
@@ -1540,10 +1730,8 @@ class GoMasterApp:
         """复制SGF到剪贴板"""
         if not self.game:
             return
-        
-        sgf_game = self.game.to_sgf()
-        sgf_text = SGFParser.generate(sgf_game)
-        
+
+        sgf_text = self.game.export_to_sgf()
         self.root.clipboard_clear()
         self.root.clipboard_append(sgf_text)
         
@@ -1557,15 +1745,24 @@ class GoMasterApp:
         try:
             sgf_text = self.root.clipboard_get()
             sgf_game = SGFParser.parse(sgf_text)
-            
+
             if sgf_game:
-                self.game = Game.from_sgf(sgf_game)
-                self.update_display()
-                
-                messagebox.showinfo(
-                    self.translator.get('info'),
-                    self.translator.get('sgf_pasted')
-                )
+                game = self._build_game_from_sgf(sgf_game)
+                if game:
+                    self.game = game
+                    self._current_save_path = None
+                    if self.board_canvas:
+                        try:
+                            self.board_canvas.set_board_size(game.board.size)
+                            self.board_canvas.clear_board()
+                        except Exception:
+                            pass
+                    self.update_display()
+
+                    messagebox.showinfo(
+                        self.translator.get('info'),
+                        self.translator.get('sgf_pasted')
+                    )
         except:
             messagebox.showerror(
                 self.translator.get('error'),
@@ -1856,6 +2053,9 @@ class GoMasterApp:
         if self.game:
             self.update_display()
 
+        # 避免语言切换后窗口跑到后台
+        self._ensure_window_foreground()
+
     def _apply_theme(self, theme_name: str):
         """切换主题并刷新 UI 样式。"""
         if not theme_name:
@@ -1894,6 +2094,25 @@ class GoMasterApp:
                 pass
         if hasattr(self.root, "update_theme") and callable(getattr(self.root, "update_theme")):
             self.root.update_theme(theme)
+
+    def _ensure_window_foreground(self):
+        """将主窗口抬到前台，避免被系统窗口遮挡。"""
+        def _bring():
+            try:
+                self.root.deiconify()
+                self.root.lift()
+                self.root.focus_force()
+                # Windows 上使用 topmost 切换确保前台
+                if sys.platform.startswith("win"):
+                    self.root.attributes("-topmost", True)
+                    self.root.after(80, lambda: self.root.attributes("-topmost", False))
+            except Exception:
+                pass
+        _bring()
+        try:
+            self.root.after(10, _bring)
+        except Exception:
+            pass
 
     def show_settings(self):
         """显示设置对话框"""
@@ -2217,7 +2436,9 @@ class GoMasterApp:
         if not cleaned:
             menu.add_command(
                 label=self.translator.get('none'),
-                command=None
+                command=None,
+                state="disabled",
+                font_style="italic",
             )
             return
         
@@ -2229,8 +2450,19 @@ class GoMasterApp:
     
     def open_recent_file(self, file_path: str):
         """打开最近的文件"""
-        # TODO: 实现打开最近文件
-        pass
+        if not file_path:
+            return
+        if os.path.exists(file_path):
+            self._load_sgf_from_path(file_path, set_current_path=True)
+        else:
+            # 清理不存在的路径
+            recent_files = self.config_manager.get('recent_files', [])
+            if isinstance(recent_files, list):
+                cleaned = [p for p in recent_files if p and p != file_path]
+                if cleaned != recent_files:
+                    self.config_manager.set('recent_files', cleaned)
+                    if getattr(self, "recent_menu", None) is not None:
+                        self._update_recent_files_menu(self.recent_menu)
     
     def _load_last_game(self) -> bool:
         """加载上次的游戏"""

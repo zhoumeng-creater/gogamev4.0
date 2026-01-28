@@ -3,7 +3,7 @@ from tkinter import ttk
 from typing import Optional, Callable
 import sys
 from ui.themes import Theme
-from .base import ThemeAwareMixin
+from .base import ThemeAwareMixin, resolve_font_family
 from .buttons import ModernButton
 
 class ModernTitleBar(ttk.Frame, ThemeAwareMixin):
@@ -20,8 +20,8 @@ class ModernTitleBar(ttk.Frame, ThemeAwareMixin):
         self.window = window
         self.pack_propagate(False)
         
-        # Title
-        self.title_label = ttk.Label(self, text=title)
+        # Title (use tk.Label to ensure background color matches title bar)
+        self.title_label = tk.Label(self, text=title, bd=0, highlightthickness=0)
         self.title_label.pack(side="left", padx=10)
         
         # Controls Container
@@ -96,15 +96,16 @@ class ModernTitleBar(ttk.Frame, ThemeAwareMixin):
         self.controls.configure(style=f"Controls_{id(self)}.TFrame")
         
         # Title Label
-        lbl_style = f"TitleLabel_{id(self)}.TLabel"
-        if self.theme:
-            font_family = (self.theme.font_family or "Arial").split(',')[0].strip()
-            font_size = max(10, int(getattr(self.theme, "font_size_small", 10)))
-        else:
-            font_family = "Segoe UI"
-            font_size = 10
-        style.configure(lbl_style, background=bg, foreground=fg, font=(font_family, font_size, 'bold'))
-        self.title_label.configure(style=lbl_style)
+        font_family = resolve_font_family(self.theme)
+        font_size = max(10, int(getattr(self.theme, "font_size_small", 10))) if self.theme else 10
+        try:
+            self.title_label.configure(
+                bg=bg,
+                fg=fg,
+                font=(font_family, font_size, 'bold'),
+            )
+        except Exception:
+            pass
 
     def update_theme(self, theme: Theme):
         self.theme = theme
@@ -125,8 +126,13 @@ class ModernWindow(tk.Tk, ThemeAwareMixin):
         self._geometry_positioned = False
         self._is_maximized = False
         self._restore_geometry = None
+        self._resize_dir = None
+        self._resize_start = None
+        # Thinner resize hit area to reduce visible edge thickness
+        self._resize_border = 3
         self.overrideredirect(True)
         self.geometry("1024x768")
+        self.resizable(True, True)
         
         # Main container with border
         self.container = ttk.Frame(self)
@@ -144,9 +150,161 @@ class ModernWindow(tk.Tk, ThemeAwareMixin):
         self.grip = ttk.Label(self.container, text="◢", cursor="size_nw_se")
         self.grip.place(relx=1.0, rely=1.0, anchor="se")
         self.grip.bind("<B1-Motion>", self._on_resize)
+
+        # Resize handles (edges + corners) to allow normal window resizing
+        self._resize_handles = {}
+        self._create_resize_handles()
         
         self._apply_style()
         self.after(10, self._set_initial_pos)
+
+    def _create_resize_handles(self):
+        border = self._resize_border
+        inset = 1
+
+        def add_handle(name, cursor, **place_kwargs):
+            handle = tk.Frame(self, cursor=cursor, highlightthickness=0, bd=0)
+            handle.place(**place_kwargs)
+            handle._place_kwargs = dict(place_kwargs)
+            handle.bind("<Button-1>", lambda e, d=name: self._start_resize(e, d))
+            handle.bind("<B1-Motion>", self._perform_resize)
+            handle.bind("<ButtonRelease-1>", self._end_resize)
+            self._resize_handles[name] = handle
+
+        add_handle(
+            "n",
+            "size_ns",
+            relx=0,
+            x=inset,
+            rely=0,
+            y=inset,
+            relwidth=1,
+            width=-(inset * 2),
+            height=border,
+        )
+        add_handle(
+            "s",
+            "size_ns",
+            relx=0,
+            x=inset,
+            rely=1.0,
+            y=-inset,
+            anchor="sw",
+            relwidth=1,
+            width=-(inset * 2),
+            height=border,
+        )
+        add_handle(
+            "w",
+            "size_we",
+            relx=0,
+            x=inset,
+            rely=0,
+            y=inset,
+            relheight=1,
+            height=-(inset * 2),
+            width=border,
+        )
+        add_handle(
+            "e",
+            "size_we",
+            relx=1.0,
+            x=-inset,
+            rely=0,
+            y=inset,
+            anchor="ne",
+            relheight=1,
+            height=-(inset * 2),
+            width=border,
+        )
+        add_handle(
+            "nw",
+            "size_nw_se",
+            relx=0,
+            x=inset,
+            rely=0,
+            y=inset,
+            width=border * 2,
+            height=border * 2,
+        )
+        add_handle(
+            "ne",
+            "size_ne_sw",
+            relx=1.0,
+            x=-inset,
+            rely=0,
+            y=inset,
+            anchor="ne",
+            width=border * 2,
+            height=border * 2,
+        )
+        add_handle(
+            "sw",
+            "size_ne_sw",
+            relx=0,
+            x=inset,
+            rely=1.0,
+            y=-inset,
+            anchor="sw",
+            width=border * 2,
+            height=border * 2,
+        )
+        add_handle(
+            "se",
+            "size_nw_se",
+            relx=1.0,
+            x=-inset,
+            rely=1.0,
+            y=-inset,
+            anchor="se",
+            width=border * 2,
+            height=border * 2,
+        )
+
+    def _start_resize(self, event, direction: str):
+        if self._is_maximized:
+            return
+        try:
+            x = self.winfo_x()
+            y = self.winfo_y()
+            w = self.winfo_width()
+            h = self.winfo_height()
+        except Exception:
+            return
+        self._resize_dir = direction
+        self._resize_start = (x, y, w, h, event.x_root, event.y_root)
+
+    def _perform_resize(self, event):
+        if not self._resize_start or not self._resize_dir:
+            return
+        x, y, w, h, sx, sy = self._resize_start
+        dx = event.x_root - sx
+        dy = event.y_root - sy
+
+        try:
+            min_w_raw, min_h_raw = self.minsize()
+        except Exception:
+            min_w_raw, min_h_raw = 0, 0
+        min_w = max(100, int(min_w_raw or 0))
+        min_h = max(80, int(min_h_raw or 0))
+
+        new_x, new_y, new_w, new_h = x, y, w, h
+        if "e" in self._resize_dir:
+            new_w = max(min_w, w + dx)
+        if "s" in self._resize_dir:
+            new_h = max(min_h, h + dy)
+        if "w" in self._resize_dir:
+            new_w = max(min_w, w - dx)
+            new_x = x + (w - new_w)
+        if "n" in self._resize_dir:
+            new_h = max(min_h, h - dy)
+            new_y = y + (h - new_h)
+
+        self.geometry(f"{new_w}x{new_h}+{new_x}+{new_y}")
+
+    def _end_resize(self, _event=None):
+        self._resize_dir = None
+        self._resize_start = None
 
     def _set_initial_pos(self):
         if self._geometry_positioned:
@@ -191,6 +349,7 @@ class ModernWindow(tk.Tk, ThemeAwareMixin):
             self.grip.place_forget()
         except Exception:
             pass
+        self._set_resize_handles_visible(False)
         try:
             self.title_bar.set_maximized(True)
         except Exception:
@@ -206,10 +365,21 @@ class ModernWindow(tk.Tk, ThemeAwareMixin):
             self.grip.place(relx=1.0, rely=1.0, anchor="se")
         except Exception:
             pass
+        self._set_resize_handles_visible(True)
         try:
             self.title_bar.set_maximized(False)
         except Exception:
             pass
+
+    def _set_resize_handles_visible(self, visible: bool):
+        for handle in getattr(self, "_resize_handles", {}).values():
+            try:
+                if visible:
+                    handle.place(**getattr(handle, "_place_kwargs", {}))
+                else:
+                    handle.place_forget()
+            except Exception:
+                pass
 
     def _get_workarea_geometry(self):
         if sys.platform.startswith("win"):
@@ -271,6 +441,14 @@ class ModernWindow(tk.Tk, ThemeAwareMixin):
         # Grip
         style.configure(f"Grip_{id(self)}.TLabel", background=bg, foreground=border)
         self.grip.configure(style=f"Grip_{id(self)}.TLabel")
+
+        # Resize handles (blend into background to reduce visible border thickness)
+        for handle in getattr(self, "_resize_handles", {}).values():
+            try:
+                handle.configure(bg=bg)
+                handle.lift()
+            except Exception:
+                pass
 
     def update_theme(self, theme: Theme):
         self.theme = theme

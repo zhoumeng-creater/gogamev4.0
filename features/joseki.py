@@ -512,10 +512,40 @@ class JosekiExplorer(tk.Frame):
         list_frame.pack(fill='both', expand=True)
         
         # 列表框和滚动条
-        scrollbar = ttk.Scrollbar(list_frame)
+        self.joseki_listbox = tk.Listbox(list_frame)
+        list_bg = self.joseki_listbox.cget("background")
+        style = ttk.Style(list_frame)
+        style_name = "JosekiList.TScrollbar"
+        style.configure(
+            style_name,
+            troughcolor=list_bg,
+            background=list_bg,
+            bordercolor=list_bg,
+            lightcolor=list_bg,
+            darkcolor=list_bg,
+        )
+        scrollbar = ttk.Scrollbar(list_frame, style=style_name)
         scrollbar.pack(side='right', fill='y')
-        
-        self.joseki_listbox = tk.Listbox(list_frame, yscrollcommand=scrollbar.set)
+
+        def _auto_hide_scrollbar(first, last):
+            try:
+                first_f = float(first)
+                last_f = float(last)
+            except Exception:
+                scrollbar.set(first, last)
+                return
+
+            epsilon = 1e-4
+            needs_scroll = not (first_f <= 0.0 + epsilon and last_f >= 1.0 - epsilon)
+            if needs_scroll:
+                if not scrollbar.winfo_manager():
+                    scrollbar.pack(side='right', fill='y')
+            else:
+                if scrollbar.winfo_manager():
+                    scrollbar.pack_forget()
+            scrollbar.set(first, last)
+
+        self.joseki_listbox.configure(yscrollcommand=_auto_hide_scrollbar)
         self.joseki_listbox.pack(side='left', fill='both', expand=True)
         scrollbar.config(command=self.joseki_listbox.yview)
         

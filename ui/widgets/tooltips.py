@@ -1,7 +1,7 @@
 import tkinter as tk
 from typing import Optional
 from ui.themes import Theme
-from .base import ThemeAwareMixin
+from .base import ThemeAwareMixin, resolve_font_family
 
 class ModernTooltip(ThemeAwareMixin):
     """
@@ -50,12 +50,8 @@ class ModernTooltip(ThemeAwareMixin):
             fg = "#000000"
             border = "#000000"
             
-        if self.theme:
-            font_family = (self.theme.font_family or "Arial").split(',')[0].strip()
-            font_size = max(9, int(getattr(self.theme, "font_size_small", 9)))
-        else:
-            font_family = "Arial"
-            font_size = 9
+        font_family = resolve_font_family(self.theme)
+        font_size = max(9, int(getattr(self.theme, "font_size_small", 9))) if self.theme else 9
         label = tk.Label(tw, text=self.text, justify='left',
                          background=bg, foreground=fg,
                          relief='solid', borderwidth=1,

@@ -181,12 +181,17 @@ class ProblemLibraryWindow(tk.Toplevel):
         list_frame = ttk.LabelFrame(left, text=self.translator.get("problem_list"))
         list_frame.pack(fill="both", expand=True)
 
-        scrollbar = ModernScrollbar(list_frame, orient="vertical", theme=self.theme)
         self.problem_listbox = tk.Listbox(
             list_frame,
-            yscrollcommand=scrollbar.set,
             exportselection=False,
         )
+        scrollbar = ModernScrollbar(
+            list_frame,
+            orient="vertical",
+            theme=self.theme,
+            match_widget=self.problem_listbox,
+        )
+        self.problem_listbox.configure(yscrollcommand=scrollbar.set)
         scrollbar.config(command=self.problem_listbox.yview)
         self.problem_listbox.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
@@ -251,7 +256,11 @@ class ProblemLibraryWindow(tk.Toplevel):
             resource_frame, highlightthickness=0, borderwidth=0, height=120
         )
         resource_scrollbar = ModernScrollbar(
-            resource_frame, orient="vertical", command=self._resource_canvas.yview, theme=self.theme
+            resource_frame,
+            orient="vertical",
+            command=self._resource_canvas.yview,
+            theme=self.theme,
+            match_widget=self._resource_canvas,
         )
         self._resource_canvas.configure(yscrollcommand=resource_scrollbar.set)
 

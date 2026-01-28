@@ -78,64 +78,111 @@ class BoardRenderer:
     def _prerender_stones(self):
         """预渲染棋子图片"""
         stone_radius = int(self.cell_size * 0.45)
-        
+        if stone_radius <= 0:
+            return
+
+        def _parse_hex_color(value: str, fallback: Tuple[int, int, int]) -> Tuple[int, int, int]:
+            if not value:
+                return fallback
+            try:
+                text = value.strip()
+                if text.startswith("#"):
+                    text = text[1:]
+                    if len(text) == 3:
+                        text = "".join([ch * 2 for ch in text])
+                    if len(text) == 6:
+                        return (int(text[0:2], 16), int(text[2:4], 16), int(text[4:6], 16))
+            except Exception:
+                pass
+            return fallback
+
+        def _blend(c1: Tuple[int, int, int], c2: Tuple[int, int, int], t: float) -> Tuple[int, int, int]:
+            t = max(0.0, min(1.0, t))
+            return (
+                int(c1[0] + (c2[0] - c1[0]) * t),
+                int(c1[1] + (c2[1] - c1[1]) * t),
+                int(c1[2] + (c2[2] - c1[2]) * t),
+            )
+
+        scale = 3
+        size = stone_radius * 2 + 4
+        hi_size = size * scale
+        radius = stone_radius * scale
+        center = hi_size // 2
+        shadow_alpha = 70
+        edge_softness = max(1.0, 1.6 * scale)
+
         for color in ['black', 'white']:
-            # 创建高质量的棋子图片
-            size = stone_radius * 2 + 4
-            img = Image.new('RGBA', (size, size), (0, 0, 0, 0))
-            draw = ImageDraw.Draw(img)
-            
-            # 绘制阴影
-            if self.theme.enable_shadows:
-                shadow_offset = 2
-                shadow_color = (0, 0, 0, 80)
-                draw.ellipse(
-                    [shadow_offset, shadow_offset, 
-                     size - 2 + shadow_offset, size - 2 + shadow_offset],
-                    fill=shadow_color
-                )
-            
-            # 绘制棋子主体
+            base_rgb = _parse_hex_color(
+                self.theme.stone_black_color if color == 'black' else self.theme.stone_white_color,
+                (20, 20, 20) if color == 'black' else (240, 240, 240),
+            )
+            border_rgb = _parse_hex_color(
+                self.theme.stone_black_border if color == 'black' else self.theme.stone_white_border,
+                (40, 40, 40) if color == 'black' else (200, 200, 200),
+            )
+
             if color == 'black':
-                fill = (20, 20, 20, 255)
-                border = self.theme.stone_black_border
+                light_rgb = _blend(base_rgb, (200, 200, 200), 0.25)
+                dark_rgb = _blend(base_rgb, (0, 0, 0), 0.65)
             else:
-                fill = (240, 240, 240, 255)
-                border = self.theme.stone_white_border
-            
-            draw.ellipse([2, 2, size - 2, size - 2], fill=fill)
-            
-            # 添加高光效果
-            if color == 'white':
-                highlight_size = stone_radius // 2
-                highlight_pos = (stone_radius // 3, stone_radius // 3)
-                max_steps = min(3, highlight_size // 2 + 1)
-                for i in range(max_steps):
-                    alpha = 40 - i * 10
-                    draw.ellipse(
-                        [highlight_pos[0] + i, highlight_pos[1] + i,
-                         highlight_pos[0] + highlight_size - i,
-                         highlight_pos[1] + highlight_size - i],
-                        fill=(255, 255, 255, alpha)
-                    )
-            else:
-                # 黑子的微弱高光
-                highlight_size = stone_radius // 3
-                highlight_pos = (stone_radius // 4, stone_radius // 4)
-                if highlight_size > 0:
-                    draw.ellipse(
-                        [highlight_pos[0], highlight_pos[1],
-                         highlight_pos[0] + highlight_size,
-                         highlight_pos[1] + highlight_size],
-                        fill=(100, 100, 100, 30)
-                    )
-            
-            # 转换为PhotoImage
-            self.stone_images[color] = ImageTk.PhotoImage(img)
-            
-            # 创建半透明版本（用于预览）
-            preview_img = img.copy()
-            # 调整透明度，仅降低已有非透明区域的不透明度
+                light_rgb = _blend(base_rgb, (255, 255, 255), 0.4)
+                dark_rgb = _blend(base_rgb, (160, 160, 160), 0.45)
+
+            img = Image.new('RGBA', (hi_size, hi_size), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(img)
+
+            # Soft shadow
+            if self.theme.enable_shadows:
+                shadow_offset = int(2 * scale)
+                draw.ellipse(
+                    [
+                        center - radius + shadow_offset,
+                        center - radius + shadow_offset,
+                        center + radius + shadow_offset,
+                        center + radius + shadow_offset,
+                    ],
+                    fill=(0, 0, 0, shadow_alpha),
+                )
+
+            stone_img = Image.new('RGBA', (hi_size, hi_size), (0, 0, 0, 0))
+            pixels = stone_img.load()
+            light_cx = center - int(radius * 0.32)
+            light_cy = center - int(radius * 0.32)
+
+            for y in range(hi_size):
+                for x in range(hi_size):
+                    dx = x - center
+                    dy = y - center
+                    dist = math.hypot(dx, dy)
+                    if dist > radius:
+                        continue
+                    light_dist = math.hypot(x - light_cx, y - light_cy)
+                    t = min(1.0, light_dist / (radius * 1.05))
+                    edge = dist / radius
+                    shade = min(1.0, 0.65 * t + 0.35 * edge)
+                    shade = shade ** 1.15
+                    r, g, b = _blend(light_rgb, dark_rgb, shade)
+                    alpha = 255
+                    if dist > radius - edge_softness:
+                        alpha = int(255 * max(0.0, (radius - dist) / edge_softness))
+                    pixels[x, y] = (r, g, b, alpha)
+
+            # Border ring
+            border_width = max(1, int(scale * 0.8))
+            draw_stone = ImageDraw.Draw(stone_img)
+            draw_stone.ellipse(
+                [center - radius, center - radius, center + radius, center + radius],
+                outline=border_rgb + (255,),
+                width=border_width,
+            )
+
+            img = Image.alpha_composite(img, stone_img)
+            final_img = img.resize((size, size), resample=Image.LANCZOS)
+
+            self.stone_images[color] = ImageTk.PhotoImage(final_img)
+
+            preview_img = final_img.copy()
             alpha_channel = preview_img.getchannel('A').point(lambda value: value // 2)
             preview_img.putalpha(alpha_channel)
             self.stone_images[f'{color}_preview'] = ImageTk.PhotoImage(preview_img)

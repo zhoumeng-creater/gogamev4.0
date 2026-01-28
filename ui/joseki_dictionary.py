@@ -98,12 +98,17 @@ class JosekiDictionaryWindow(tk.Toplevel):
         list_frame = ttk.LabelFrame(left, text=self.translator.get("joseki_list"))
         list_frame.pack(fill="both", expand=True)
 
-        scrollbar = ModernScrollbar(list_frame, orient="vertical", theme=self.theme)
         self.joseki_listbox = tk.Listbox(
             list_frame,
-            yscrollcommand=scrollbar.set,
             exportselection=False,
         )
+        scrollbar = ModernScrollbar(
+            list_frame,
+            orient="vertical",
+            theme=self.theme,
+            match_widget=self.joseki_listbox,
+        )
+        self.joseki_listbox.configure(yscrollcommand=scrollbar.set)
         scrollbar.config(command=self.joseki_listbox.yview)
         self.joseki_listbox.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
@@ -170,13 +175,18 @@ class JosekiDictionaryWindow(tk.Toplevel):
         comment_frame.pack(fill="both", expand=True, pady=(6, 0))
         comment_body = ttk.Frame(comment_frame)
         comment_body.pack(fill="both", expand=True, padx=6, pady=6)
-        comment_scrollbar = ModernScrollbar(comment_body, orient="vertical", theme=self.theme)
         self.comment_text = tk.Text(
             comment_body,
             height=7,
             wrap="word",
-            yscrollcommand=comment_scrollbar.set,
         )
+        comment_scrollbar = ModernScrollbar(
+            comment_body,
+            orient="vertical",
+            theme=self.theme,
+            match_widget=self.comment_text,
+        )
+        self.comment_text.configure(yscrollcommand=comment_scrollbar.set)
         comment_scrollbar.config(command=self.comment_text.yview)
         self.comment_text.pack(side="left", fill="both", expand=True)
         comment_scrollbar.pack(side="right", fill="y")

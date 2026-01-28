@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import ttk
 from typing import Optional, Callable
 from ui.themes import Theme
 from .base import ThemeAwareMixin
@@ -8,7 +9,8 @@ class ModernScrollbar(tk.Canvas, ThemeAwareMixin):
     A modern styled scrollbar (vertical or horizontal) using Canvas.
     """
     def __init__(self, parent, orient: str = 'vertical', command: Optional[Callable] = None, 
-                 theme: Optional[Theme] = None, width: int = 14, **kwargs):
+                 theme: Optional[Theme] = None, width: int = 14, autohide: bool = True,
+                 match_widget: Optional[tk.Widget] = None, track_bg: Optional[str] = None, **kwargs):
         
         if orient == 'vertical':
             height = kwargs.pop('height', 100)
@@ -24,6 +26,12 @@ class ModernScrollbar(tk.Canvas, ThemeAwareMixin):
         self.command = command
         self.thumb_start = 0.0
         self.thumb_end = 1.0
+        self._autohide = bool(autohide)
+        self._match_widget = match_widget
+        self._track_bg = track_bg
+        self._hidden = False
+        self._geom_mgr = None
+        self._geom_mgr_info = None
         
         self.width = width
         self.height = height
@@ -47,6 +55,7 @@ class ModernScrollbar(tk.Canvas, ThemeAwareMixin):
     def set(self, first: float, last: float):
         self.thumb_start = float(first)
         self.thumb_end = float(last)
+        self._apply_autohide(first, last)
         self._draw()
 
     def configure(self, cnf=None, **kw):
@@ -61,21 +70,64 @@ class ModernScrollbar(tk.Canvas, ThemeAwareMixin):
             self.command = kw.pop("command")
         if "orient" in kw:
             kw.pop("orient")
+        if "autohide" in kw:
+            self._autohide = bool(kw.pop("autohide"))
+        if "match_widget" in kw:
+            self._match_widget = kw.pop("match_widget")
+        if "track_bg" in kw:
+            self._track_bg = kw.pop("track_bg")
         return super().configure(**kw) if kw else super().configure()
 
     config = configure
+
+    def _resolve_track_bg(self) -> str:
+        if self._track_bg:
+            return self._track_bg
+        if self._match_widget is not None:
+            widget_bg = self._get_widget_bg(self._match_widget)
+            if widget_bg:
+                return widget_bg
+        if self.theme:
+            return self.theme.ui_panel_background
+        return "#F0F0F0"
+
+    def _get_widget_bg(self, widget: tk.Widget) -> Optional[str]:
+        for opt in ("background", "bg"):
+            try:
+                value = widget.cget(opt)
+            except tk.TclError:
+                continue
+            if value:
+                return value
+
+        try:
+            style = ttk.Style(widget)
+            style_name = ""
+            try:
+                style_name = widget.cget("style")
+            except tk.TclError:
+                style_name = ""
+            if not style_name:
+                style_name = widget.winfo_class()
+            for opt in ("fieldbackground", "background"):
+                value = style.lookup(style_name, opt)
+                if value:
+                    return value
+        except Exception:
+            return None
+        return None
 
     def _draw(self):
         self.delete("all")
         
         # Colors
         if not self.theme:
-            bg_color = "#F0F0F0"
+            bg_color = self._resolve_track_bg()
             thumb_color = "#C0C0C0"
             thumb_hover = "#A0A0A0"
             thumb_active = "#808080"
         else:
-            bg_color = self.theme.ui_panel_background # or slightly darker?
+            bg_color = self._resolve_track_bg() # or slightly darker?
             thumb_color = self.theme.button_disabled # generic greyish
             thumb_hover = self.theme.button_border
             thumb_active = self.theme.button_pressed
@@ -132,6 +184,78 @@ class ModernScrollbar(tk.Canvas, ThemeAwareMixin):
             self.width = event.width
             self.height = event.height
         self._draw()
+
+    def _apply_autohide(self, first: float, last: float):
+        if not self._autohide:
+            return
+        try:
+            first_f = float(first)
+            last_f = float(last)
+        except Exception:
+            return
+
+        epsilon = 1e-4
+        needs_scroll = not (first_f <= 0.0 + epsilon and last_f >= 1.0 - epsilon)
+        if needs_scroll:
+            self._show()
+        else:
+            self._hide()
+
+    def _record_geom(self):
+        if self._geom_mgr is not None:
+            return
+        mgr = self.winfo_manager()
+        if not mgr:
+            return
+        self._geom_mgr = mgr
+        try:
+            if mgr == "pack":
+                self._geom_mgr_info = self.pack_info()
+            elif mgr == "grid":
+                self._geom_mgr_info = self.grid_info()
+            elif mgr == "place":
+                self._geom_mgr_info = self.place_info()
+        except tk.TclError:
+            self._geom_mgr_info = None
+
+    def _hide(self):
+        if self._hidden:
+            return
+        self._record_geom()
+        mgr = self.winfo_manager()
+        if mgr == "pack":
+            self.pack_forget()
+        elif mgr == "grid":
+            self.grid_remove()
+        elif mgr == "place":
+            self.place_forget()
+        else:
+            return
+        self._hidden = True
+
+    def _show(self):
+        if not self._hidden:
+            return
+        mgr = self._geom_mgr
+        info = self._geom_mgr_info
+        if mgr == "pack":
+            if info:
+                self.pack(**info)
+            else:
+                self.pack()
+        elif mgr == "grid":
+            if info:
+                self.grid(**info)
+            else:
+                self.grid()
+        elif mgr == "place":
+            if info:
+                self.place(**info)
+            else:
+                self.place(x=0, y=0)
+        else:
+            return
+        self._hidden = False
 
     def _on_enter(self, event):
         self.hovering = True

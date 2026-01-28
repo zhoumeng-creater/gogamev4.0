@@ -273,7 +273,8 @@ class StorageManager:
             print(f"保存存档索引失败: {e}")
     
     def save_game(self, game_data: Dict[str, Any], name: str = None,
-                  format: str = 'pickle', tags: List[str] = None) -> Optional[str]:
+                  format: str = 'pickle', tags: List[str] = None,
+                  description: Optional[str] = None) -> Optional[str]:
         """
         保存游戏
         
@@ -303,6 +304,7 @@ class StorageManager:
                 player_black=game_data.get('player_black', 'Black'),
                 player_white=game_data.get('player_white', 'White'),
                 result=game_data.get('result', ''),
+                description=description or "",
                 tags=tags or []
             )
             

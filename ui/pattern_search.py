@@ -133,12 +133,17 @@ class PatternSearchWindow(tk.Toplevel):
         list_frame = ttk.LabelFrame(left, text=self.translator.get("pattern_matches"))
         list_frame.pack(fill="both", expand=True)
 
-        scrollbar = ModernScrollbar(list_frame, orient="vertical", theme=self.theme)
         self.result_listbox = tk.Listbox(
             list_frame,
-            yscrollcommand=scrollbar.set,
             exportselection=False,
         )
+        scrollbar = ModernScrollbar(
+            list_frame,
+            orient="vertical",
+            theme=self.theme,
+            match_widget=self.result_listbox,
+        )
+        self.result_listbox.configure(yscrollcommand=scrollbar.set)
         scrollbar.config(command=self.result_listbox.yview)
         self.result_listbox.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")

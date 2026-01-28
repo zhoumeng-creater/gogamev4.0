@@ -154,11 +154,11 @@ class InfoPanel(BasePanel):
     def _create_widgets(self):
         """创建控件"""
         # 玩家信息框架 (使用 ModernCard)
-        self.players_card = ModernCard(self, theme=self.theme, padding=12)
-        self.players_card.pack(fill='x', padx=10, pady=(10, 6))
+        self.players_card = ModernCard(self, theme=self.theme, padding=8)
+        self.players_card.pack(fill='x', padx=8, pady=(8, 4))
 
         self.players_header = ttk.Frame(self.players_card, style='PanelCard.TFrame')
-        self.players_header.pack(fill='x', padx=2, pady=(0, 6))
+        self.players_header.pack(fill='x', padx=2, pady=(0, 4))
 
         self.players_title = ModernLabel(self.players_header, theme=self.theme, font_style='section')
         self.players_title.pack(side='left')
@@ -176,7 +176,7 @@ class InfoPanel(BasePanel):
         
         # 黑方信息
         self.black_frame = ttk.Frame(self.players_card, style='PanelCard.TFrame')
-        self.black_frame.pack(fill='x', padx=4, pady=2)
+        self.black_frame.pack(fill='x', padx=4, pady=1)
         
         # 黑方图标
         self.black_stone_icon = tk.Canvas(self.black_frame, width=20, height=20,
@@ -199,7 +199,7 @@ class InfoPanel(BasePanel):
         
         # 白方信息
         self.white_frame = ttk.Frame(self.players_card, style='PanelCard.TFrame')
-        self.white_frame.pack(fill='x', padx=4, pady=2)
+        self.white_frame.pack(fill='x', padx=4, pady=1)
         
         # 白方图标
         self.white_stone_icon = tk.Canvas(self.white_frame, width=20, height=20,
@@ -221,17 +221,17 @@ class InfoPanel(BasePanel):
         self.white_captured_label.pack(side='right', padx=(0, 10))
         
         # 游戏信息框架 (使用 ModernCard)
-        self.game_card = ModernCard(self, theme=self.theme, padding=12)
-        self.game_card.pack(fill='x', padx=10, pady=(0, 6))
+        self.game_card = ModernCard(self, theme=self.theme, padding=8)
+        self.game_card.pack(fill='x', padx=8, pady=(0, 4))
 
         self.game_header = ttk.Frame(self.game_card, style='PanelCard.TFrame')
-        self.game_header.pack(fill='x', padx=2, pady=(0, 6))
+        self.game_header.pack(fill='x', padx=2, pady=(0, 4))
 
         self.game_title = ModernLabel(self.game_header, theme=self.theme, font_style='section')
         self.game_title.pack(side='left')
         
         self.current_player_frame = ttk.Frame(self.game_card, style='PanelCard.TFrame')
-        self.current_player_frame.pack(fill='x', padx=4, pady=2)
+        self.current_player_frame.pack(fill='x', padx=4, pady=1)
         
         self.current_player_label = ttk.Label(self.current_player_frame, style='Panel.TLabel')
         self.current_player_label.pack(side='left')
@@ -244,13 +244,13 @@ class InfoPanel(BasePanel):
         self.current_indicator.pack(side='left', padx=5)
         
         self.move_number_label = ttk.Label(self.game_card, style='Panel.TLabel')
-        self.move_number_label.pack(padx=5, pady=2)
+        self.move_number_label.pack(padx=5, pady=1)
         
         self.ko_label = ttk.Label(self.game_card, style='Panel.TLabel')
-        self.ko_label.pack(padx=5, pady=2)
+        self.ko_label.pack(padx=5, pady=1)
         
         self.phase_label = ttk.Label(self.game_card, style='Panel.TLabel')
-        self.phase_label.pack(padx=5, pady=2)
+        self.phase_label.pack(padx=5, pady=1)
         
         # 设置默认值
         self.update_player_info(
@@ -747,7 +747,11 @@ class AnalysisPanel(BasePanel):
         self.suggestions_tree.column('visits', width=70, anchor='center', stretch=False)
 
         suggestions_scrollbar = ModernScrollbar(
-            suggestions_frame, orient='vertical', command=self.suggestions_tree.yview, theme=self.theme
+            suggestions_frame,
+            orient='vertical',
+            command=self.suggestions_tree.yview,
+            theme=self.theme,
+            match_widget=self.suggestions_tree,
         )
         self.suggestions_tree.configure(yscrollcommand=suggestions_scrollbar.set)
 

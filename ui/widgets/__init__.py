@@ -8,5 +8,5 @@ from .text import ModernText
 from .menus import ModernMenuBar, ModernMenu
 from .window import ModernWindow, ModernTitleBar
 from .sliders import ModernSlider
-from .inputs import ModernEntry, ModernCheckbutton, ModernRadioButton, ModernSwitch
+from .inputs import ModernEntry, ModernCheckbutton, ModernRadioButton, ModernSwitch, ModernSpinbox, ModernSelect
 from .tooltips import ModernTooltip

@@ -1,7 +1,7 @@
 from tkinter import ttk
 from typing import Optional
 from ui.themes import Theme
-from .base import ThemeAwareMixin
+from .base import ThemeAwareMixin, resolve_font_family
 
 class ModernLabel(ttk.Label, ThemeAwareMixin):
     """
@@ -33,11 +33,11 @@ class ModernLabel(ttk.Label, ThemeAwareMixin):
             else:
                 weight = 'normal'
             
-            font = (self.theme.font_family.split(',')[0].strip(), size, weight)
+            font = (resolve_font_family(self.theme), size, weight)
         else:
             bg = "#E8DCC0"
             fg = "#2C2C2C"
-            font = ('Arial', 10)
+            font = (resolve_font_family(None), 10)
             
         style.configure(style_name, background=bg, foreground=fg, font=font)
         self.configure(style=style_name)

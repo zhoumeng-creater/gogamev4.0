@@ -22,6 +22,8 @@ _UI_FONT_CANDIDATES = [
     "Lxgw WenKai",
     "LxgWWenKai",
     "LxgWWenKai Regular",
+    "LXGWWenKai",
+    "LXGWWenKai Regular",
     "霞鹭文楷",
 ]
 
@@ -65,6 +67,8 @@ _LATIN_FALLBACKS = [
     "Sans Serif",
 ]
 
+_FONTS_REGISTERED = False
+
 
 def _normalize_name(name: str) -> str:
     return "".join(ch.lower() for ch in name if ch.isalnum())
@@ -72,9 +76,11 @@ def _normalize_name(name: str) -> str:
 
 def _list_families(root=None) -> list[str]:
     try:
-        return list(tkfont.families(root))
+        families = list(tkfont.families(root))
     except Exception:
-        return list(tkfont.families())
+        families = list(tkfont.families())
+    # Filter out vertical font faces on Windows (names prefixed with "@")
+    return [fam for fam in families if not str(fam).startswith("@")]
 
 
 def _find_family(candidates: Sequence[str], families: Sequence[str]) -> Optional[str]:
@@ -82,7 +88,9 @@ def _find_family(candidates: Sequence[str], families: Sequence[str]) -> Optional
         return None
     if not families:
         return None
-    normalized = {_normalize_name(fam): fam for fam in families}
+    # Prefer horizontal faces; ignore vertical "@" variants if present
+    filtered = [fam for fam in families if not str(fam).startswith("@")]
+    normalized = {_normalize_name(fam): fam for fam in filtered}
     for cand in candidates:
         key = _normalize_name(cand)
         if key in normalized:
@@ -92,7 +100,7 @@ def _find_family(candidates: Sequence[str], families: Sequence[str]) -> Optional
         key = _normalize_name(cand)
         if not key:
             continue
-        for fam in families:
+        for fam in filtered:
             if key in _normalize_name(fam):
                 return fam
     return None
@@ -102,9 +110,11 @@ def _font_files() -> list[str]:
     base_dir = Path(__file__).resolve().parents[1]
     candidates = [
         "LxgWWenKai-Regular.ttf",
+        "LXGWWenKai-Regular.ttf",
         "LXGWWenKaiMono-Regular.ttf",
         "G OTF 常改教科書ICA ProN L_cn.zitiziyuan.com.otf",
         os.path.join("assets", "fonts", "LxgWWenKai-Regular.ttf"),
+        os.path.join("assets", "fonts", "LXGWWenKai-Regular.ttf"),
         os.path.join("assets", "fonts", "LXGWWenKaiMono-Regular.ttf"),
         os.path.join("assets", "fonts", "G OTF 常改教科書ICA ProN L_cn.zitiziyuan.com.otf"),
     ]
@@ -122,6 +132,17 @@ def _font_files() -> list[str]:
             files.append(str(local.resolve()))
     # Deduplicate
     return list(dict.fromkeys(files))
+
+
+def _font_kind(path: str) -> str:
+    name = Path(path).name.lower()
+    if "wenkaimono" in name or "wenkai-mono" in name or "mono" in name:
+        return "mono"
+    if "wenkai" in name:
+        return "ui"
+    if name.endswith(".otf") or "otf" in name:
+        return "jp"
+    return "ui"
 
 
 def _register_font_windows(path: str) -> bool:
@@ -193,8 +214,14 @@ def _register_font_file(path: str) -> bool:
 
 
 def ensure_project_fonts_loaded(root=None) -> None:
+    global _FONTS_REGISTERED
+    if _FONTS_REGISTERED:
+        return
+
     for path in _font_files():
         _register_font_file(path)
+
+    _FONTS_REGISTERED = True
     # Refresh font families cache if possible
     try:
         _ = _list_families(root)
@@ -213,6 +240,11 @@ def resolve_font_families(root=None, language: Optional[str] = None) -> dict[str
     ui_font = _find_family(_UI_FONT_CANDIDATES, families)
     jp_font = _find_family(_JP_FONT_CANDIDATES, families)
     mono_font = _find_family(_MONO_FONT_CANDIDATES, families)
+    latin_font = _find_family(_LATIN_FALLBACKS, families)
+
+    # Prefer LXGWWenKai Mono for Chinese UI
+    if mono_font and "wenkai" in mono_font.lower():
+        ui_font = mono_font
 
     if not ui_font:
         ui_font = _find_family(_CJK_FALLBACKS + _LATIN_FALLBACKS, families)
@@ -243,8 +275,11 @@ def resolve_font_families(root=None, language: Optional[str] = None) -> dict[str
     if not mono_font:
         mono_font = ui_font
 
-    if language and str(language).lower().startswith("ja"):
+    lang = str(language or "").lower()
+    if lang.startswith("ja"):
         ui_font = jp_font or ui_font
+    elif lang.startswith("en") and latin_font:
+        ui_font = latin_font
 
     return {
         "ui": ui_font,
